@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { LOGO } from "@/lib/factions";
+import { useAuth } from "@/lib/auth";
+import AuthModal from "@/components/AuthModal";
 
 const LINKS = [
   { to: "/play", label: "Arena", id: "arena" },
@@ -13,7 +15,10 @@ const LINKS = [
 
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const { user } = useAuth();
   return (
+    <>
     <header className="fixed top-0 inset-x-0 z-50 glass-strong">
       <nav className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
         <Link to="/" data-testid="nav-logo" className="flex items-center gap-2.5 group">
@@ -47,13 +52,23 @@ export const Navbar = () => {
           ))}
         </div>
 
-        <Link
-          to="/play"
-          data-testid="nav-play-cta"
-          className="hidden md:block px-5 py-2 rounded-full font-head text-sm font-semibold text-black bg-[#F2A900] hover:bg-[#ffc21f] transition-colors shadow-[0_0_20px_rgba(242,169,0,0.4)]"
-        >
-          Enter Arena
-        </Link>
+        {user ? (
+          <Link
+            to="/dashboard"
+            data-testid="nav-dashboard"
+            className="hidden md:block px-5 py-2 rounded-full font-head text-sm font-semibold text-black bg-[#00BFFF] hover:bg-[#20caff] transition-colors shadow-[0_0_20px_rgba(0,191,255,0.4)]"
+          >
+            Dashboard
+          </Link>
+        ) : (
+          <button
+            onClick={() => setAuthOpen(true)}
+            data-testid="nav-auth-cta"
+            className="hidden md:block px-5 py-2 rounded-full font-head text-sm font-semibold text-black bg-[#F2A900] hover:bg-[#ffc21f] transition-colors shadow-[0_0_20px_rgba(242,169,0,0.4)]"
+          >
+            Register / Login
+          </button>
+        )}
 
         <button
           className="md:hidden text-white"
@@ -78,6 +93,8 @@ export const Navbar = () => {
         </div>
       )}
     </header>
+    <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+    </>
   );
 };
 
