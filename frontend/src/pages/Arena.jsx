@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
+import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
 
@@ -24,7 +25,8 @@ const SESSION_KEY = "glimmerfall_session";
 /* LOBBY                                                              */
 /* ------------------------------------------------------------------ */
 function Lobby({ onStart }) {
-  const [username, setUsername] = useState(localStorage.getItem("gf_username") || "");
+  const { user } = useAuth();
+  const [username, setUsername] = useState(user ? user.nickname : localStorage.getItem("gf_username") || "");
   const [room, setRoom] = useState("");
   const [faction, setFaction] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -56,13 +58,19 @@ function Lobby({ onStart }) {
       <div className="glass rounded-3xl p-7 space-y-6">
         <div>
           <label className="text-xs font-head uppercase tracking-wider text-white/50">Summoner Name</label>
-          <input
-            data-testid="lobby-username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="e.g. Nyx"
-            className="mt-1.5 w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#F2A900]/60 font-head"
-          />
+          {user ? (
+            <div className="mt-1.5 w-full bg-black/40 border border-[#F2A900]/30 rounded-xl px-4 py-3 text-[#F2A900] font-bold font-head shadow-inner flex items-center gap-2">
+              <Sparkles className="w-4 h-4" /> {user.nickname} <span className="text-white/40 font-normal text-sm ml-auto">(Logged In)</span>
+            </div>
+          ) : (
+            <input
+              data-testid="lobby-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. Nyx"
+              className="mt-1.5 w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#F2A900]/60 font-head"
+            />
+          )}
         </div>
 
         <div>

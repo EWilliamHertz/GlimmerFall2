@@ -10,6 +10,8 @@ import Booster from "@/pages/Booster";
 import DeckBuilder from "@/pages/DeckBuilder";
 import Arena from "@/pages/Arena";
 import PrintPage from "@/pages/PrintPage";
+import Dashboard from "@/pages/Dashboard";
+import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
   const { pathname } = useLocation();
@@ -29,6 +31,7 @@ function Shell() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
@@ -39,9 +42,11 @@ function Shell() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Shell />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Shell />
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

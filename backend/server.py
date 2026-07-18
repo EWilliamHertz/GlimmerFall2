@@ -13,6 +13,11 @@ from psycopg2.extras import RealDictCursor, Json
 from psycopg2 import pool as pgpool
 
 import game_engine as ge
+import resend
+import bcrypt
+import jwt
+import datetime
+import uuid
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -257,6 +262,131 @@ def post_action(req: ActionReq):
     save_match(req.matchId, new_state)
     return {"ok": True, "state": redact_state(new_state, req.slot)}
 
+resend.api_key = os.environ.get("RESEND_API_KEY", "re_ecik2Eq9_Gfm5JYcjM3KVft41srrAjYB9")
+JWT_SECRET = "glimmerfall_super_secret_key"
+
+class RegisterReq(BaseModel):
+    email: str
+    password: str
+    faction: Optional[str] = None
+
+class LoginReq(BaseModel):
+    email: str
+    password: str
+
+@api.post("/auth/register")
+def register(req: RegisterReq):
+    hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    nickname = req.email.split('@')[0]
+    token = str(uuid.uuid4())
+    is_admin = req.email.lower().endswith('@hatake.eu')
+    
+    with DB() as cur:
+        try:
+            cur.execute("""
+                INSERT INTO users (email, password_hash, nickname, faction, is_admin, verification_token)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, nickname
+            """, (req.email, hashed, nickname, req.faction, is_admin, token))
+            u = cur.fetchone()
+        except psycopg2.IntegrityError:
+            raise HTTPException(400, "Email already exists")
+    
+    try:
+        resend.Emails.send({
+            "from": "GlimmerFall <onboarding@resend.dev>",
+            "to": [req.email],
+            "subject": "Verify Your GlimmerFall Account",
+            "html": f"<p>Welcome {nickname}! Please verify your account by clicking <a href='http://localhost:3000/dashboard?verify={token}'>here</a>.</p>"
+        })
+    except Exception as e:
+        logger.error(f"Resend error: {e}")
+        
+    return {"ok": True, "message": "Registered! Please check your email to verify."}
+
+class ResendVerifyReq(BaseModel):
+    email: str
+
+@api.post("/auth/resend-verify")
+def resend_verify(req: ResendVerifyReq):
+    with DB() as cur:
+        cur.execute("SELECT nickname, verification_token, is_verified FROM users WHERE email=%s", (req.email,))
+        u = cur.fetchone()
+    if not u:
+        raise HTTPException(404, "User not found")
+    if u["is_verified"]:
+        return {"ok": True, "message": "Already verified"}
+    
+    token = u["verification_token"]
+    if not token:
+        token = str(uuid.uuid4())
+        with DB() as cur:
+            cur.execute("UPDATE users SET verification_token=%s WHERE email=%s", (token, req.email))
+    
+    try:
+        resend.Emails.send({
+            "from": "GlimmerFall <onboarding@resend.dev>",
+            "to": [req.email],
+            "subject": "Verify Your GlimmerFall Account",
+            "html": f"<p>Welcome {u['nickname']}! Please verify your account by clicking <a href='http://localhost:3000/dashboard?verify={token}'>here</a>.</p>"
+        })
+    except Exception as e:
+        logger.error(f"Resend error: {e}")
+        
+    return {"ok": True, "message": "Verification email resent!"}
+
+@api.post("/auth/login")
+def login(req: LoginReq):
+    with DB() as cur:
+        cur.execute("SELECT * FROM users WHERE email=%s", (req.email,))
+        u = cur.fetchone()
+    if not u or not bcrypt.checkpw(req.password.encode('utf-8'), u['password_hash'].encode('utf-8')):
+        raise HTTPException(401, "Invalid credentials")
+    
+    token = jwt.encode({
+        "id": u["id"],
+        "email": u["email"],
+        "nickname": u["nickname"],
+        "is_admin": u["is_admin"]
+    }, JWT_SECRET, algorithm="HS256")
+    
+    return {
+        "token": token,
+        "user": {
+            "id": u["id"],
+            "email": u["email"],
+            "nickname": u["nickname"],
+            "isAdmin": u["is_admin"],
+            "isVerified": u["is_verified"],
+            "faction": u["faction"],
+            "referrals": u["referrals"],
+            "bookings": u["bookings"],
+            "matchmaking": {"mmr": u["mmr"], "rank": u["rank"]}
+        }
+    }
+
+@api.post("/auth/verify")
+def verify(token: str):
+    with DB() as cur:
+        cur.execute("UPDATE users SET is_verified=TRUE, verification_token=NULL WHERE verification_token=%s RETURNING id", (token,))
+        if not cur.fetchone():
+            raise HTTPException(400, "Invalid or expired token")
+    return {"ok": True, "message": "Account verified!"}
+
+@api.get("/admin/stats")
+def admin_stats():
+    with DB() as cur:
+        cur.execute("SELECT COUNT(*) as c FROM users")
+        gamers = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='PLAYING'")
+        matches = cur.fetchone()["c"]
+        cur.execute("SELECT SUM(bookings) as b FROM users")
+        preorders = cur.fetchone()["b"] or 0
+    return {
+        "registered_gamers": gamers,
+        "active_matches": matches,
+        "total_preorders": preorders,
+        "gross_revenue": preorders * 60
+    }
 
 app.include_router(api)
 app.add_middleware(
