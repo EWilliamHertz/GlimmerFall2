@@ -67,6 +67,7 @@ export function buildCardSVG(card, imgHref) {
        </g>`
     : "";
 
+  const typeLabel = `${card.faction} - ${type}`.toUpperCase();
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs><clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath></defs>
   <g clip-path="url(#rc)">
@@ -74,7 +75,7 @@ export function buildCardSVG(card, imgHref) {
     <rect x="0" y="540" width="${W}" height="${H - 540}" fill="${f.color}" opacity="0.16"/>
     <rect x="0" y="690" width="${W}" height="${H - 690}" fill="#06070C" opacity="0.68"/>
     <text x="34" y="726" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}">${esc(card.name)}</text>
-    <g transform="translate(34,740)"><rect width="${28 + String(type).length * 13}" height="30" rx="5" fill="${f.color}"/><text x="9" y="22" font-family="Arial" font-size="19" font-weight="700" fill="#000">${esc(String(type).toUpperCase())}</text></g>
+    <g transform="translate(34,740)"><rect width="${24 + typeLabel.length * 12}" height="30" rx="5" fill="${f.color}"/><text x="9" y="22" font-family="Arial" font-size="19" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
     ${descSvg}
     ${kwSvg}
     <circle cx="74" cy="74" r="48" fill="${f.color}" stroke="#000" stroke-width="6"/>
