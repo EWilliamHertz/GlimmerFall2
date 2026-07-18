@@ -61,11 +61,9 @@ export function buildCardSVG(card, imgHref) {
     .join("");
 
   const phSvg = isEntity && card.power != null && card.power !== "None"
-    ? `<g transform="translate(${W - 168},${H - 78})">
-         <rect width="70" height="52" rx="8" fill="#E23B3B" stroke="#000" stroke-width="4"/>
-         <rect x="70" width="70" height="52" rx="8" fill="#1DBF6C" stroke="#000" stroke-width="4"/>
-         <text x="35" y="37" text-anchor="middle" font-family="Arial" font-size="34" font-weight="800" fill="#fff">${esc(card.power)}</text>
-         <text x="105" y="37" text-anchor="middle" font-family="Arial" font-size="34" font-weight="800" fill="#fff">${esc(card.health)}</text>
+    ? `<g transform="translate(${W - 158},${H - 78})">
+         <rect width="124" height="52" rx="8" fill="${f.color}" stroke="#000" stroke-width="4"/>
+         <text x="62" y="37" text-anchor="middle" font-family="Arial" font-size="32" font-weight="800" fill="#000">${esc(card.power)} / ${esc(card.health)}</text>
        </g>`
     : "";
 

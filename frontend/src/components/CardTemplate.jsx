@@ -154,11 +154,12 @@ export const CardTemplate = ({
         </div>
       )}
 
-      {/* power / health — combined pill, bottom-right */}
+      {/* power / health — combined faction-colored pill, bottom-right */}
       {isEntity && power != null && (
-        <div className={`absolute right-1 bottom-1 flex items-stretch rounded-md overflow-hidden font-num font-bold border-2 border-black/60 ${PH_CLS[size]}`}>
-          <span className="px-1 flex items-center text-white bg-[#E23B3B]" data-testid={testId ? `${testId}-power` : undefined}>{power}</span>
-          <span className={`px-1 flex items-center text-white ${damaged ? "bg-orange-600" : "bg-[#1DBF6C]"}`} data-testid={testId ? `${testId}-health` : undefined}>{health}</span>
+        <div className={`absolute right-1 bottom-1 flex items-center gap-0.5 px-1.5 rounded-md font-num font-bold border-2 border-black/60 ${PH_CLS[size]}`} style={{ background: f.color, color: "#000" }}>
+          <span data-testid={testId ? `${testId}-power` : undefined}>{power}</span>
+          <span className="opacity-50">/</span>
+          <span className={damaged ? "text-red-800" : ""} data-testid={testId ? `${testId}-health` : undefined}>{health}</span>
         </div>
       )}
 
