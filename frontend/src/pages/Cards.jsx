@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { FACTIONS, RARITY, CARD_TYPES, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
-const RARITIES = ["Common", "Uncommon", "Rare", "Mythic", "Founders Foil"];
+const RARITIES = ["Common", "Uncommon", "Rare", "Mythic"];
 
 const FilterChip = ({ active, onClick, children, color, testId }) => (
   <button

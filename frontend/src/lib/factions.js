@@ -77,7 +77,6 @@ export const KEYWORDS = {
   Stealth: "Cannot be targeted by spells or attacks. Fades after it attacks.",
   Lethal: "Any damage this entity deals instantly destroys the target.",
   Overwhelm: "Excess damage dealt to a Guard spills over to the enemy Vanguard.",
-  Swift: "Reacts faster in the tempo chain.",
 };
 
 export const factionCfg = (f) => FACTIONS[f] || FACTIONS.Aether;
