@@ -1,0 +1,165 @@
+{
+  "theme": "dark",
+  "typography": {
+    "display": "Cinzel",
+    "headers": "Outfit",
+    "body": "Chivo",
+    "stats_numbers": "Rajdhani"
+  },
+  "colors": {
+    "background": {
+      "base": "#0B0C10",
+      "surface": "#12151E",
+      "surface_elevated": "#1A1F2C",
+      "glass": "rgba(18, 21, 30, 0.7)"
+    },
+    "text": {
+      "primary": "#F8F9FA",
+      "secondary": "#9BA1A6",
+      "muted": "#5F6368"
+    },
+    "factions": {
+      "solari": {
+        "primary": "#F2A900",
+        "secondary": "#FFD700",
+        "gradient": "linear-gradient(135deg, #4A3500 0%, #F2A900 100%)",
+        "shadow": "0 0 20px rgba(242, 169, 0, 0.4)"
+      },
+      "umbri": {
+        "primary": "#9B30FF",
+        "secondary": "#6A0DAD",
+        "gradient": "linear-gradient(135deg, #1A0033 0%, #6A0DAD 100%)",
+        "shadow": "0 0 20px rgba(155, 48, 255, 0.4)"
+      },
+      "terra": {
+        "primary": "#00FF7F",
+        "secondary": "#228B22",
+        "gradient": "linear-gradient(135deg, #002200 0%, #228B22 100%)",
+        "shadow": "0 0 20px rgba(0, 255, 127, 0.4)"
+      },
+      "aether": {
+        "primary": "#00BFFF",
+        "secondary": "#1E90FF",
+        "gradient": "linear-gradient(135deg, #001133 0%, #1E90FF 100%)",
+        "shadow": "0 0 20px rgba(0, 191, 255, 0.4)"
+      }
+    },
+    "rarities": {
+      "common": { "color": "#B0BEC5", "glow": "drop-shadow(0 0 8px rgba(176, 190, 197, 0.5))" },
+      "uncommon": { "color": "#4CAF50", "glow": "drop-shadow(0 0 12px rgba(76, 175, 80, 0.6))" },
+      "rare": { "color": "#2196F3", "glow": "drop-shadow(0 0 16px rgba(33, 150, 243, 0.8))" },
+      "mythic": { "color": "#FF9800", "glow": "drop-shadow(0 0 24px rgba(255, 152, 0, 1))" },
+      "founders_foil": { 
+        "color": "#E040FB", 
+        "glow": "drop-shadow(0 0 32px rgba(224, 64, 251, 0.8))",
+        "holographic": "mix-blend-mode: color-dodge; background: linear-gradient(135deg, #B3E5FC, #FFEB3B, #E040FB, #B3E5FC);"
+      }
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "backdrop_blur": "backdrop-blur-xl",
+      "background": "bg-black/60",
+      "border": "border border-white/10"
+    },
+    "card_3d_tilt": {
+      "library": "framer-motion",
+      "technique": "useMotionValue and useTransform to map mouse X/Y to rotateX/rotateY (max 15deg). preserve-3d transform style."
+    },
+    "holographic_foil": {
+      "technique": "Layer a div with mix-blend-mode: color-dodge over the card art. Use a shifting radial-gradient for the spotlight effect that moves with the mouse coordinates via Framer Motion."
+    }
+  },
+  "components": {
+    "CardTemplate": {
+      "anatomy": [
+        "Card Container: 2.5:3.5 aspect ratio, rounded-xl, relative positioning.",
+        "Background Layer: Procedural gradient based on faction.",
+        "Art Zone: Upper 50% of the card. If no image_url, show a subtle grain texture and the Faction Sigil icon.",
+        "Energy Badge: Top-left absolute positioned circle containing Resonance cost (Rajdhani font).",
+        "Header Zone: Below art. Contains Card Name (Cinzel) and Card Type (Outfit).",
+        "Text Box: Bottom 40%, glassmorphic dark bg, contains card effect/keywords.",
+        "Stats Row: Bottom edge. Attack (left, sword icon), Health/Shield (right, shield icon)."
+      ],
+      "interaction": "On hover, slightly scale up (1.05) and apply 3D tilt. Enhance rarity drop-shadow."
+    },
+    "GameBoard": {
+      "layout": [
+        "Top Row: Opponent Vanguard (Health) and Opponent Hand (hidden cards).",
+        "Upper Middle: Opponent Battlefield (Entity drop zone).",
+        "Center: Divider line or combat clash zone.",
+        "Lower Middle: Player Battlefield (Entity drop zone, dnd-kit SortableContext).",
+        "Bottom Row: Player Hand (dnd-kit draggables in a flex row with negative margin overlap).",
+        "Left/Right Columns: Resonance Nodes (Energy UI, glowing dots), Void (Graveyard)."
+      ]
+    },
+    "Navigation": {
+      "style": "Fixed top navigation. Glassmorphism (backdrop-blur-md, bg-[#0B0C10]/80). Links use Outfit font, active states have a glowing underline."
+    }
+  },
+  "layouts": {
+    "Home": {
+      "blueprint": "High-tech hero landing. Massive typography (Cinzel). Background: epic sci-fi landscape. Floating 3D cards using Framer Motion. CTAs to 'Enter Arena' and 'Open Booster'."
+    },
+    "Player_Arena": {
+      "blueprint": "Full viewport height (100vh), strict grid or flex layout preventing scroll. Dark true-grey background (#121212) with subtle radial glow in the center. Use @dnd-kit for drag-and-drop from Hand to Battlefield."
+    },
+    "Card_Database": {
+      "blueprint": "Sidebar filtering (Faction, Type, Rarity, Cost). Main content area: CSS Grid of CardTemplates. Responsive cols (1 on mobile, up to 5 on large desktop)."
+    },
+    "Deck_Builder": {
+      "blueprint": "Split screen. Left: Filterable Card Gallery. Right: Decklist pane (vertical list of selected cards, mana curve chart, Vanguard selector)."
+    },
+    "Booster_Simulator": {
+      "blueprint": "Central focused UI. Unopened pack in center. On click, trigger Framer Motion sequence: pack shakes, bursts with light, and 10 cards fan out face-down. Click each to reveal with 3D flip and holographic effects for Mythic/Foil."
+    },
+    "Rulebook": {
+      "blueprint": "Editorial layout. Narrow reading column (max-w-3xl). Rich text, Chivo font. Embedded interactive examples of keywords (Hover for tooltip)."
+    }
+  },
+  "motion": {
+    "pack_crack": {
+      "animation": "Shake (x: [-10, 10, -10, 10, 0]) -> Scale up (1.2) -> Flash white (opacity 1) -> Cards fan out (rotateZ staggered)."
+    },
+    "card_draw": {
+      "animation": "Translate from deck position to hand position, scale from 0.5 to 1, rotateY 180deg (flip face up)."
+    },
+    "combat_strike": {
+      "animation": "Attacking card translates quickly on Y-axis towards target, screen shakes slightly, damage numbers pop up."
+    }
+  },
+  "image_urls": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1491466424936-e304919aada7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxzY2ktZmklMjBmYW50YXN5JTIwZXBpYyUyMGxhbmRzY2FwZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg0Mzc2NjA2fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Northern lights epic background for the hero section."
+    },
+    "solari_texture": {
+      "url": "https://images.pexels.com/photos/9665186/pexels-photo-9665186.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Golden particles magic texture for Solari faction elements."
+    },
+    "terra_texture": {
+      "url": "https://images.pexels.com/photos/31486999/pexels-photo-31486999.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Emerald nature texture for Terra faction."
+    },
+    "aether_texture": {
+      "url": "https://images.pexels.com/photos/11675529/pexels-photo-11675529.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Blue lightning energy texture for Aether faction."
+    },
+    "card_back": {
+      "url": "https://images.pexels.com/photos/31444701/pexels-photo-31444701.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Mystical playing card back texture for face-down cards."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Always use the dark theme as the default.",
+    "Do not use generic 'Inter' or 'Roboto' fonts. Import and use 'Cinzel', 'Outfit', 'Chivo', and 'Rajdhani' via Google Fonts.",
+    "Never use pure black (#000000). Use #0B0C10 or #121212 for backgrounds.",
+    "Ensure the CardTemplate is highly reusable and accepts props for faction, rarity, name, cost, text, and attack/health.",
+    "Implement the holographic foil effect using Framer Motion and mix-blend-mode: color-dodge as specified in the visual enhancers.",
+    "For the Player Arena (/play), utilize @dnd-kit for seamless drag-and-drop interactions from the hand to the board.",
+    "All interactive elements, buttons, and significant UI components MUST include a kebab-case 'data-testid' attribute (e.g., data-testid='play-button', data-testid='card-entity-123').",
+    "Use Lucide-React or Phosphor Icons for game symbols (swords, shields, energy).",
+    "Do not use transparent backgrounds for the main navigation; use glassmorphism.",
+    "Apply 'data-testid' attributes extensively to cards, drop zones, buttons, and form inputs."
+  ]
+}
