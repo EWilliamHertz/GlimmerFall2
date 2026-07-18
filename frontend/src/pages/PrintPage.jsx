@@ -3,7 +3,7 @@ import { useLocation, Link } from "react-router-dom";
 import JSZip from "jszip";
 import { Printer, ArrowLeft, FileDown, Layers, Package, Loader2, BookOpen } from "lucide-react";
 import { api } from "@/lib/api";
-import { LOGO, factionCfg } from "@/lib/factions";
+import { LOGO, factionCfg, RARITY_ICONS } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 import { buildCardSVG, buildBackSVG, toDataURL, CARDBACK } from "@/lib/cardSvg";
 
@@ -93,8 +93,9 @@ export default function PrintPage() {
         zip.file(`${idx}_backside.svg`, backSvg);
       } else {
         const img = await getImg(item.card.image_url);
+        const rIcon = await getImg(RARITY_ICONS[item.card.rarity] || RARITY_ICONS.Common);
         const safe = (item.card.name || "card").replace(/[^a-z0-9]+/gi, "_");
-        zip.file(`${idx}_${safe}.svg`, buildCardSVG(item.card, img));
+        zip.file(`${idx}_${safe}.svg`, buildCardSVG(item.card, img, rIcon));
       }
       n++;
       setGen({ done: n, total: proSeq.length });

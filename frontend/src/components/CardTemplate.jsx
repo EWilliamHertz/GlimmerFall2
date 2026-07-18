@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { CARDBACK, RARITY, factionCfg } from "@/lib/factions";
+import { CARDBACK, RARITY, RARITY_ICONS, factionCfg } from "@/lib/factions";
 
 const SIZES = {
   xs: "w-[80px]",
@@ -14,6 +14,7 @@ const NAME_CLS = { xs: "text-[8px]", sm: "text-[10px]", md: "text-xs", lg: "text
 const COST_CLS = { xs: "w-5 h-5 text-[10px]", sm: "w-7 h-7 text-sm", md: "w-8 h-8 text-base", lg: "w-9 h-9 text-lg", xl: "w-10 h-10 text-xl" };
 const STAT_CLS = { xs: "w-5 h-5 text-[10px]", sm: "w-6 h-6 text-xs", md: "w-7 h-7 text-sm", lg: "w-8 h-8 text-base", xl: "w-9 h-9 text-lg" };
 const PH_CLS = { xs: "text-[9px]", sm: "text-[10px]", md: "text-xs", lg: "text-sm", xl: "text-base" };
+const RARITY_ICON_H = { xs: "h-3.5", sm: "h-4", md: "h-5", lg: "h-6", xl: "h-8" };
 
 const kwList = (card) => {
   if (Array.isArray(card?.keywords)) return card.keywords;
@@ -143,8 +144,16 @@ export const CardTemplate = ({
         {card?.cost}
       </div>
 
-      {/* rarity gem */}
-      <div className="absolute right-1.5 top-1.5 w-2.5 h-2.5 rounded-full" style={{ background: rar.color, boxShadow: rar.glow }} />
+      {/* rarity symbol (official SVG) — bottom center */}
+      <img
+        src={RARITY_ICONS[card?.rarity] || RARITY_ICONS.Common}
+        alt={card?.rarity || "Common"}
+        className={`absolute left-1/2 bottom-0.5 -translate-x-1/2 w-auto pointer-events-none ${RARITY_ICON_H[size]}`}
+        style={{ filter: `drop-shadow(0 0 3px ${rar.color})` }}
+        loading={eager ? "eager" : "lazy"}
+        draggable={false}
+        data-testid={testId ? `${testId}-rarity` : undefined}
+      />
 
       {/* keywords */}
       {kws.length > 0 && (

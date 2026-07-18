@@ -59,6 +59,16 @@ export const RARITY = {
   "Founders Foil": { color: "#E040FB", glow: "0 0 26px rgba(224,64,251,0.85)" },
 };
 
+export const RARITY_ICONS = {
+  Common: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383884/glimmerfall/rarity_icons/common.svg",
+  Uncommon: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383885/glimmerfall/rarity_icons/uncommon.svg",
+  Rare: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383889/glimmerfall/rarity_icons/rare.svg",
+  Mythic: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg",
+  "Founders Foil": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg",
+};
+
+export const rarityIcon = (r) => RARITY_ICONS[r] || RARITY_ICONS.Common;
+
 export const CARD_TYPES = ["Entity", "Rite", "Flash", "Relic"];
 
 export const KEYWORDS = {
