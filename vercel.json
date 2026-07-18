@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "build" }
+    },
+    {
+      "src": "backend/server.py",
+      "use": "@vercel/python",
+      "config": { "includeFiles": "backend/game_engine.py" }
+    }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/server.py" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
