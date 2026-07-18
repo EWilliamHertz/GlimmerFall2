@@ -144,11 +144,11 @@ export const CardTemplate = ({
         {card?.cost}
       </div>
 
-      {/* rarity symbol (official SVG) — bottom center */}
+      {/* rarity symbol (official SVG) — top right */}
       <img
         src={RARITY_ICONS[card?.rarity] || RARITY_ICONS.Common}
         alt={card?.rarity || "Common"}
-        className={`absolute left-1/2 bottom-0.5 -translate-x-1/2 w-auto pointer-events-none ${RARITY_ICON_H[size]}`}
+        className={`absolute right-1 top-1 w-auto pointer-events-none ${RARITY_ICON_H[size]}`}
         style={{ filter: `drop-shadow(0 0 3px ${rar.color})` }}
         loading={eager ? "eager" : "lazy"}
         draggable={false}

@@ -69,7 +69,7 @@ export function buildCardSVG(card, imgHref, rarityHref) {
 
   const typeLabel = `${card.faction} - ${type}`.toUpperCase();
   const raritySvg = rarityHref
-    ? `<image xlink:href="${rarityHref}" x="${W / 2 - 38}" y="${H - 92}" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
+    ? `<image xlink:href="${rarityHref}" x="${W - 92}" y="16" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
     : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs><clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath></defs>
