@@ -23,19 +23,46 @@ logger = logging.getLogger("glimmerfall")
 DATABASE_URL = os.environ["DATABASE_URL"]
 CARDBACK_URL = os.environ.get("CARDBACK_URL", "")
 
-DB_POOL = pgpool.ThreadedConnectionPool(1, 10, dsn=DATABASE_URL)
+DB_POOL = pgpool.ThreadedConnectionPool(
+    1, 10, dsn=DATABASE_URL,
+    keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
+)
 
 
 class DB:
-    def __enter__(self):
-        self.conn = DB_POOL.getconn()
-        self.conn.autocommit = True
-        self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
-        return self.cur
+    """Resilient DB context manager. Validates the pooled connection and
+    recycles it if NeonDB has dropped it (SSL connection closed unexpectedly)."""
 
-    def __exit__(self, *a):
-        self.cur.close()
-        DB_POOL.putconn(self.conn)
+    def __enter__(self):
+        last_err = None
+        for _ in range(3):
+            self.conn = DB_POOL.getconn()
+            try:
+                self.conn.autocommit = True
+                self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
+                self.cur.execute("SELECT 1")
+                return self.cur
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                last_err = e
+                try:
+                    DB_POOL.putconn(self.conn, close=True)
+                except Exception:
+                    pass
+                self.conn = None
+        raise last_err
+
+    def __exit__(self, exc_type, *a):
+        try:
+            if self.cur:
+                self.cur.close()
+        except Exception:
+            pass
+        try:
+            if self.conn:
+                # discard the connection if the request errored on it
+                DB_POOL.putconn(self.conn, close=exc_type is not None)
+        except Exception:
+            pass
 
 
 app = FastAPI(title="GlimmerFall TCG API")

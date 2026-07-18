@@ -1,0 +1,23 @@
+{
+  "summary": "Verified DB-resilience bug fix (NeonDB stale pooled connection SSL drop) and all associated frontend changes. Backend: 16/16 pytest tests pass including the new /app/backend/tests/test_db_resilience.py that (a) hammers each static endpoint 10x, (b) runs a multi-turn Arena-vs-AI action sequence, and (c) waits 25s between two GET /api/cards calls to exercise idle-connection recycle — zero 500s observed. Frontend: tab title == 'GlimmerFall TCG'; /cards badges render '<FACTION> - <TYPE>' (e.g. 'Solari - Entity' with CSS text-transform:uppercase so visually 'SOLARI - ENTITY') for 10/10 sample; /print exposes print-back-single/each/none: single -> exactly 1 pro-page-back, none -> 0 back pages, each -> 0 leading pro-page-back but 100 interspersed pro-page-back-<i>; 20/20 sampled hobby print imgs have naturalWidth>0 (eager loading regression holds).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_glimmerfall_backend.py",
+    "/app/backend/tests/test_db_resilience.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DB context manager: SELECT 1 health-check adds a round-trip per request. Acceptable for correctness given NeonDB idle drops, but could be optimized to only re-check when conn was pool-borrowed and last-used > idle threshold.",
+    "insert_match has an obscure ternary that indexes state['players'][state.get('activePlayer',1) and str(...)] — works but is hard to read; consider simplifying."
+  ],
+  "updated_files": ["/app/backend/tests/test_db_resilience.py"],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100%"},
+  "test_credentials": "None required",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pool now validates+recycles pooled connections; new resilience suite at test_db_resilience.py covers hammer/arena/idle-gap. Print Hub back-mode uses data-testids print-back-single/each/none with pro-page-back (leading) and pro-page-back-<i> (interspersed).",
+  "rca of the issue": "Original 500 was caused by psycopg2 pool handing out an idle connection that NeonDB had closed on the server side (SSL closed unexpectedly). Fix in DB.__enter__ runs SELECT 1 on borrow; on OperationalError/InterfaceError it discards the connection (putconn close=True) and retries up to 3 times. Pool also created with TCP keepalives. Verified via 40 static hammer calls, multi-turn action flow, and a 25s idle gap — all 2xx."
+}

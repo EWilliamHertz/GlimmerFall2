@@ -19,6 +19,7 @@ export default function PrintPage() {
   const [builderDeck, setBuilderDeck] = useState(null);
   const [selId, setSelId] = useState("full");
   const [mode, setMode] = useState("hobby"); // hobby | pro
+  const [backMode, setBackMode] = useState("single"); // single | each | none
   const [gen, setGen] = useState(null); // svg generation progress
 
   useEffect(() => {
@@ -63,9 +64,20 @@ export default function PrintPage() {
     return out;
   }, [cards]);
 
+  // Professional / SVG ordering with card-back rule
+  const proSeq = useMemo(() => {
+    const seq = [];
+    if (backMode === "single") seq.push({ back: true, key: "back-lead" });
+    cards.forEach((c, i) => {
+      seq.push({ card: c, key: c.id + "-" + i });
+      if (backMode === "each") seq.push({ back: true, key: "back-" + i });
+    });
+    return seq;
+  }, [cards, backMode]);
+
   const downloadSVGs = async () => {
     if (!cards.length) return;
-    setGen({ done: 0, total: cards.length + 1 });
+    setGen({ done: 0, total: proSeq.length });
     const zip = new JSZip();
     const cache = {};
     const getImg = async (url) => {
@@ -73,18 +85,19 @@ export default function PrintPage() {
       if (!cache[url]) cache[url] = await toDataURL(url);
       return cache[url];
     };
-    // backside first
-    const backData = await getImg(CARDBACK);
-    zip.file("000_backside.svg", buildBackSVG(backData));
-    setGen({ done: 1, total: cards.length + 1 });
-    let n = 1;
-    for (const c of cards) {
-      const img = await getImg(c.image_url);
-      const idx = String(n).padStart(3, "0");
-      const safe = (c.name || "card").replace(/[^a-z0-9]+/gi, "_");
-      zip.file(`${idx}_${safe}.svg`, buildCardSVG(c, img));
+    const backSvg = buildBackSVG(await getImg(CARDBACK));
+    let n = 0;
+    for (const item of proSeq) {
+      const idx = String(n + 1).padStart(3, "0");
+      if (item.back) {
+        zip.file(`${idx}_backside.svg`, backSvg);
+      } else {
+        const img = await getImg(item.card.image_url);
+        const safe = (item.card.name || "card").replace(/[^a-z0-9]+/gi, "_");
+        zip.file(`${idx}_${safe}.svg`, buildCardSVG(item.card, img));
+      }
       n++;
-      setGen({ done: n, total: cards.length + 1 });
+      setGen({ done: n, total: proSeq.length });
     }
     const blob = await zip.generateAsync({ type: "blob" });
     const a = document.createElement("a");
@@ -162,8 +175,24 @@ export default function PrintPage() {
               </button>
               <button onClick={() => setMode("pro")} data-testid="print-mode-pro" className={`text-left px-3 py-2.5 rounded-lg border transition-all ${mode === "pro" ? "border-[#00BFFF] bg-[#00BFFF]/10" : "border-white/10"}`}>
                 <div className="font-head text-sm font-semibold flex items-center gap-2"><Layers className="w-4 h-4" /> Professional</div>
-                <div className="text-white/50 text-xs mt-0.5">1 card / page · 63×88mm +3mm bleed · SVG + PDF · backside first</div>
+                <div className="text-white/50 text-xs mt-0.5">1 card / page · 63×88mm +3mm bleed · SVG + PDF</div>
               </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-2xl p-4">
+            <p className="font-head text-sm text-white/60 mb-2">Card backs <span className="text-white/30">(Professional / SVG)</span></p>
+            <div className="space-y-2">
+              {[["single", "One card back before the fronts"], ["each", "A card back after every card (duplex)"], ["none", "No card backs"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setBackMode(v)}
+                  data-testid={`print-back-${v}`}
+                  className={`w-full text-left px-3 py-2 rounded-lg border text-sm font-head transition-all ${backMode === v ? "border-[#F2A900] bg-[#F2A900]/10 text-white" : "border-white/10 text-white/70"}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -173,7 +202,7 @@ export default function PrintPage() {
           <p className="font-head text-sm text-white/70">
             {mode === "hobby"
               ? `${pages.length} A4 page(s), 9 cards each. Click “Print / PDF”.`
-              : `${cards.length + 1} pages (backside + ${cards.length} cards), each 63×88mm with 3mm bleed. Use “SVG (.zip)” for print-studio vector files or “Print / PDF” for a 1-card-per-page PDF.`}
+              : `${proSeq.length} pages (${cards.length} cards${backMode === "none" ? "" : backMode === "each" ? " + a back after each" : " + 1 leading back"}), each 63×88mm with 3mm bleed. Use “SVG (.zip)” for print-studio vector files or “Print / PDF” for a 1-card-per-page PDF.`}
           </p>
         </div>
       </div>
@@ -193,14 +222,17 @@ export default function PrintPage() {
         </div>
       ) : (
         <div className="print-sheets pro py-2 flex flex-col items-center gap-6">
-          <div className="pro-page bg-white flex items-center justify-center" data-testid="pro-page-back">
-            <img src={CARDBACK} alt="backside" style={{ width: "69mm", height: "94mm", objectFit: "cover" }} />
-          </div>
-          {cards.map((c, i) => (
-            <div key={c.id + "-" + i} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${i}`}>
-              <CardTemplate card={c} tilt={false} forceText eager width="69mm" />
-            </div>
-          ))}
+          {proSeq.map((item, si) =>
+            item.back ? (
+              <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
+                <img src={CARDBACK} alt="backside" style={{ width: "69mm", height: "94mm", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${si}`}>
+                <CardTemplate card={item.card} tilt={false} forceText eager width="69mm" />
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

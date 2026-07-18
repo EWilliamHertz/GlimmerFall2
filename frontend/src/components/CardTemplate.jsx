@@ -118,7 +118,7 @@ export const CardTemplate = ({
             style={{ background: `${f.color}`, color: "#000" }}
             data-testid={testId ? `${testId}-type` : undefined}
           >
-            {type}
+            {card?.faction} - {type}
           </span>
           {showText && desc && (
             <p className={isEntity ? "mt-1 pr-9" : "mt-1"} style={{ color: "rgba(255,255,255,0.92)", fontSize: size === "xl" ? 11 : 9, display: "-webkit-box", WebkitLineClamp: size === "xl" ? 5 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid={testId ? `${testId}-desc` : undefined}>
