@@ -1,0 +1,20 @@
+{
+  "summary": "Verified bug fix for /print card art images. Hobby mode: 100/100 images loaded (complete=true, naturalWidth>0) across all pages including bottom pages. Pro mode: 101/101 images loaded (100 cards + 1 backside). Backside page (pro-page-back) renders with loaded image. Starter deck (Solar Singularity, 40 cards): 40/40 images loaded. Print/PDF and SVG(.zip) buttons present and clickable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "None required",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix verified: CardTemplate accepts an 'eager' prop that sets loading='eager' on the img; PrintPage passes eager to all print/pro cards. All card art (Cloudinary URLs) now loads immediately even on off-screen pages. Verified on Complete Set (100 cards, hobby+pro modes with backside page) and starter deck (40 cards).",
+  "rca of the issue": "Root cause was loading='lazy' on card art <img>; off-screen sheet pages never fetched images and appeared blank in print preview. Fix (added eager prop, PrintPage passes it) is effective — all 100 hobby imgs, 101 pro imgs (incl. backside), and 40 starter imgs have complete=true and naturalWidth>0."
+}

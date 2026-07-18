@@ -185,7 +185,7 @@ export default function PrintPage() {
             <div key={pi} className="print-page mx-auto bg-white rounded-lg mb-6" data-testid={`print-page-${pi}`}>
               <div className="grid grid-cols-3 gap-3 p-4 place-items-center">
                 {pg.map((c, ci) => (
-                  <CardTemplate key={c.id + "-" + pi + "-" + ci} card={c} tilt={false} forceText width="58mm" testId={`print-card-${pi}-${ci}`} />
+                  <CardTemplate key={c.id + "-" + pi + "-" + ci} card={c} tilt={false} forceText eager width="58mm" testId={`print-card-${pi}-${ci}`} />
                 ))}
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function PrintPage() {
           </div>
           {cards.map((c, i) => (
             <div key={c.id + "-" + i} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${i}`}>
-              <CardTemplate card={c} tilt={false} forceText width="69mm" />
+              <CardTemplate card={c} tilt={false} forceText eager width="69mm" />
             </div>
           ))}
         </div>

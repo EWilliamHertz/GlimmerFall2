@@ -35,6 +35,7 @@ export const CardTemplate = ({
   badge = null,
   className = "",
   width = null,
+  eager = false,
   testId,
 }) => {
   const ref = useRef(null);
@@ -72,7 +73,7 @@ export const CardTemplate = ({
         data-testid={testId}
         className={`${SIZES[size]} relative shrink-0 aspect-[5/7] rounded-xl overflow-hidden border-2 border-white/15 ${className}`}
       >
-        <img src={CARDBACK} alt="card back" className="w-full h-full object-cover" draggable={false} />
+        <img src={CARDBACK} alt="card back" className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
       </motion.div>
     );
   }
@@ -96,7 +97,7 @@ export const CardTemplate = ({
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
       <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
-        <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading="lazy" />
+        <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
 
         {/* faction background tint */}
         <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to top, ${f.color}33 0%, transparent 55%)` }} />
