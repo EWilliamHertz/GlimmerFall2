@@ -43,7 +43,7 @@ export async function toDataURL(url) {
   }
 }
 
-export function buildCardSVG(card, imgHref) {
+export function buildCardSVG(card, imgHref, rarityHref) {
   const f = factionCfg(card.faction);
   const type = card.card_type || card.cardType;
   const isEntity = type === "Entity";
@@ -68,6 +68,9 @@ export function buildCardSVG(card, imgHref) {
     : "";
 
   const typeLabel = `${card.faction} - ${type}`.toUpperCase();
+  const raritySvg = rarityHref
+    ? `<image xlink:href="${rarityHref}" x="${W / 2 - 38}" y="${H - 92}" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
+    : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs><clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath></defs>
   <g clip-path="url(#rc)">
@@ -81,6 +84,7 @@ export function buildCardSVG(card, imgHref) {
     <circle cx="74" cy="74" r="48" fill="${f.color}" stroke="#000" stroke-width="6"/>
     <text x="74" y="92" text-anchor="middle" font-family="Arial" font-size="52" font-weight="800" fill="#000">${esc(card.cost)}</text>
     ${phSvg}
+    ${raritySvg}
   </g>
   <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="26" fill="none" stroke="${f.color}" stroke-width="4"/>
 </svg>`;
