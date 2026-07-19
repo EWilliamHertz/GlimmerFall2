@@ -78,9 +78,9 @@ function Lobby({ onStart }) {
           <div className="mt-1.5 flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
             {[
               { name: "Nature's Wrath", desc: "A resilient green deck built around big creatures and growth effects.", factions: "Terra", color: "#22E07B" },
-              { name: "Cinder Ignition", desc: "An aggressive red deck built around burn spells and fast attackers.", factions: "Umbri", color: "#FF4500" },
+              { name: "Cinder Ignition", desc: "An aggressive red deck built around burn spells and fast attackers.", factions: "Umbri", color: "#9B30FF" },
               { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
-              { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#00BFFF" },
+              { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#22E07B" },
               { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }
             ].map((d) => (
               <button
