@@ -28,8 +28,13 @@ export default function Home() {
   const showcase = React.useMemo(() => {
     const pick = [];
     ["Solari", "Umbri", "Terra", "Aether"].forEach((fac) => {
-      const c = cards.find((x) => x.faction === fac && (x.rarity === "Mythic" || x.rarity === "Rare"));
-      if (c) pick.push(c);
+      let options = cards.filter((x) => x.faction === fac && (x.rarity === "Mythic" || x.rarity === "Rare"));
+      if (options.length === 0) options = cards.filter((x) => x.faction === fac);
+      
+      if (options.length > 0) {
+        const randomCard = options[Math.floor(Math.random() * options.length)];
+        pick.push(randomCard);
+      }
     });
     return pick;
   }, [cards]);
