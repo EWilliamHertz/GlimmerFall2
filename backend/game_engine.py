@@ -183,13 +183,13 @@ def deal_damage_entity(entity, amount):
 def create_tokens(state, slot, desc):
     """Handle 'create [N] X/Y ... token[s] [with KW]'."""
     msgs = []
-    for m in _re.finditer(r"create\s+(a|an|one|two|three|\d+)?\s*(\d+)\s*/\s*(\d+)\s+([A-Za-z ]+?)\s+tokens?(\s+with\s+([A-Za-z, ]+))?", desc, _re.I):
+    for m in _re.finditer(r"create\s+(a|an|one|two|three|\d+)?\s*(\d+)\s*/\s*(\d+)\s+([A-Za-z ]+?)\s+tokens?(?:\s+with\s+([A-Za-z, \.]+))?", desc, _re.I):
         n = _num(m.group(1) or "a") or 1
         p, h = int(m.group(2)), int(m.group(3))
         tname = m.group(4).strip().title()
         kws = []
-        if m.group(6):
-            kws = [k.strip().title() for k in m.group(6).split(",") if k.strip().title() in GRANT_KEYWORDS]
+        if m.group(5):
+            kws = [k.strip(".").strip().title() for k in m.group(5).split(",") if k.strip(".").strip().title() in GRANT_KEYWORDS]
         fac = state["players"][slot]["hand"] and state["players"][slot] or None
         faction = "Aether"
         for _ in range(n):
@@ -323,6 +323,15 @@ def resolve_effect(state, slot, card, payload, auto=False):
 
     # ---- tokens ----
     frags += create_tokens(state, slot, desc)
+
+    # ---- resonance / glimmer nodes ----
+    if "put the top card of your deck face-down into your resonance row" in low:
+        if state["players"][slot]["library"]:
+            c = state["players"][slot]["library"].pop(0)
+            state["players"][slot]["resonanceRow"].append(c)
+            state["players"][slot]["maxEnergy"] += 1
+            state["players"][slot]["energy"] += 1
+            frags.append("added a Glimmer Node from deck")
 
     return frags
 
@@ -561,6 +570,10 @@ def do_attack_entity(state, slot, payload):
     if overflow > 0:
         dp["hp"] -= overflow
         log(state, f"{atk['name']} overwhelms for {overflow} spill damage to {dp['username']}'s Vanguard.")
+        # combat damage triggers
+        if "ready one glimmer node" in (atk.get("description") or "").lower():
+            pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
+            log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
 
     # target strikes back
     if tgt_pow > 0:
@@ -594,6 +607,12 @@ def do_attack_vanguard(state, slot, payload):
     if "Stealth" in atk["keywords"]:
         atk["keywords"].remove("Stealth")
     log(state, f"{atk['name']} struck {dp['username']}'s Vanguard for {dmg}.")
+    
+    # combat damage triggers
+    if "ready one glimmer node" in (atk.get("description") or "").lower():
+        pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
+        log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
+        
     check_win(state)
 
 
