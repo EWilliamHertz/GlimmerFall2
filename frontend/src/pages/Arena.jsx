@@ -74,23 +74,23 @@ function Lobby({ onStart }) {
         </div>
 
         <div>
-          <label className="text-xs font-head uppercase tracking-wider text-white/50">Faction (deck)</label>
-          <div className="mt-1.5 grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setFaction(null)}
-              className={`px-3 py-2.5 rounded-xl text-sm font-head border transition-all ${!faction ? "bg-white text-black" : "border-white/15 text-white/60"}`}
-            >
-              Random
-            </button>
-            {Object.values(FACTIONS).map((f) => (
+          <label className="text-xs font-head uppercase tracking-wider text-white/50">Select your Deck</label>
+          <div className="mt-1.5 flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+            {[
+              { name: "Nature's Wrath", desc: "A resilient green deck built around big creatures and growth effects.", factions: "Terra", color: "#22E07B" },
+              { name: "Cinder Ignition", desc: "An aggressive red deck built around burn spells and fast attackers.", factions: "Umbri", color: "#FF4500" },
+              { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
+              { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#00BFFF" },
+              { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }
+            ].map((d) => (
               <button
-                key={f.name}
-                data-testid={`lobby-faction-${f.name.toLowerCase()}`}
-                onClick={() => setFaction(faction === f.name ? null : f.name)}
-                className="px-3 py-2.5 rounded-xl text-sm font-head border transition-all"
-                style={faction === f.name ? { background: f.color, color: "#000", borderColor: f.color } : { borderColor: "rgba(255,255,255,0.15)" }}
+                key={d.name}
+                onClick={() => setFaction(d.factions)}
+                className={`text-left p-3 rounded-xl border transition-all ${faction === d.factions ? "bg-white/10" : "bg-black/20 hover:bg-white/5"}`}
+                style={{ borderColor: faction === d.factions ? d.color : "rgba(255,255,255,0.1)" }}
               >
-                {f.name}
+                <div className="font-head text-sm font-semibold" style={{ color: d.color }}>{d.name}</div>
+                <div className="text-white/50 text-xs mt-1 leading-relaxed">{d.desc}</div>
               </button>
             ))}
           </div>
@@ -461,11 +461,27 @@ function GameBoard({ session, match, refresh, onExit }) {
         </div>
 
         {/* log */}
-        <div className="glass rounded-2xl p-3 max-h-28 overflow-y-auto" data-testid="game-log">
-          <div className="flex items-center gap-1.5 text-white/40 text-xs font-head mb-1 sticky top-0"><ScrollText className="w-3.5 h-3.5" /> Battle Log</div>
-          {[...(state.log || [])].slice(-8).reverse().map((l, i) => (
-            <p key={i} className="text-xs text-white/60 leading-relaxed">{l}</p>
-          ))}
+        <div className="glass rounded-2xl p-3 h-64 overflow-y-auto flex flex-col-reverse" data-testid="game-log">
+          <div className="flex flex-col gap-1.5">
+            {[...(state.log || [])].map((l, i) => {
+              let color = "text-white/60";
+              let text = l;
+              if (typeof l === 'string') {
+                if (l.startsWith("[P1] ")) {
+                  color = slot === "1" ? "text-[#39E58C]" : "text-red-400";
+                  text = l.replace("[P1] ", "");
+                } else if (l.startsWith("[P2] ")) {
+                  color = slot === "2" ? "text-[#39E58C]" : "text-red-400";
+                  text = l.replace("[P2] ", "");
+                } else if (l.startsWith("[P0] ")) {
+                  color = "text-[#F2A900]";
+                  text = l.replace("[P0] ", "");
+                }
+              }
+              return <p key={i} className={`text-xs leading-relaxed ${color}`}>{text}</p>;
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 text-white/40 text-xs font-head mb-2 sticky top-0 bg-[#0B0C10]/90 backdrop-blur-md z-10 py-1"><ScrollText className="w-3.5 h-3.5" /> Battle Log</div>
         </div>
       </div>
 

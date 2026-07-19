@@ -49,7 +49,11 @@ def make_instance(card):
 
 def build_deck(pool, faction=None):
     """Build a legal 30-card deck (max 3 copies of a card)."""
-    cards = [c for c in pool if (faction is None or c["faction"] == faction)]
+    if faction:
+        factions = [f.strip() for f in faction.split(",")]
+        cards = [c for c in pool if c["faction"] in factions]
+    else:
+        cards = list(pool)
     if len(cards) < 8:
         cards = list(pool)
     bag = []
@@ -112,8 +116,8 @@ def has_guard(player):
 
 
 def log(state, msg):
-    state["log"].append(msg)
-    state["log"] = state["log"][-60:]
+    active = state.get("activePlayer", "0")
+    state["log"].append(f"[P{active}] {msg}")
 
 
 # ---------- effect engine ----------
