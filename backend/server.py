@@ -262,7 +262,7 @@ def post_action(req: ActionReq):
     save_match(req.matchId, new_state)
     return {"ok": True, "state": redact_state(new_state, req.slot)}
 
-resend.api_key = os.environ.get("RESEND_API_KEY", "re_ecik2Eq9_Gfm5JYcjM3KVft41srrAjYB9")
+resend.api_key = os.environ.get("RESEND_API_KEY")
 JWT_SECRET = "glimmerfall_super_secret_key"
 
 class RegisterReq(BaseModel):
