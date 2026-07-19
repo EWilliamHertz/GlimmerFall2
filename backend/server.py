@@ -124,6 +124,7 @@ class MatchmakeReq(BaseModel):
     username: str
     roomCode: Optional[str] = None
     faction: Optional[str] = None
+    deckCards: Optional[list] = None
     vsAI: bool = False
 
 
@@ -163,7 +164,7 @@ def _rand_room():
 @api.post("/matchmaking")
 def matchmaking(req: MatchmakeReq):
     pool = load_cards()
-    deck1 = ge.build_deck(pool, req.faction)
+    deck1 = ge.build_deck(pool, req.faction, req.deckCards)
 
     # ----- vs AI -----
     if req.vsAI:

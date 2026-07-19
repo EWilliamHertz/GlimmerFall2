@@ -29,14 +29,25 @@ function Lobby({ onStart }) {
   const [username, setUsername] = useState(user ? user.nickname : localStorage.getItem("gf_username") || "");
   const [room, setRoom] = useState("");
   const [faction, setFaction] = useState(null);
+  const [deckCards, setDeckCards] = useState(null);
+  const [deckName, setDeckName] = useState("Random Chaos");
+  const [showDeckModal, setShowDeckModal] = useState(false);
+  const [personalDecks, setPersonalDecks] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("glimmerfall_decks") || "{}");
+      setPersonalDecks(Object.values(stored));
+    } catch(e){}
+  }, []);
 
   const go = async (mode) => {
     if (!username.trim()) return toast.error("Enter a summoner name.");
     localStorage.setItem("gf_username", username.trim());
     setLoading(true);
     try {
-      const body = { username: username.trim(), faction };
+      const body = { username: username.trim(), faction, deckCards };
       if (mode === "ai") body.vsAI = true;
       if (mode === "room") body.roomCode = room.trim();
       const r = await api.post("/matchmaking", body);
@@ -46,6 +57,24 @@ function Lobby({ onStart }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const selectStarter = (d) => {
+    setFaction(d.factions);
+    setDeckCards(null);
+    setDeckName(d.name);
+    setShowDeckModal(false);
+  };
+
+  const selectPersonal = (pd) => {
+    const list = [];
+    pd.cards.forEach(c => {
+      for(let i=0; i<c.count; i++) list.push(c.id);
+    });
+    setDeckCards(list);
+    setFaction(null);
+    setDeckName(pd.name);
+    setShowDeckModal(false);
   };
 
   return (
@@ -74,27 +103,64 @@ function Lobby({ onStart }) {
         </div>
 
         <div>
-          <label className="text-xs font-head uppercase tracking-wider text-white/50">Select your Deck</label>
-          <div className="mt-1.5 flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
-            {[
-              { name: "Nature's Wrath", desc: "A resilient green deck built around big creatures and growth effects.", factions: "Terra", color: "#22E07B" },
-              { name: "Cinder Ignition", desc: "An aggressive red deck built around burn spells and fast attackers.", factions: "Umbri", color: "#9B30FF" },
-              { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
-              { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#22E07B" },
-              { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }
-            ].map((d) => (
-              <button
-                key={d.name}
-                onClick={() => setFaction(d.factions)}
-                className={`text-left p-3 rounded-xl border transition-all ${faction === d.factions ? "bg-white/10" : "bg-black/20 hover:bg-white/5"}`}
-                style={{ borderColor: faction === d.factions ? d.color : "rgba(255,255,255,0.1)" }}
-              >
-                <div className="font-head text-sm font-semibold" style={{ color: d.color }}>{d.name}</div>
-                <div className="text-white/50 text-xs mt-1 leading-relaxed">{d.desc}</div>
-              </button>
-            ))}
-          </div>
+          <label className="text-xs font-head uppercase tracking-wider text-white/50">Your Deck</label>
+          <button 
+            onClick={() => setShowDeckModal(true)}
+            className="mt-1.5 w-full bg-black/40 border border-white/10 hover:bg-white/5 rounded-xl px-4 py-3 text-left font-head transition-all flex items-center justify-between"
+          >
+            <span>{deckName}</span>
+            <Layers className="w-4 h-4 text-white/50" />
+          </button>
         </div>
+
+        <AnimatePresence>
+          {showDeckModal && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="glass rounded-3xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col gap-6 relative">
+                <button onClick={() => setShowDeckModal(false)} className="absolute top-6 right-6 text-white/50 hover:text-white"><X className="w-6 h-6" /></button>
+                
+                <div>
+                  <h2 className="font-display text-2xl font-bold mb-4">Personal Decks</h2>
+                  {personalDecks.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {personalDecks.map((pd, i) => (
+                        <button key={i} onClick={() => selectPersonal(pd)} className="text-left p-3 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition-all">
+                          <div className="font-head text-sm font-semibold text-[#F2A900]">{pd.name}</div>
+                          <div className="text-white/50 text-xs mt-1">{pd.cards?.reduce((a, b) => a + b.count, 0) || 0} cards</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-white/40 text-sm font-head italic px-2">No personal decks found. Build one in the Deck Builder!</div>
+                  )}
+                </div>
+
+                <div>
+                  <h2 className="font-display text-2xl font-bold mb-4">Starter Decks</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {[
+                      { name: "Nature's Wrath", desc: "A resilient green deck built around big creatures and growth effects.", factions: "Terra", color: "#22E07B" },
+                      { name: "Cinder Ignition", desc: "An aggressive Umbri deck built around burn spells and fast attackers.", factions: "Umbri", color: "#9B30FF" },
+                      { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
+                      { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#22E07B" },
+                      { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }
+                    ].map((d) => (
+                      <button
+                        key={d.name}
+                        onClick={() => selectStarter(d)}
+                        className={`text-left p-3 rounded-xl border transition-all ${deckName === d.name ? "bg-white/10" : "bg-black/20 hover:bg-white/5"}`}
+                        style={{ borderColor: deckName === d.name ? d.color : "rgba(255,255,255,0.1)" }}
+                      >
+                        <div className="font-head text-sm font-semibold" style={{ color: d.color }}>{d.name}</div>
+                        <div className="text-white/50 text-xs mt-1 leading-relaxed">{d.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <button
           data-testid="lobby-play-ai"
