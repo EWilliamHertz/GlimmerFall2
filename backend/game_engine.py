@@ -47,8 +47,14 @@ def make_instance(card):
     }
 
 
-def build_deck(pool, faction=None):
+def build_deck(pool, faction=None, card_ids=None):
     """Build a legal 30-card deck (max 3 copies of a card)."""
+    import random
+    if card_ids:
+        card_map = {c["id"]: c for c in pool}
+        bag = [card_map[cid] for cid in card_ids if cid in card_map]
+        random.shuffle(bag)
+        return [make_instance(c) for c in bag]
     if faction:
         factions = [f.strip() for f in faction.split(",")]
         cards = [c for c in pool if c["faction"] in factions]
