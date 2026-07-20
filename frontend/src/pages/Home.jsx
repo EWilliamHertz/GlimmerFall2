@@ -66,7 +66,7 @@ export default function Home() {
             >
               GLIMMER<span className="text-[#F2A900] drop-shadow-[0_0_25px_rgba(242,169,0,0.6)]">FALL</span>
               <span className="block text-2xl sm:text-3xl lg:text-4xl mt-3 text-white/70 font-head font-light tracking-wide">
-                A Trading Card Game of Light &amp; Void
+                A Trading Card Game of Light &amp; Void for competitive players and collectors.
               </span>
             </motion.h1>
             <motion.p
@@ -76,7 +76,7 @@ export default function Home() {
               className="mt-6 text-white/60 max-w-md text-base leading-relaxed"
             >
               Channel Resonance, deploy Entities and weave spells across four warring factions.
-              Command your Vanguard and shatter your rival's Nexus.
+              Command your Nexus and shatter your rival's Nexus.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -84,20 +84,30 @@ export default function Home() {
               transition={{ delay: 0.35 }}
               className="mt-9 flex flex-wrap gap-4"
             >
-              <Link
-                to="/play"
-                data-testid="home-enter-arena"
+              <a
+                href="#pre-order"
                 className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f] transition-all shadow-[0_0_30px_rgba(242,169,0,0.45)]"
               >
-                <Swords className="w-5 h-5" /> Enter the Arena
+                <Package className="w-5 h-5" /> Reserve a First Edition Box
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </a>
               <Link
-                to="/booster"
-                data-testid="home-open-booster"
+                to="/stores"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
               >
-                <Package className="w-5 h-5" /> Open a Booster
+                <Library className="w-5 h-5" /> Become a Sanctioned Store
+              </Link>
+              <Link
+                to="/play"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
+              >
+                <Swords className="w-5 h-5" /> Join the Playtest
+              </Link>
+              <Link
+                to="/stores#events"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
+              >
+                <Hammer className="w-5 h-5" /> Host an Event
               </Link>
             </motion.div>
           </div>
@@ -121,7 +131,7 @@ export default function Home() {
       </section>
 
       {/* ALPHA PRE-ORDER PROMO */}
-      <section className="max-w-7xl mx-auto px-5 py-8 mt-4 relative">
+      <section id="pre-order" className="max-w-7xl mx-auto px-5 py-8 mt-4 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-900/40 via-blue-900/30 to-transparent rounded-3xl blur-md" />
         <div className="relative glass rounded-3xl p-8 md:p-12 border border-purple-500/30 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
           <div className="flex-1">
@@ -135,11 +145,11 @@ export default function Home() {
               </span>
             </h2>
             <p className="mt-4 text-white/70 max-w-xl text-lg font-head">
-              Secure your physical collector's box. Strictly limited supply of <strong className="text-white">500 boxes</strong> worldwide. Limit 1 box per person.
+              Secure your physical collector's box. Each booster box contains 36 packs, with 15 cards per pack including guaranteed rare or higher drops.
             </p>
             <div className="mt-6 flex items-baseline gap-4">
               <span className="text-5xl font-black text-white drop-shadow-lg">$60</span>
-              <span className="text-xl text-red-400/60 line-through">$80 MSRP</span>
+              <span className="text-xl text-white/60 ml-2">Customer Price</span>
               <span className="text-sm text-white/60 ml-2 uppercase tracking-wide">+ Shipping</span>
             </div>
           </div>
@@ -153,11 +163,42 @@ export default function Home() {
                 style={{ width: `${(stats.total_preorders / 500) * 100}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-purple-300 text-center uppercase tracking-widest font-bold">Only {500 - stats.total_preorders} Boxes Remaining</p>
+            <p className="mt-2 text-xs text-purple-300 text-center uppercase tracking-widest font-bold">First Edition Production Progress</p>
           </div>
         </div>
       </section>
 
+
+      {/* TRUST BUILDING SECTION */}
+      <section className="max-w-7xl mx-auto px-5 py-12">
+        <div className="glass rounded-3xl p-8 md:p-12 border border-white/10">
+          <h2 className="text-3xl font-display font-bold text-white mb-6">Project Transparency</h2>
+          <div className="grid md:grid-cols-2 gap-8 text-white/70 font-head">
+            <div>
+              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Development & Founder</h3>
+              <p className="mb-4">
+                GlimmerFall is created by a passionate solo founder with a history in TCG game design. We are currently in the late playtest stage, refining the final card balancing and physical production logistics.
+              </p>
+              
+              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">First Edition Production</h3>
+              <p>
+                The 500-box figure represents our initial <strong>production cap</strong> for the First Edition print run, not our current inventory count. By capping the first run, we ensure the highest quality control and exclusivity for early supporters.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Shipping & Fulfillment</h3>
+              <p className="mb-4">
+                Expected shipping timeframe is Q4 2026. We are partnering with reliable logistics providers to ensure your boxes arrive in mint condition worldwide.
+              </p>
+              
+              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Policies & Contact</h3>
+              <p>
+                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please reach out to us at: <a href="mailto:support@glimmerfall.com" className="text-white hover:underline">support@glimmerfall.com</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* LORE SECTION */}
       <section className="max-w-5xl mx-auto px-5 pt-24 pb-12 text-center">
