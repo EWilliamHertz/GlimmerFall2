@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
-const DECK_MAX = 30;
+const DECK_MAX = 40;
 const COPY_MAX = 3;
 const STORE_KEY = "glimmerfall_decks";
 const PRINT_DECK_KEY = "gf_print_deck";
@@ -45,7 +45,7 @@ export default function DeckBuilder() {
     setDeck((d) => {
       const cur = d[card.id]?.count || 0;
       if (total >= DECK_MAX) {
-        toast.error("Deck is full (30 cards).");
+        toast.error(`Deck is full (${DECK_MAX} cards).`);
         return d;
       }
       if (cur >= COPY_MAX) {
@@ -132,7 +132,7 @@ export default function DeckBuilder() {
   return (
     <div data-testid="deckbuilder-page" className="max-w-7xl mx-auto px-5 py-10">
       <h1 className="font-display text-4xl md:text-5xl font-bold mb-2">Deck Builder</h1>
-      <p className="text-white/50 font-head mb-8">Forge your deck — up to 30 cards, max 3 copies each.</p>
+      <p className="text-white/50 font-head mb-8">Forge your deck — up to {DECK_MAX} cards, max 3 copies each.</p>
 
       <div className="grid lg:grid-cols-[1fr_380px] gap-6">
         {/* gallery */}

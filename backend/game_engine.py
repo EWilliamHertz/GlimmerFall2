@@ -8,9 +8,9 @@ import random
 import uuid
 from copy import deepcopy
 
-VANGUARD_HP = 25
+NEXUS_HP = 25
 HAND_START = 5
-DECK_SIZE = 30
+DECK_SIZE = 40
 MAX_ENERGY = 12
 AI_NAME = "GlimmerBot"
 
@@ -76,7 +76,7 @@ def new_player(username, deck):
     library = deck[HAND_START:]
     return {
         "username": username,
-        "hp": VANGUARD_HP,
+        "hp": NEXUS_HP,
         "energy": 0,
         "maxEnergy": 0,
         "library": library,
@@ -251,7 +251,7 @@ def resolve_effect(state, slot, card, payload, auto=False):
             amt = len(state["players"][slot]["hand"])
         else:
             amt = 2
-        if ("nexus" in low or "vanguard" in low) and "to target entity" not in low and tgt_type != "entity":
+        if ("nexus" in low or "nexus" in low) and "to target entity" not in low and tgt_type != "entity":
             state["players"][tgt_slot]["hp"] -= amt
             frags.append(f"dealt {amt} to {state['players'][tgt_slot]['username']}'s Nexus")
         else:
@@ -259,7 +259,7 @@ def resolve_effect(state, slot, card, payload, auto=False):
             if te:
                 deal_damage_entity(te, amt)
                 frags.append(f"dealt {amt} to {te['name']}")
-            elif tgt_type == "vanguard":
+            elif tgt_type == "nexus":
                 state["players"][tgt_slot]["hp"] -= amt
                 frags.append(f"dealt {amt} to a Nexus")
             elif auto:
@@ -321,7 +321,7 @@ def resolve_effect(state, slot, card, payload, auto=False):
     hm = _re.search(r"heal your nexus\s+(\d+)", low)
     if hm:
         amt = int(hm.group(1))
-        state["players"][slot]["hp"] = min(VANGUARD_HP, state["players"][slot]["hp"] + amt)
+        state["players"][slot]["hp"] = min(NEXUS_HP, state["players"][slot]["hp"] + amt)
         frags.append(f"healed Nexus {amt}")
 
     # ---- draw ----
@@ -579,7 +579,7 @@ def do_attack_entity(state, slot, payload):
             overflow = atk_pow - before
     if overflow > 0:
         dp["hp"] -= overflow
-        log(state, f"{atk['name']} overwhelms for {overflow} spill damage to {dp['username']}'s Vanguard.")
+        log(state, f"{atk['name']} overwhelms for {overflow} spill damage to {dp['username']}'s Nexus.")
         # combat damage triggers
         if "ready one glimmer node" in (atk.get("description") or "").lower():
             pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
@@ -600,7 +600,7 @@ def do_attack_entity(state, slot, payload):
     check_win(state)
 
 
-def do_attack_vanguard(state, slot, payload):
+def do_attack_nexus(state, slot, payload):
     pl = state["players"][slot]
     dslot = opp(slot)
     dp = state["players"][dslot]
@@ -616,7 +616,7 @@ def do_attack_vanguard(state, slot, payload):
     atk["exhausted"] = True
     if "Stealth" in atk["keywords"]:
         atk["keywords"].remove("Stealth")
-    log(state, f"{atk['name']} struck {dp['username']}'s Vanguard for {dmg}.")
+    log(state, f"{atk['name']} struck {dp['username']}'s Nexus for {dmg}.")
     
     # combat damage triggers
     if "ready one glimmer node" in (atk.get("description") or "").lower():
@@ -661,11 +661,11 @@ def ai_take_turn(state):
             skip.add(pick["instanceId"])
         if state["phase"] == "ENDED":
             return
-    # cast a damaging spell at the enemy vanguard if affordable
+    # cast a damaging spell at the enemy nexus if affordable
     for c in list(ai["hand"]):
         if c["cardType"] in ("Rite", "Flash") and c["cost"] <= ai["energy"] and c["faction"] != "Terra":
             try:
-                do_cast_spell(state, slot, {"instanceId": c["instanceId"], "targetType": "vanguard"})
+                do_cast_spell(state, slot, {"instanceId": c["instanceId"], "targetType": "nexus"})
             except ActionError:
                 continue
             if state["phase"] == "ENDED":
@@ -681,7 +681,7 @@ def ai_take_turn(state):
             if guards:
                 do_attack_entity(state, slot, {"attackerId": e["instanceId"], "targetId": guards[0]["instanceId"]})
         else:
-            do_attack_vanguard(state, slot, {"attackerId": e["instanceId"]})
+            do_attack_nexus(state, slot, {"attackerId": e["instanceId"]})
         if state["phase"] == "ENDED":
             return
     do_end_turn(state, slot)
@@ -692,7 +692,7 @@ ACTION_MAP = {
     "PLAY_CARD": do_play_card,
     "CAST_SPELL": do_cast_spell,
     "ATTACK_ENTITY": do_attack_entity,
-    "ATTACK_VANGUARD": do_attack_vanguard,
+    "ATTACK_NEXUS": do_attack_nexus,
     "END_TURN": lambda s, slot, p: do_end_turn(s, slot),
 }
 
