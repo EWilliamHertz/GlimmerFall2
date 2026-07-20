@@ -241,7 +241,7 @@ const EnergyDots = ({ energy, max }) => (
   </div>
 );
 
-const Vanguard = ({ player, mine, isTarget, onClick, testId }) => (
+const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
   <button
     onClick={onClick}
     data-testid={testId}
@@ -369,7 +369,7 @@ function GameBoard({ session, match, refresh, onExit }) {
       if (card.cardType === "Rite" && !isMyTurn) return toast.error("Rite spells only on your turn.");
       setSelectedAttacker(null);
       setPendingSpell(card);
-      toast.info(`Casting ${card.name} — choose a target or cast at a Vanguard.`);
+      toast.info(`Casting ${card.name} — choose a target or cast at a Nexus.`);
     } else {
       toast.info("Drag Entities/Relics onto the battlefield to deploy.");
     }
@@ -395,10 +395,10 @@ function GameBoard({ session, match, refresh, onExit }) {
     }
   };
 
-  const clickVanguard = (targetSlot) => {
-    if (pendingSpell) return castAt("vanguard", null, targetSlot);
+  const clickNexus = (targetSlot) => {
+    if (pendingSpell) return castAt("nexus", null, targetSlot);
     if (targetSlot !== slot && selectedAttacker) {
-      act("ATTACK_VANGUARD", { attackerId: selectedAttacker });
+      act("ATTACK_NEXUS", { attackerId: selectedAttacker });
       setSelectedAttacker(null);
     }
   };
@@ -410,16 +410,26 @@ function GameBoard({ session, match, refresh, onExit }) {
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
         {/* top: opponent */}
         <div className="flex items-center justify-between gap-3">
-          <Vanguard
+          <Nexus
             player={opp}
             mine={false}
             isTarget={(!!selectedAttacker && !enemyHasGuard) || !!pendingSpell}
-            onClick={() => clickVanguard(oppSlot)}
-            testId="enemy-vanguard"
+            onClick={() => clickNexus(oppSlot)}
+            testId="enemy-nexus"
           />
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-white/50 text-sm font-head">
-              <HandIcon className="w-4 h-4" /> {opp.handCount ?? opp.hand?.length ?? 0}
+            <div className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-1.5 border border-white/10">
+              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Hand">
+                <HandIcon className="w-3.5 h-3.5" /> {opp.handCount ?? opp.hand?.length ?? 0}
+              </div>
+              <div className="w-px h-3 bg-white/20 mx-1" />
+              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Deck">
+                <Layers className="w-3.5 h-3.5 text-[#F2A900]" /> {opp.libraryCount ?? opp.library?.length ?? 0}
+              </div>
+              <div className="w-px h-3 bg-white/20 mx-1" />
+              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Void">
+                <Skull className="w-3.5 h-3.5 text-[#9B30FF]" /> {opp.void?.length ?? 0}
+              </div>
             </div>
             <EnergyDots energy={opp.energy || 0} max={opp.maxEnergy || 0} />
             <button onClick={onExit} data-testid="exit-match" className="px-3 py-2 rounded-lg glass hover:border-white/25 text-sm">
@@ -479,9 +489,9 @@ function GameBoard({ session, match, refresh, onExit }) {
           ))}
         </DropZone>
 
-        {/* resonance + player vanguard */}
+        {/* resonance + player nexus */}
         <div className="flex items-stretch gap-3">
-          <Vanguard player={me} mine isTarget={!!pendingSpell} onClick={() => clickVanguard(slot)} testId="my-vanguard" />
+          <Nexus player={me} mine isTarget={!!pendingSpell} onClick={() => clickNexus(slot)} testId="my-nexus" />
           <DropZone id="resonance" active={!!activeDrag} label="Resonance Row — drag a card to charge Energy" className="glass p-3 flex-1 relative flex items-center gap-2 flex-wrap min-h-[70px]">
             {me.resonanceRow?.map((c) => (
               <div key={c.instanceId} className="w-9 h-12 rounded-md flex items-center justify-center font-num text-xs" style={{ background: `${factionCfg(c.faction).color}33`, border: `1px solid ${factionCfg(c.faction).color}` }}>
@@ -494,14 +504,21 @@ function GameBoard({ session, match, refresh, onExit }) {
 
         {/* controls */}
         <div className="flex items-center justify-center gap-3">
-          <button
-            data-testid="btn-draw"
-            disabled={!isMyTurn || busy || me.hasDrawnThisTurn}
-            onClick={() => act("DRAW_CARD", {})}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl glass font-head text-sm hover:border-white/25 disabled:opacity-40"
-          >
-            <Layers className="w-4 h-4" /> Draw {me.hasDrawnThisTurn ? "✓" : ""}
-          </button>
+          <div className="flex items-center gap-2 bg-black/20 rounded-xl px-4 py-2 border border-white/10">
+            <button
+              data-testid="btn-draw"
+              disabled={!isMyTurn || busy || me.hasDrawnThisTurn}
+              onClick={() => act("DRAW_CARD", {})}
+              className="inline-flex items-center gap-1.5 text-white/80 font-head text-sm hover:text-white disabled:opacity-40 transition-colors"
+              title="Draw Card"
+            >
+              <Layers className="w-4 h-4 text-[#F2A900]" /> Deck ({me.libraryCount ?? me.library?.length ?? 0}) {me.hasDrawnThisTurn ? "✓" : ""}
+            </button>
+            <div className="w-px h-4 bg-white/20 mx-2" />
+            <div className="inline-flex items-center gap-1.5 text-white/50 font-head text-sm" title="Void">
+              <Skull className="w-4 h-4 text-[#9B30FF]" /> Void ({me.void?.length ?? 0})
+            </div>
+          </div>
           <button
             data-testid="btn-end-turn"
             disabled={!isMyTurn || busy}
@@ -559,7 +576,7 @@ function GameBoard({ session, match, refresh, onExit }) {
           <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} className="fixed bottom-5 left-1/2 -translate-x-1/2 glass-strong rounded-full px-5 py-2.5 z-50 flex items-center gap-3">
             <Sparkles className="w-4 h-4 text-[#F2A900]" />
             <span className="font-head text-sm">Casting <b>{pendingSpell.name}</b> — tap a target, or</span>
-            <button onClick={() => castAt("vanguard", null, oppSlot)} className="px-3 py-1 rounded-full bg-red-500/80 text-white text-xs font-head">Enemy Vanguard</button>
+            <button onClick={() => castAt("nexus", null, oppSlot)} className="px-3 py-1 rounded-full bg-red-500/80 text-white text-xs font-head">Enemy Nexus</button>
             <button onClick={() => castAt(null, null, oppSlot)} className="px-3 py-1 rounded-full glass text-xs font-head">No Target</button>
           </motion.div>
         )}

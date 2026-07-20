@@ -72,11 +72,12 @@ export const rarityIcon = (r) => RARITY_ICONS[r] || RARITY_ICONS.Common;
 export const CARD_TYPES = ["Entity", "Rite", "Flash", "Relic"];
 
 export const KEYWORDS = {
-  Guard: "Enemies must attack a Guard entity before the Vanguard or other entities.",
-  Evasive: "Bypasses Guard and can attack the Vanguard directly.",
-  Stealth: "Cannot be targeted by spells or attacks. Fades after it attacks.",
-  Lethal: "Any damage this entity deals instantly destroys the target.",
-  Overwhelm: "Excess damage dealt to a Guard spills over to the enemy Vanguard.",
+  Guard: "Enemies must attack a Guard entity before the Nexus or other entities.",
+  Evasive: "Bypasses Guard and can attack the Nexus directly.",
+  Stealth: "Cannot be attacked while Stealthed. Attacking breaks Stealth.",
+  Echo: "When cast, return a copy of this spell to your hand. It costs 1 more.",
+  Overwhelm: "Excess damage dealt to a Guard spills over to the enemy Nexus.",
+  Lethal: "Any damage dealt to an Entity destroys it.",
 };
 
 export const factionCfg = (f) => FACTIONS[f] || FACTIONS.Aether;
