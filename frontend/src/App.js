@@ -11,6 +11,7 @@ import DeckBuilder from "@/pages/DeckBuilder";
 import Arena from "@/pages/Arena";
 import PrintPage from "@/pages/PrintPage";
 import Dashboard from "@/pages/Dashboard";
+import Stores from "@/pages/Stores";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
@@ -32,6 +33,7 @@ function Shell() {
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/stores" element={<Stores />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

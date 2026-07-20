@@ -29,7 +29,7 @@ export default function Rules() {
       <section className="glass rounded-2xl p-7 mb-8">
         <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2"><Layers className="w-5 h-5 text-[#F2A900]" /> The Core Loop</h2>
         <ul className="space-y-2.5 text-white/75 text-sm leading-relaxed list-disc pl-5">
-          <li>Your Vanguard (Nexus) begins with <b className="text-white">25 health</b>. Reduce your opponent's to 0 to win.</li>
+          <li>Your Nexus begins with <b className="text-white">25 health</b>. Reduce your opponent's to 0 to win.</li>
           <li>Each turn, refill Energy to your maximum, then play one <b className="text-white">Resonance Node</b> (drag any card to the Resonance Row) to raise your maximum Energy by 1.</li>
           <li>You may <b className="text-white">draw only 1 card</b> and play <b className="text-white">1 Resonance Node</b> per turn.</li>
           <li>Spend Energy to deploy Entities, cast spells and place Relics, then attack with your Entities.</li>
