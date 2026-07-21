@@ -226,11 +226,15 @@ export default function PrintPage() {
           {proSeq.map((item, si) =>
             item.back ? (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
-                <img src={CARDBACK} alt="backside" style={{ width: "69mm", height: "94mm", objectFit: "cover" }} />
+                <div style={{ width: "69mm", height: "94mm", backgroundColor: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img src={CARDBACK} alt="backside" style={{ width: "63mm", height: "88.2mm", objectFit: "cover", borderRadius: "4mm" }} />
+                </div>
               </div>
             ) : (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${si}`}>
-                <CardTemplate card={item.card} tilt={false} forceText eager width="69mm" />
+                <div style={{ width: "69mm", height: "94mm", backgroundColor: factionCfg(item.card?.faction).color, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CardTemplate card={item.card} tilt={false} forceText eager width="63mm" />
+                </div>
               </div>
             )
           )}
