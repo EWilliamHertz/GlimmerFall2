@@ -226,7 +226,7 @@ export default function PrintPage() {
           {proSeq.map((item, si) =>
             item.back ? (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
-                <img src={CARDBACK} alt="backside" style={{ width: "69mm", height: "94mm", objectFit: "cover", borderRadius: "4mm" }} />
+                <img src={CARDBACK} alt="backside" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${si}`}>
