@@ -36,7 +36,9 @@ export const CardTemplate = ({
   badge = null,
   className = "",
   width = null,
+  height = null,
   eager = false,
+  bleed = null,
   testId,
 }) => {
   const ref = useRef(null);
@@ -92,12 +94,13 @@ export const CardTemplate = ({
         rotateY: tilt ? ry : 0,
         transformStyle: "preserve-3d",
         ...(width ? { width } : {}),
+        ...(height ? { height } : {}),
         boxShadow: selected ? `0 0 0 3px #fff, 0 0 30px ${f.glow}` : hover ? `0 0 26px ${f.glow}, ${rar.glow}` : rar.glow,
       }}
-      className={`${width ? "" : SIZES[size]} relative shrink-0 aspect-[5/7] rounded-xl cursor-pointer select-none transition-shadow duration-300
+      className={`${width ? "" : SIZES[size]} relative shrink-0 ${width && height ? "" : "aspect-[5/7]"} rounded-xl cursor-pointer select-none transition-shadow duration-300
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
-      <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
+      <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ border: bleed ? "none" : `2px solid ${selected ? "#ffffff" : f.color}` }}>
         <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
 
         {/* faction background tint */}
@@ -107,8 +110,17 @@ export const CardTemplate = ({
           <div className="pointer-events-none absolute inset-0" style={{ mixBlendMode: "color-dodge", opacity: hover ? 0.55 : 0.28, transition: "opacity .3s", background: "linear-gradient(115deg, transparent 18%, rgba(179,229,252,.6) 38%, rgba(255,235,59,.5) 50%, rgba(224,64,251,.6) 62%, transparent 82%)" }} />
         )}
 
+        {exhausted && (
+          <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
+            <span className="text-[10px] font-head uppercase tracking-widest text-white/80 rotate-[-8deg] border border-white/30 px-2 py-0.5 rounded">Exhausted</span>
+          </div>
+        )}
+      </div>
+
+      <div className="absolute pointer-events-none rounded-xl overflow-hidden" style={{ top: bleed || 0, bottom: bleed || 0, left: bleed || 0, right: bleed || 0, border: bleed ? `2px solid ${f.color}` : "none" }}>
+
         {/* bottom info panel */}
-        <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"}`} style={{ background: "linear-gradient(to top, rgba(6,7,12,0.70) 62%, rgba(6,7,12,0.40) 100%)", backdropFilter: "blur(1px)" }}>
+        <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"} pointer-events-auto`} style={{ background: "linear-gradient(to top, rgba(6,7,12,0.70) 62%, rgba(6,7,12,0.40) 100%)", backdropFilter: "blur(1px)" }}>
           <div className="flex items-center gap-1">
             <span className={`font-display font-bold leading-tight truncate ${NAME_CLS[size]}`} style={{ color: f.soft }} data-testid={testId ? `${testId}-name` : undefined}>
               {card?.name}
@@ -132,13 +144,6 @@ export const CardTemplate = ({
             </p>
           )}
         </div>
-
-        {exhausted && (
-          <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
-            <span className="text-[10px] font-head uppercase tracking-widest text-white/80 rotate-[-8deg] border border-white/30 px-2 py-0.5 rounded">Exhausted</span>
-          </div>
-        )}
-      </div>
 
       {/* energy cost badge (faction) */}
       <div
@@ -164,7 +169,7 @@ export const CardTemplate = ({
 
       {/* power / health — combined faction-colored pill, bottom-right */}
       {isEntity && power != null && (
-        <div className={`absolute right-1 bottom-1 flex items-center gap-0.5 px-1.5 rounded-md font-num font-bold border-2 border-black/60 ${PH_CLS[size]}`} style={{ background: f.color, color: "#000" }}>
+        <div className={`absolute right-1 bottom-1 flex items-center gap-0.5 px-1.5 rounded-md font-num font-bold border-2 border-black/60 pointer-events-auto ${PH_CLS[size]}`} style={{ background: f.color, color: "#000" }}>
           <span data-testid={testId ? `${testId}-power` : undefined}>{power}</span>
           <span className="opacity-50">/</span>
           <span className={damaged ? "text-red-800" : ""} data-testid={testId ? `${testId}-health` : undefined}>{health}</span>
@@ -172,6 +177,7 @@ export const CardTemplate = ({
       )}
 
       {badge}
+      </div>
     </motion.div>
   );
 };
