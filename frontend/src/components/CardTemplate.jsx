@@ -114,13 +114,18 @@ export const CardTemplate = ({
               {card?.name}
             </span>
           </div>
-          <span
-            className="inline-block mt-0.5 px-1.5 rounded text-[8px] font-head font-semibold uppercase tracking-wide"
-            style={{ background: `${f.color}`, color: "#000" }}
-            data-testid={testId ? `${testId}-type` : undefined}
-          >
-            {card?.faction} - {type}
-          </span>
+          <div className="flex flex-wrap items-center gap-1 mt-0.5">
+            <span
+              className="inline-block px-1.5 rounded text-[8px] font-head font-semibold uppercase tracking-wide"
+              style={{ background: `${f.color}`, color: "#000" }}
+              data-testid={testId ? `${testId}-type` : undefined}
+            >
+              {card?.faction} - {type}
+            </span>
+            {kws.length > 0 && kws.slice(0, 3).map((k) => (
+              <span key={k} className="text-[7px] font-head font-bold px-1 rounded leading-tight" style={{ background: `${f.color}dd`, color: "#000" }}>{k}</span>
+            ))}
+          </div>
           {showText && desc && (
             <p className={isEntity ? "mt-1 pr-9" : "mt-1"} style={{ color: "rgba(255,255,255,0.92)", fontSize: size === "xl" ? 11 : 9, display: "-webkit-box", WebkitLineClamp: size === "xl" ? 5 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid={testId ? `${testId}-desc` : undefined}>
               {desc}
@@ -155,14 +160,7 @@ export const CardTemplate = ({
         data-testid={testId ? `${testId}-rarity` : undefined}
       />
 
-      {/* keywords */}
-      {kws.length > 0 && (
-        <div className="absolute left-1 top-8 flex flex-col gap-0.5">
-          {kws.slice(0, 3).map((k) => (
-            <span key={k} className="text-[7px] font-head font-bold px-1 rounded leading-tight" style={{ background: `${f.color}dd`, color: "#000" }}>{k}</span>
-          ))}
-        </div>
-      )}
+
 
       {/* power / health — combined faction-colored pill, bottom-right */}
       {isEntity && power != null && (

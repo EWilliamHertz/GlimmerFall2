@@ -227,13 +227,13 @@ export default function PrintPage() {
             item.back ? (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
                 <div style={{ width: "69mm", height: "94mm", backgroundColor: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={CARDBACK} alt="backside" style={{ width: "63mm", height: "88.2mm", objectFit: "cover", borderRadius: "4mm" }} />
+                  <img src={CARDBACK} alt="backside" style={{ width: "57mm", height: "79.8mm", objectFit: "cover", borderRadius: "4mm" }} />
                 </div>
               </div>
             ) : (
               <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${si}`}>
                 <div style={{ width: "69mm", height: "94mm", backgroundColor: factionCfg(item.card?.faction).color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CardTemplate card={item.card} tilt={false} forceText eager width="63mm" />
+                  <CardTemplate card={item.card} tilt={false} forceText eager width="57mm" />
                 </div>
               </div>
             )
