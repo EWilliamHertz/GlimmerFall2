@@ -138,7 +138,7 @@ export const CardTemplate = ({
           {/* collector info */}
           {showText && (
             <div className="absolute bottom-[3px] left-1.5 text-[5px] text-white/50 font-mono tracking-wider z-10 pointer-events-none" data-testid={testId ? `${testId}-collector` : undefined}>
-              {card?.set_code || "GLM"} • {String(card?.collector_number || 0).padStart(3, "0")}
+              {card?.set_code || "AWK"} • {String(card?.collector_number || 0).padStart(3, "0")}
             </div>
           )}
         </div>
