@@ -81,15 +81,13 @@ export function buildCardSVG(card, imgHref, rarityHref) {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs>
-    <clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath>
-    <clipPath id="safe"><rect x="60" y="60" width="570" height="820" rx="16"/></clipPath>
+    <clipPath id="safe"><rect x="60" y="60" width="570" height="820" rx="26"/></clipPath>
   </defs>
-  <g clip-path="url(#rc)">
-    <image xlink:href="${imgHref}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
-    <rect x="0" y="540" width="${W}" height="${H - 540}" fill="${f.color}" opacity="0.16"/>
-    <g clip-path="url(#safe)">
-      <rect x="60" y="670" width="570" height="210" fill="#06070C" opacity="0.75"/>
-    </g>
+  <rect x="0" y="0" width="${W}" height="${H}" fill="#0B0C10"/>
+  <g clip-path="url(#safe)">
+    <image xlink:href="${imgHref}" x="60" y="60" width="570" height="820" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="60" y="540" width="570" height="340" fill="${f.color}" opacity="0.16"/>
+    <rect x="60" y="670" width="570" height="210" fill="#06070C" opacity="0.75"/>
     <text x="94" y="730" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}">${esc(card.name)}</text>
     <g transform="translate(94,746)"><rect width="${24 + typeLabel.length * 12}" height="28" rx="4" fill="${f.color}"/><text x="9" y="21" font-family="Arial" font-size="18" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
     ${descSvg}
@@ -99,13 +97,19 @@ export function buildCardSVG(card, imgHref, rarityHref) {
     ${phSvg}
     ${raritySvg}
   </g>
-  <rect x="60" y="60" width="570" height="820" rx="16" fill="none" stroke="${f.color}" stroke-width="4"/>
+  <rect x="60" y="60" width="570" height="820" rx="26" fill="none" stroke="${f.color}" stroke-width="4"/>
 </svg>`;
 }
 
 export function buildBackSVG(imgHref) {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${BLEED_W} ${BLEED_H}">
-  <image xlink:href="${imgHref}" x="0" y="0" width="${BLEED_W}" height="${BLEED_H}" preserveAspectRatio="xMidYMid slice"/>
+  <defs>
+    <clipPath id="safe"><rect x="60" y="60" width="570" height="820" rx="26"/></clipPath>
+  </defs>
+  <rect x="0" y="0" width="${BLEED_W}" height="${BLEED_H}" fill="#0B0C10"/>
+  <g clip-path="url(#safe)">
+    <image xlink:href="${imgHref}" x="60" y="60" width="570" height="820" preserveAspectRatio="xMidYMid slice"/>
+  </g>
 </svg>`;
 }
 
