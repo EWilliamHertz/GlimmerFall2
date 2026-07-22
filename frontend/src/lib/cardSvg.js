@@ -79,6 +79,8 @@ export function buildCardSVG(card, imgHref, rarityHref) {
     ? `<image xlink:href="${rarityHref}" x="${W - 152}" y="76" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
     : "";
 
+  const collectorStr = `${card.set_code || "GLM"} • ${String(card.collector_number || 0).padStart(3, "0")}`;
+
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs>
     <clipPath id="safe"><rect x="60" y="60" width="570" height="820" rx="26"/></clipPath>
@@ -92,6 +94,7 @@ export function buildCardSVG(card, imgHref, rarityHref) {
     <g transform="translate(94,746)"><rect width="${24 + typeLabel.length * 12}" height="28" rx="4" fill="${f.color}"/><text x="9" y="21" font-family="Arial" font-size="18" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
     ${descSvg}
     ${kwSvg}
+    <text x="94" y="870" font-family="monospace" font-size="14" fill="rgba(255,255,255,0.5)">${esc(collectorStr)}</text>
     <circle cx="134" cy="134" r="48" fill="${f.color}" stroke="#000" stroke-width="6"/>
     <text x="134" y="152" text-anchor="middle" font-family="Arial" font-size="52" font-weight="800" fill="#000">${esc(card.cost)}</text>
     ${phSvg}
