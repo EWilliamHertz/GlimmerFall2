@@ -51,42 +51,55 @@ export function buildCardSVG(card, imgHref, rarityHref) {
   const lines = wrap(card.description, 42);
   const W = BLEED_W, H = BLEED_H;
 
+  const typeLabel = `${card.faction} - ${type}`.toUpperCase();
+  
+  let kwX = 94 + 24 + typeLabel.length * 12 + 10;
   const kwSvg = kws
     .slice(0, 3)
-    .map((k, i) => `<g transform="translate(30,${330 + i * 44})"><rect width="${18 + k.length * 12}" height="34" rx="6" fill="${f.color}"/><text x="8" y="24" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#000">${esc(k)}</text></g>`)
+    .map((k) => {
+      const w = 18 + k.length * 12;
+      const res = `<g transform="translate(${kwX},746)"><rect width="${w}" height="28" rx="4" fill="${f.color}"/><text x="9" y="21" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#000">${esc(k)}</text></g>`;
+      kwX += w + 8;
+      return res;
+    })
     .join("");
 
   const descSvg = lines
-    .map((l, i) => `<text x="34" y="${792 + i * 26}" font-family="Arial, sans-serif" font-size="21" fill="#f2f2f5">${esc(l)}</text>`)
+    .map((l, i) => `<text x="94" y="${800 + i * 26}" font-family="Arial, sans-serif" font-size="21" fill="#f2f2f5">${esc(l)}</text>`)
     .join("");
 
   const phSvg = isEntity && card.power != null && card.power !== "None"
-    ? `<g transform="translate(${W - 158},${H - 78})">
+    ? `<g transform="translate(${W - 218},${H - 138})">
          <rect width="124" height="52" rx="8" fill="${f.color}" stroke="#000" stroke-width="4"/>
          <text x="62" y="37" text-anchor="middle" font-family="Arial" font-size="32" font-weight="800" fill="#000">${esc(card.power)} / ${esc(card.health)}</text>
        </g>`
     : "";
 
-  const typeLabel = `${card.faction} - ${type}`.toUpperCase();
   const raritySvg = rarityHref
-    ? `<image xlink:href="${rarityHref}" x="${W - 92}" y="16" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
+    ? `<image xlink:href="${rarityHref}" x="${W - 152}" y="76" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
     : "";
+
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
-  <defs><clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath></defs>
+  <defs>
+    <clipPath id="rc"><rect x="0" y="0" width="${W}" height="${H}" rx="26"/></clipPath>
+    <clipPath id="safe"><rect x="60" y="60" width="570" height="820" rx="16"/></clipPath>
+  </defs>
   <g clip-path="url(#rc)">
     <image xlink:href="${imgHref}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
     <rect x="0" y="540" width="${W}" height="${H - 540}" fill="${f.color}" opacity="0.16"/>
-    <rect x="0" y="690" width="${W}" height="${H - 690}" fill="#06070C" opacity="0.68"/>
-    <text x="34" y="726" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}">${esc(card.name)}</text>
-    <g transform="translate(34,740)"><rect width="${24 + typeLabel.length * 12}" height="30" rx="5" fill="${f.color}"/><text x="9" y="22" font-family="Arial" font-size="19" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
+    <g clip-path="url(#safe)">
+      <rect x="60" y="670" width="570" height="210" fill="#06070C" opacity="0.75"/>
+    </g>
+    <text x="94" y="730" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}">${esc(card.name)}</text>
+    <g transform="translate(94,746)"><rect width="${24 + typeLabel.length * 12}" height="28" rx="4" fill="${f.color}"/><text x="9" y="21" font-family="Arial" font-size="18" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
     ${descSvg}
     ${kwSvg}
-    <circle cx="74" cy="74" r="48" fill="${f.color}" stroke="#000" stroke-width="6"/>
-    <text x="74" y="92" text-anchor="middle" font-family="Arial" font-size="52" font-weight="800" fill="#000">${esc(card.cost)}</text>
+    <circle cx="134" cy="134" r="48" fill="${f.color}" stroke="#000" stroke-width="6"/>
+    <text x="134" y="152" text-anchor="middle" font-family="Arial" font-size="52" font-weight="800" fill="#000">${esc(card.cost)}</text>
     ${phSvg}
     ${raritySvg}
   </g>
-  <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="26" fill="none" stroke="${f.color}" stroke-width="4"/>
+  <rect x="60" y="60" width="570" height="820" rx="16" fill="none" stroke="${f.color}" stroke-width="4"/>
 </svg>`;
 }
 
