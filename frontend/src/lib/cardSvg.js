@@ -79,7 +79,7 @@ export function buildCardSVG(card, imgHref, rarityHref) {
     ? `<image xlink:href="${rarityHref}" x="${W - 152}" y="76" width="76" height="76" preserveAspectRatio="xMidYMid meet"/>`
     : "";
 
-  const collectorStr = `${card.set_code || "GLM"} • ${String(card.collector_number || 0).padStart(3, "0")}`;
+  const collectorStr = `${card.set_code || "AWK"} • ${String(card.collector_number || 0).padStart(3, "0")}`;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="69mm" height="94mm" viewBox="0 0 ${W} ${H}">
   <defs>
