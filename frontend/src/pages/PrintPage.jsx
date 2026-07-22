@@ -225,12 +225,12 @@ export default function PrintPage() {
         <div className="print-sheets pro py-2 flex flex-col items-center gap-6">
           {proSeq.map((item, si) =>
             item.back ? (
-              <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
-                <img src={CARDBACK} alt="backside" className="w-full h-full object-cover" />
+              <div key={item.key} className="pro-page bg-[#0B0C10] flex items-center justify-center" data-testid={si === 0 ? "pro-page-back" : `pro-page-back-${si}`}>
+                <img src={CARDBACK} alt="backside" className="object-cover" style={{ width: "57mm", height: "82mm", borderRadius: "4mm" }} />
               </div>
             ) : (
-              <div key={item.key} className="pro-page bg-white flex items-center justify-center" data-testid={`pro-page-${si}`}>
-                <CardTemplate card={item.card} tilt={false} forceText eager width="69mm" height="94mm" bleed="6mm" />
+              <div key={item.key} className="pro-page bg-[#0B0C10] flex items-center justify-center" data-testid={`pro-page-${si}`}>
+                <CardTemplate card={item.card} tilt={false} forceText eager width="57mm" height="82mm" />
               </div>
             )
           )}
