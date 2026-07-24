@@ -11,6 +11,7 @@ const LINKS = [
   { to: "/decks", label: "Deck Builder", id: "decks" },
   { to: "/booster", label: "Booster", id: "booster" },
   { to: "/rules", label: "Rulebook", id: "rules" },
+  { to: "/codex", label: "Lore Codex", id: "codex" },
   { to: "/community", label: "Community", id: "community" },
 ];
 

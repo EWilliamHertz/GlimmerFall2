@@ -199,7 +199,7 @@ export default function DeckBuilder() {
   return (
     <div data-testid="deckbuilder-page" className="max-w-7xl mx-auto px-5 py-10">
       <h1 className="font-display text-4xl md:text-5xl font-bold mb-2">Deck Builder</h1>
-      <p className="text-white/50 font-head mb-8">Forge your deck — up to {DECK_MAX} cards, max 3 copies each.</p>
+      <p className="text-white/50 font-head mb-8">Forge your deck up to {DECK_MAX} cards, max 3 copies each.</p>
 
       <div className="grid lg:grid-cols-[1fr_380px] gap-6">
         {/* gallery */}

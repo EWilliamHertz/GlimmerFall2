@@ -8,7 +8,7 @@ import { FACTIONS, KEYWORDS } from "@/lib/factions";
 const KW_ICONS = { Guard: Shield, Evasive: Eye, Stealth: Ghost, Lethal: Skull, Overwhelm: Waves, Swift: Zap };
 
 const TYPES = [
-  { name: "Entity", desc: "Creatures placed on the battlefield. No summoning sickness — they can attack immediately." },
+  { name: "Entity", desc: "Creatures placed on the battlefield. No summoning sickness   they can attack immediately." },
   { name: "Rite", desc: "Slow spells. Can only be cast during your own main turn." },
   { name: "Flash", desc: "Fast spells. Can be cast during either player's turn to interrupt or respond." },
   { name: "Relic", desc: "Artifacts that stay on the board providing passive effects." },
