@@ -25,6 +25,15 @@ export default function Rules() {
       <h1 className="font-display text-4xl md:text-5xl font-bold mb-2">Rulebook</h1>
       <p className="text-white/50 font-head mb-10">The tenets, keywords and lore of GlimmerFall.</p>
 
+      {/* Alpha Notice */}
+      <section className="glass rounded-2xl p-7 mb-8 border border-[#F2A900]/30 bg-[#F2A900]/5">
+        <h2 className="font-display text-xl font-bold mb-2 text-[#F2A900]">Alpha Notice: Deckbuilding & Factions</h2>
+        <p className="text-white/80 text-sm leading-relaxed">
+          It is currently undetermined in the Alpha stage whether players will be permitted to mix different factions together in a single deck, or if deckbuilding will strictly bind you to a single faction. 
+          If you have any tips and tricks regarding this, they are well sought after!
+        </p>
+      </section>
+
       {/* Core loop */}
       <section className="glass rounded-2xl p-7 mb-8">
         <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2"><Layers className="w-5 h-5 text-[#F2A900]" /> The Core Loop</h2>
