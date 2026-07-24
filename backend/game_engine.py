@@ -529,7 +529,8 @@ def do_cast_spell(state, slot, payload):
     if payload.get("targetType") == "entity" and payload.get("targetId"):
         for e in enemy_entities(state, slot):
             if e["instanceId"] == payload["targetId"] and "Stealth" in e["keywords"]:
-                raise ActionError("Stealth entities cannot be targeted.")
+                if "target" in (card.get("description") or "").lower():
+                    raise ActionError("Stealth entities cannot be targeted.")
 
     pl["energy"] -= card["cost"]
     pl["hand"].pop(idx)

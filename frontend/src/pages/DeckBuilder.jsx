@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart } from "lucide-react";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
@@ -10,6 +11,33 @@ const DECK_MAX = 40;
 const COPY_MAX = 3;
 const STORE_KEY = "glimmerfall_decks";
 const PRINT_DECK_KEY = "gf_print_deck";
+
+const CardTooltip = ({ card, children, side="right" }) => {
+  if (!card) return children;
+  const f = factionCfg(card.faction);
+  return (
+    <HoverCard openDelay={200} closeDelay={0}>
+      <HoverCardTrigger asChild>
+        {children}
+      </HoverCardTrigger>
+      <HoverCardContent side={side} sideOffset={8} className="w-72 bg-black/95 border border-white/20 shadow-2xl p-4">
+        <div className="flex justify-between items-start mb-2">
+          <h4 className="font-display text-xl font-bold" style={{color: f.color}}>{card.name}</h4>
+          <span className="text-[10px] font-head px-2 py-0.5 rounded-full" style={{background: `${f.color}22`, color: f.color}}>{card.card_type}</span>
+        </div>
+        <div className="flex gap-4 mb-3 text-xs font-head">
+          {card.cost !== null && <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-[#F2A900]"/> {card.cost}</span>}
+          {card.power !== null && card.power !== "None" && <span className="flex items-center gap-1"><Sword className="w-3 h-3 text-[#FF5252]"/> {card.power}</span>}
+          {card.health !== null && card.health !== "None" && <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-[#22E07B]"/> {card.health}</span>}
+        </div>
+        {card.keywords && card.keywords !== "None" && (
+          <div className="mb-2 text-[11px] font-head font-bold text-[#00BFFF] uppercase tracking-wide">{card.keywords}</div>
+        )}
+        <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{card.description || "No rules text."}</p>
+      </HoverCardContent>
+    </HoverCard>
+  );
+};
 
 export default function DeckBuilder() {
   const [cards, setCards] = useState([]);
@@ -213,12 +241,16 @@ export default function DeckBuilder() {
                   draggable
                   onDragStart={(e) => { e.dataTransfer.setData("cardId", c.id); }}
                 >
-                  <CardTemplate card={c} size="sm" onClick={() => add(c)} testId={`deck-pool-${c.collector_number}`} />
-                  {count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 z-10 w-6 h-6 rounded-full bg-[#F2A900] text-black font-num font-bold text-sm flex items-center justify-center border-2 border-[#0B0C10]">
-                      {count}
-                    </span>
-                  )}
+                  <CardTooltip card={c} side="right">
+                    <div className="relative">
+                      <CardTemplate card={c} size="sm" onClick={() => add(c)} testId={`deck-pool-${c.collector_number}`} />
+                      {count > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 z-10 w-6 h-6 rounded-full bg-[#F2A900] text-black font-num font-bold text-sm flex items-center justify-center border-2 border-[#0B0C10]">
+                          {count}
+                        </span>
+                      )}
+                    </div>
+                  </CardTooltip>
                 </div>
               );
             })}
@@ -347,7 +379,9 @@ export default function DeckBuilder() {
                     return (
                       <div key={card.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: `${f.color}12` }}>
                         <span className="w-6 h-6 rounded flex items-center justify-center font-num font-bold text-xs text-black" style={{ background: f.color }}>{card.cost}</span>
-                        <span className="flex-1 text-sm truncate font-head">{card.name}</span>
+                        <CardTooltip card={card} side="left">
+                          <span className="flex-1 text-sm truncate font-head cursor-help hover:text-white transition-colors underline decoration-white/20 underline-offset-4">{card.name}</span>
+                        </CardTooltip>
                         <button onClick={() => remove(card.id)} className="text-white/50 hover:text-white"><Minus className="w-4 h-4" /></button>
                         <span className="font-num text-sm w-4 text-center">{count}</span>
                         <button onClick={() => add(card)} className="text-white/50 hover:text-white"><Plus className="w-4 h-4" /></button>
