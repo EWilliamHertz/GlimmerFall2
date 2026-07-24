@@ -61,6 +61,8 @@ DONE
 ### 2. Lore Integration
 *   **Lore Compendium:** Expand the Rulebook into a "Library" or "Codex" where players can read the deep lore of GlimmerFall, the origin of the factions, and short stories.
 
+DONE
+
 ---
 
 ## 💡 Developer Tips & Tricks

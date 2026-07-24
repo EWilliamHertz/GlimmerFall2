@@ -61,27 +61,52 @@ export default function Dashboard() {
 }
 
 function PlayerDashboard({ user }) {
+  const winRate = (user.wins + user.losses) > 0 ? Math.round((user.wins / (user.wins + user.losses)) * 100) : 0;
+
   return (
-    <div className="grid md:grid-cols-3 gap-6">
-      <div className="glass-strong p-6 rounded-2xl border border-[#F2A900]/30 relative overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 p-4 opacity-10 text-[#F2A900]"><Crosshair className="w-24 h-24" /></div>
-        <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Matchmaking</h3>
-        <p className="text-4xl font-black">{user.matchmaking?.rank || "Unranked"}</p>
-        <p className="text-white/60 mt-1">MMR: {user.matchmaking?.mmr || 1200}</p>
-      </div>
-      
-      <div className="glass-strong p-6 rounded-2xl border border-[#00BFFF]/30 relative overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 p-4 opacity-10 text-[#00BFFF]"><Package className="w-24 h-24" /></div>
-        <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">My Bookings</h3>
-        <p className="text-4xl font-black">{user.bookings || 0}</p>
-        <p className="text-white/60 mt-1">First Edition Boxes Pre-ordered</p>
+    <div className="space-y-8">
+      <div className="flex items-center gap-6 bg-black/40 p-6 rounded-3xl border border-white/10">
+        <img 
+          src={user.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.nickname}` : user.avatar} 
+          alt="Avatar" 
+          className="w-24 h-24 rounded-full border-4 border-[#F2A900] shadow-lg" 
+        />
+        <div>
+          <h2 className="text-2xl font-bold font-display text-white">{user.nickname}</h2>
+          <p className="text-white/60 font-head text-sm mt-1">
+            Faction: <span className="text-[#F2A900] font-semibold">{user.faction || "None"}</span>
+          </p>
+        </div>
       </div>
 
-      <div className="glass-strong p-6 rounded-2xl border border-[#22E07B]/30 relative overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 p-4 opacity-10 text-[#22E07B]"><Users className="w-24 h-24" /></div>
-        <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Referrals</h3>
-        <p className="text-4xl font-black">{user.referrals || 0}</p>
-        <p className="text-white/60 mt-1">Friends Invited</p>
+      <div className="grid md:grid-cols-4 gap-6">
+        <div className="glass-strong p-6 rounded-2xl border border-[#9B30FF]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#9B30FF]"><Activity className="w-24 h-24" /></div>
+          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Win Rate</h3>
+          <p className="text-4xl font-black">{winRate}%</p>
+          <p className="text-white/60 mt-1">{user.wins || 0}W - {user.losses || 0}L</p>
+        </div>
+
+        <div className="glass-strong p-6 rounded-2xl border border-[#F2A900]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#F2A900]"><Crosshair className="w-24 h-24" /></div>
+          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Matchmaking</h3>
+          <p className="text-3xl font-black">{user.matchmaking?.rank || "Unranked"}</p>
+          <p className="text-white/60 mt-1">MMR: {user.matchmaking?.mmr || 1200}</p>
+        </div>
+        
+        <div className="glass-strong p-6 rounded-2xl border border-[#00BFFF]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#00BFFF]"><Package className="w-24 h-24" /></div>
+          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">My Bookings</h3>
+          <p className="text-4xl font-black">{user.bookings || 0}</p>
+          <p className="text-white/60 mt-1">Booster Boxes</p>
+        </div>
+
+        <div className="glass-strong p-6 rounded-2xl border border-[#22E07B]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#22E07B]"><Users className="w-24 h-24" /></div>
+          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Referrals</h3>
+          <p className="text-4xl font-black">{user.referrals || 0}</p>
+          <p className="text-white/60 mt-1">Friends Invited</p>
+        </div>
       </div>
     </div>
   );

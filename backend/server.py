@@ -359,6 +359,9 @@ def login(req: LoginReq):
             "isAdmin": u["is_admin"],
             "isVerified": u["is_verified"],
             "faction": u["faction"],
+            "avatar": u["avatar"],
+            "wins": u["wins"],
+            "losses": u["losses"],
             "referrals": u["referrals"],
             "bookings": u["bookings"],
             "matchmaking": {"mmr": u["mmr"], "rank": u["rank"]}
