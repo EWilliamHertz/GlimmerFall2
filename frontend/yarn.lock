@@ -10671,7 +10671,7 @@ svgo@^2.7.0:
     sax "^1.5.0"
     stable "^0.1.8"
 
-swr@2.3.8:
+swr@^2.3.8:
   version "2.3.8"
   resolved "https://registry.npmjs.org/swr/-/swr-2.3.8.tgz"
   integrity sha512-gaCPRVoMq8WGDcWj9p4YWzCMPHzE0WNl6W8ADIx9c3JBEIdMkJGMzW+uzXvxHMltwcYACr9jP+32H8/hgwMR7w==

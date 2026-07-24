@@ -43,6 +43,8 @@ DONE
 *   **Micro-Animations & VFX:** Add particle effects when a card is drawn, played, or destroyed. Framer Motion is already being used; expand its usage to board interactions.
 *   **Sound Design:** Implement ambient background tracks based on the active faction, along with crisp, punchy SFX for attacks and spells.
 
+DONE
+
 ### 3. Competitive Infrastructure
 *   **Ranked Ladder:** Introduce an Elo/MMR-based matchmaking system with visual tiers (Bronze, Silver, Gold, etc.).
 *   **Leaderboards:** A dedicated page showing the top 100 players globally or per region.
@@ -70,6 +72,8 @@ DONE
 ### Website Optimization
 *   **Image Caching & Lazy Loading:** Card art can get heavy. Ensure images are optimized (WebP format) and use lazy loading (`loading="lazy"`) so the Cards page doesn't lag.
 *   **API Response Caching:** The `/rules` and `/cards` endpoints (and others that don't change often) should be cached on the frontend using something like React Query or SWR to reduce unnecessary database hits and speed up page loads.
+
+DONE
 
 ### UI/UX Best Practices
 *   **Keyboard Shortcuts:** Implement hotkeys for power users (e.g., pressing `Esc` to close card modals, or numbers `1-5` to navigate main tabs).

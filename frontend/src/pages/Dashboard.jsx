@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 export default function Dashboard() {
   const { user, logout, verify, resendVerification } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(user?.isAdmin ? 'admin' : 'player');
 
   useEffect(() => {
     const token = searchParams.get('verify');
@@ -50,12 +51,29 @@ export default function Dashboard() {
       </div>
 
       {user.isAdmin && (
+        <div className="flex gap-4 mb-8">
+          <button 
+            onClick={() => setActiveTab('player')} 
+            className={`px-6 py-2.5 rounded-xl font-bold transition-colors shadow-sm ${activeTab === 'player' ? 'bg-[#F2A900] text-black' : 'bg-white/5 text-white/50 hover:bg-white/10 border border-white/5'}`}
+          >
+            Player Profile
+          </button>
+          <button 
+            onClick={() => setActiveTab('admin')} 
+            className={`px-6 py-2.5 rounded-xl font-bold transition-colors shadow-sm flex items-center gap-2 ${activeTab === 'admin' ? 'bg-red-500 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10 border border-white/5'}`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Admin Panel
+          </button>
+        </div>
+      )}
+
+      {user.isAdmin && activeTab === 'admin' ? (
         <div className="mb-12">
           <AdminPanel />
         </div>
+      ) : (
+        <PlayerDashboard user={user} />
       )}
-      
-      <PlayerDashboard user={user} />
     </div>
   );
 }

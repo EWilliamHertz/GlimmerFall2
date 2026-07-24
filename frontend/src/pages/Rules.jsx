@@ -3,6 +3,9 @@ import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 import { Shield, Eye, Ghost, Skull, Waves, Zap, Layers } from "lucide-react";
 import { api } from "@/lib/api";
+import useSWR from "swr";
+
+const fetcher = (url) => api.get(url).then((r) => r.data);
 import { FACTIONS, KEYWORDS } from "@/lib/factions";
 
 const KW_ICONS = { Guard: Shield, Evasive: Eye, Stealth: Ghost, Lethal: Skull, Overwhelm: Waves, Swift: Zap };
@@ -15,10 +18,7 @@ const TYPES = [
 ];
 
 export default function Rules() {
-  const [sections, setSections] = useState([]);
-  useEffect(() => {
-    api.get("/rules").then((r) => setSections(r.data)).catch(() => {});
-  }, []);
+  const { data: sections = [] } = useSWR("/rules", fetcher);
 
   return (
     <div data-testid="rules-page" className="max-w-3xl mx-auto px-5 py-12">

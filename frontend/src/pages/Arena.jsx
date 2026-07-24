@@ -23,6 +23,14 @@ import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
 
+const playSound = (type) => {
+  try {
+    const audio = new Audio(`/audio/${type}.mp3`);
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  } catch(e) {}
+};
+
 const CardTooltip = ({ card, children, side="top" }) => {
   if (!card) return children;
   const f = factionCfg(card.faction);
@@ -293,7 +301,13 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
 function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, testId }) {
   return (
     <CardTooltip card={entity} side="top">
-      <div>
+      <motion.div
+        layoutId={`card-${entity.instanceId}`}
+        initial={{ opacity: 0, scale: 0.5, y: -20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.2, filter: "brightness(2) blur(10px)" }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      >
         <CardTemplate
           card={entity}
           size="sm"
@@ -305,7 +319,7 @@ function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, te
           testId={testId}
           className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
         />
-      </div>
+      </motion.div>
     </CardTooltip>
   );
 }
@@ -317,7 +331,8 @@ function HandCard({ card, draggable, onClick, testId }) {
     disabled: !draggable,
   });
   return (
-    <div
+    <motion.div
+      layoutId={`card-${card.instanceId}`}
       ref={setNodeRef}
       {...(draggable ? listeners : {})}
       {...attributes}
@@ -331,7 +346,7 @@ function HandCard({ card, draggable, onClick, testId }) {
           <CardTemplate card={card} size="md" tilt={false} />
         </div>
       </CardTooltip>
-    </div>
+    </motion.div>
   );
 }
 
@@ -376,6 +391,13 @@ function GameBoard({ session, match, refresh, onExit }) {
       setBusy(true);
       try {
         const r = await api.post("/action", { matchId: session.matchId, slot: session.slot, action, payload });
+        
+        // play sounds based on action
+        if (action === "DRAW_CARD") playSound("draw");
+        if (action === "PLAY_CARD") playSound("play");
+        if (action === "ATTACK_ENTITY" || action === "ATTACK_NEXUS") playSound("attack");
+        if (action === "CAST_SPELL") playSound("spell");
+        
         refresh(r.data.state);
       } catch (e) {
         toast.error(e.response?.data?.detail || "Illegal move.");
@@ -512,16 +534,18 @@ function GameBoard({ session, match, refresh, onExit }) {
         {/* opponent battlefield */}
         <div className="glass rounded-2xl p-3 min-h-[130px] relative flex items-center justify-center gap-3 flex-wrap">
           {opp.battlefield?.length ? (
-            opp.battlefield.map((e) => (
-              <BattlefieldEntity
-                key={e.instanceId}
-                entity={e}
-                selectable={!!selectedAttacker || !!pendingSpell}
-                isTarget={(!!selectedAttacker && (!enemyHasGuard || e.keywords?.includes("Guard"))) || !!pendingSpell}
-                onClick={() => clickEntity(e, oppSlot)}
-                testId={`enemy-entity-${e.instanceId}`}
-              />
-            ))
+            <AnimatePresence>
+              {opp.battlefield.map((e) => (
+                <BattlefieldEntity
+                  key={e.instanceId}
+                  entity={e}
+                  selectable={!!selectedAttacker || !!pendingSpell}
+                  isTarget={(!!selectedAttacker && (!enemyHasGuard || e.keywords?.includes("Guard"))) || !!pendingSpell}
+                  onClick={() => clickEntity(e, oppSlot)}
+                  testId={`enemy-entity-${e.instanceId}`}
+                />
+              ))}
+            </AnimatePresence>
           ) : (
             <span className="text-white/25 font-head text-sm">Enemy Battlefield</span>
           )}
@@ -538,19 +562,21 @@ function GameBoard({ session, match, refresh, onExit }) {
 
         {/* player battlefield */}
         <DropZone id="battlefield" active={!!activeDrag} label="Drag Entities & Relics here" className="glass p-3 min-h-[140px] relative flex items-center justify-center gap-3 flex-wrap">
-          {me.battlefield?.map((e) => (
-            <BattlefieldEntity
-              key={e.instanceId}
-              entity={e}
-              selectable={isMyTurn}
-              selected={selectedAttacker === e.instanceId}
-              onClick={() => clickEntity(e, slot)}
-              testId={`my-entity-${e.instanceId}`}
-            />
-          ))}
-          {me.relics?.map((e) => (
-            <BattlefieldEntity key={e.instanceId} entity={e} selectable={false} onClick={() => {}} testId={`my-relic-${e.instanceId}`} />
-          ))}
+          <AnimatePresence>
+            {me.battlefield?.map((e) => (
+              <BattlefieldEntity
+                key={e.instanceId}
+                entity={e}
+                selectable={isMyTurn}
+                selected={selectedAttacker === e.instanceId}
+                onClick={() => clickEntity(e, slot)}
+                testId={`my-entity-${e.instanceId}`}
+              />
+            ))}
+            {me.relics?.map((e) => (
+              <BattlefieldEntity key={e.instanceId} entity={e} selectable={false} onClick={() => {}} testId={`my-relic-${e.instanceId}`} />
+            ))}
+          </AnimatePresence>
         </DropZone>
 
         {/* resonance + player nexus */}
@@ -601,9 +627,11 @@ function GameBoard({ session, match, refresh, onExit }) {
         {/* player hand */}
         <div className="flex justify-center items-end gap-[-8px] min-h-[180px] pt-6" style={{ perspective: 1200 }}>
           <div className="flex justify-center -space-x-6">
-            {me.hand?.map((c) => (
-              <HandCard key={c.instanceId} card={c} draggable={!ended} onClick={() => clickHandCard(c)} testId={`hand-card-${c.instanceId}`} />
-            ))}
+            <AnimatePresence>
+              {me.hand?.map((c) => (
+                <HandCard key={c.instanceId} card={c} draggable={!ended} onClick={() => clickHandCard(c)} testId={`hand-card-${c.instanceId}`} />
+              ))}
+            </AnimatePresence>
           </div>
         </div>
 
