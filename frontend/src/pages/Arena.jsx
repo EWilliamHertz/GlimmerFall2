@@ -12,14 +12,42 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Swords, Bot, Users, Shield, Zap, Layers, Sparkles, ScrollText,
-  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X,
+  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart
 } from "lucide-react";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
+
+const CardTooltip = ({ card, children, side="top" }) => {
+  if (!card) return children;
+  const f = factionCfg(card.faction);
+  return (
+    <HoverCard openDelay={200} closeDelay={0}>
+      <HoverCardTrigger asChild>
+        {children}
+      </HoverCardTrigger>
+      <HoverCardContent side={side} sideOffset={8} className="w-72 bg-black/95 border border-white/20 shadow-2xl p-4 z-[100]">
+        <div className="flex justify-between items-start mb-2">
+          <h4 className="font-display text-xl font-bold" style={{color: f.color}}>{card.name}</h4>
+          <span className="text-[10px] font-head px-2 py-0.5 rounded-full" style={{background: `${f.color}22`, color: f.color}}>{card.card_type || card.cardType}</span>
+        </div>
+        <div className="flex gap-4 mb-3 text-xs font-head">
+          {card.cost !== null && <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-[#F2A900]"/> {card.cost}</span>}
+          {card.power !== null && card.power !== "None" && <span className="flex items-center gap-1"><Sword className="w-3 h-3 text-[#FF5252]"/> {card.power}</span>}
+          {card.health !== null && card.health !== "None" && <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-[#22E07B]"/> {card.health}</span>}
+        </div>
+        {card.keywords && card.keywords !== "None" && (
+          <div className="mb-2 text-[11px] font-head font-bold text-[#00BFFF] uppercase tracking-wide">{card.keywords}</div>
+        )}
+        <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{card.description || "No rules text."}</p>
+      </HoverCardContent>
+    </HoverCard>
+  );
+};
 
 /* ------------------------------------------------------------------ */
 /* LOBBY                                                              */
@@ -263,17 +291,21 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
 
 function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, testId }) {
   return (
-    <CardTemplate
-      card={entity}
-      size="sm"
-      tilt={false}
-      selected={selected}
-      exhausted={entity.exhausted}
-      dimmed={selectable === false && !isTarget}
-      onClick={onClick}
-      testId={testId}
-      className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
-    />
+    <CardTooltip card={entity} side="top">
+      <div>
+        <CardTemplate
+          card={entity}
+          size="sm"
+          tilt={false}
+          selected={selected}
+          exhausted={entity.exhausted}
+          dimmed={selectable === false && !isTarget}
+          onClick={onClick}
+          testId={testId}
+          className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
+        />
+      </div>
+    </CardTooltip>
   );
 }
 
@@ -293,7 +325,11 @@ function HandCard({ card, draggable, onClick, testId }) {
       className="hover:-translate-y-4 transition-transform"
       data-testid={testId}
     >
-      <CardTemplate card={card} size="md" tilt={false} />
+      <CardTooltip card={card} side="top">
+        <div>
+          <CardTemplate card={card} size="md" tilt={false} />
+        </div>
+      </CardTooltip>
     </div>
   );
 }

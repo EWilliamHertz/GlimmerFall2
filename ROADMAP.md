@@ -15,10 +15,19 @@ DONE
 
 ### 2. Interactive Tutorial & Onboarding
 *   **Tooltips for Keywords:** On the Cards page, hover over a keyword (e.g., Guard, Evasive) to see a tooltip with its description, preventing the need to constantly flip back to the Rulebook.
+
+DONE
+
 *   **Mock Battle Sandbox:** A single-player sandbox against a dummy AI to test hands, board states, and practice mechanics without pressure.
+
+WE ALREADY GOT AI PLAY
 
 ### 3. Faction Mixing Decision (The Alpha Dilemma)
 *   **Community Poll Feature:** Since mixing factions is currently undetermined in the Alpha stage, implement a voting/feedback form on the website directly asking testers for their experiences. 
+
+DONE
+
+
 *   **A/B Testing Playlists:** Host an event where Queue A locks you into a single faction and Queue B allows mixing. Analyze the balance data and player feedback to finalize the rule.
 
 ---
@@ -28,6 +37,10 @@ DONE
 ### 1. Account Progression & Metagame
 *   **User Accounts & Profiles:** Players can create accounts, choose an avatar (based on card art), and track their match history and win rates.
 *   **Quests & Rewards:** Daily/Weekly missions (e.g., "Play 20 Rites," "Win 3 games as the Shield faction") to encourage regular play.
+
+
+DONE
+
 
 ### 2. Enhanced In-Game Immersion
 *   **Micro-Animations & VFX:** Add particle effects when a card is drawn, played, or destroyed. Framer Motion is already being used; expand its usage to board interactions.
@@ -45,6 +58,8 @@ DONE
 *   **Friends List & Direct Challenges:** Allow players to add friends and send direct match invites.
 *   **Spectator Mode:** Let players watch their friends' matches live, with a slight delay to prevent stream-sniping.
 *   **Match Replays:** Save past matches so players can review their misplays or share epic comebacks.
+
+DONE
 
 ### 2. Lore Integration
 *   **Lore Compendium:** Expand the Rulebook into a "Library" or "Codex" where players can read the deep lore of GlimmerFall, the origin of the factions, and short stories.
