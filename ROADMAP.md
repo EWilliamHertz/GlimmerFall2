@@ -18,9 +18,6 @@ DONE
 
 DONE
 
-*   **Mock Battle Sandbox:** A single-player sandbox against a dummy AI to test hands, board states, and practice mechanics without pressure.
-
-WE ALREADY GOT AI PLAY
 
 ### 3. Faction Mixing Decision (The Alpha Dilemma)
 *   **Community Poll Feature:** Since mixing factions is currently undetermined in the Alpha stage, implement a voting/feedback form on the website directly asking testers for their experiences. 
@@ -74,8 +71,12 @@ DONE
 
 ### UI/UX Best Practices
 *   **Keyboard Shortcuts:** Implement hotkeys for power users (e.g., pressing `Esc` to close card modals, or numbers `1-5` to navigate main tabs).
+
+DONE
 *   **Accessibility (a11y):** Ensure contrast ratios are high enough, and add `aria-labels` to interactive elements. The game should be playable with a screen reader where possible.
 *   **Responsive Design Polish:** Keep iterating on the mobile view. Card games are notoriously hard to fit on phone screens, so testing the deckbuilder and active board on mobile is critical.
 
 ### Balance Analytics
 *   **Heatmaps & Metrics:** Start collecting telemetry data on which cards are most frequently drafted, which factions have the highest win rates, and whether going first vs. second presents an unfair advantage. Build an internal Admin Dashboard to view these metrics.
+
+DONE

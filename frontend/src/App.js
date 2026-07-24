@@ -12,6 +12,7 @@ import Arena from "@/pages/Arena";
 import PrintPage from "@/pages/PrintPage";
 import Dashboard from "@/pages/Dashboard";
 import Stores from "@/pages/Stores";
+import Community from "@/pages/Community";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
@@ -30,6 +31,7 @@ function Shell() {
           <Route path="/decks" element={<DeckBuilder />} />
           <Route path="/booster" element={<Booster />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/community" element={<Community />} />
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
