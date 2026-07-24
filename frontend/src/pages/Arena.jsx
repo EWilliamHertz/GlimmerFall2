@@ -383,6 +383,13 @@ function GameBoard({ session, match, refresh, onExit }) {
   const [activeDrag, setActiveDrag] = useState(null);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = 0.15;
+    }
+  }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -490,9 +497,12 @@ function GameBoard({ session, match, refresh, onExit }) {
   };
 
   const enemyHasGuard = opp.battlefield?.some((e) => e.keywords?.includes("Guard"));
+  const primaryFaction = me.hand?.[0]?.faction || me.resonanceRow?.[0]?.faction || "solari";
+  const ambientTrack = `/audio/ambient_${primaryFaction.toLowerCase().split(',')[0]}.mp3`;
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <audio ref={audioRef} src={ambientTrack} autoPlay loop />
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
         {/* top: opponent */}
         <div className="flex items-center justify-between gap-3">
