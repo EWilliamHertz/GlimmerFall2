@@ -13,6 +13,7 @@ import PrintPage from "@/pages/PrintPage";
 import Dashboard from "@/pages/Dashboard";
 import Stores from "@/pages/Stores";
 import Community from "@/pages/Community";
+import AdminDashboard from "@/pages/AdminDashboard";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
@@ -36,6 +37,7 @@ function Shell() {
           <Route path="/print-all" element={<PrintPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/stores" element={<Stores />} />
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

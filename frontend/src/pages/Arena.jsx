@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DndContext,
   DragOverlay,
@@ -366,6 +367,7 @@ function GameBoard({ session, match, refresh, onExit }) {
   const [pendingSpell, setPendingSpell] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -383,6 +385,32 @@ function GameBoard({ session, match, refresh, onExit }) {
     },
     [session, refresh]
   );
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      
+      if (e.key === "Escape") {
+        setPendingSpell(null);
+        setSelectedAttacker(null);
+      }
+      if (e.key === " " && isMyTurn && !busy) {
+        e.preventDefault();
+        setSelectedAttacker(null);
+        setPendingSpell(null);
+        act("END_TURN", {});
+      }
+      if ((e.key === "d" || e.key === "D") && isMyTurn && !busy && !me.hasDrawnThisTurn) {
+        act("DRAW_CARD", {});
+      }
+      if (e.key >= "1" && e.key <= "5") {
+        const tabs = ["/play", "/cards", "/decks", "/booster", "/rules"];
+        navigate(tabs[parseInt(e.key) - 1]);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMyTurn, busy, me, act, navigate]);
 
   const handleDragStart = (e) => setActiveDrag(e.active.data.current?.card || null);
   const handleDragEnd = (e) => {
