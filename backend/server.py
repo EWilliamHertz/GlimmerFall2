@@ -389,6 +389,30 @@ def admin_stats():
         "gross_revenue": preorders * 60
     }
 
+@api.get("/admin/telemetry")
+def admin_telemetry():
+    # Telemetry data mock for the dashboard (until full pipeline is built)
+    return {
+        "most_drafted_cards": [
+            {"name": "Solar Flare", "count": 1245},
+            {"name": "Void Stalker", "count": 982},
+            {"name": "Mossback Forager", "count": 876},
+            {"name": "Luminous Guide", "count": 765},
+            {"name": "Duskblade Fiend", "count": 654},
+        ],
+        "faction_win_rates": [
+            {"faction": "Terra", "winRate": 52.4},
+            {"faction": "Umbri", "winRate": 51.1},
+            {"faction": "Solari", "winRate": 49.8},
+            {"faction": "Aether", "winRate": 48.5},
+            {"faction": "Shield", "winRate": 46.2},
+        ],
+        "first_vs_second": {
+            "first": 54.2,
+            "second": 45.8
+        }
+    }
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
