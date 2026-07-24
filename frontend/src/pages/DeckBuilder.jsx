@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload } from "lucide-react";
+import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
@@ -84,6 +85,39 @@ export default function DeckBuilder() {
     return m;
   }, [deck]);
 
+  const typeCounts = useMemo(() => {
+    const m = {};
+    Object.values(deck).forEach(({ card, count }) => (m[card.card_type] = (m[card.card_type] || 0) + count));
+    return m;
+  }, [deck]);
+
+  const generateDeckCode = () => {
+    if (total === 0) return toast.error("Deck is empty.");
+    const payload = Object.values(deck).map(({ card, count }) => `${card.id}:${count}`).join(",");
+    const code = btoa(payload);
+    navigator.clipboard.writeText(code);
+    toast.success("Deck code copied to clipboard!");
+  };
+
+  const importDeckCode = () => {
+    const code = prompt("Enter deck code:");
+    if (!code) return;
+    try {
+      const payload = atob(code);
+      const parts = payload.split(",");
+      const nd = {};
+      parts.forEach(p => {
+        const [id, count] = p.split(":");
+        const card = cards.find(c => c.id === id);
+        if (card) nd[id] = { card, count: Number(count) };
+      });
+      setDeck(nd);
+      toast.success("Deck imported!");
+    } catch (err) {
+      toast.error("Invalid deck code.");
+    }
+  };
+
   const saveDeck = () => {
     if (total === 0) return toast.error("Add some cards first.");
     const entry = {
@@ -129,6 +163,11 @@ export default function DeckBuilder() {
     window.open("/print?src=deck", "_blank");
   };
 
+  const factionData = Object.entries(factionCounts).map(([name, value]) => ({ name, value, color: factionCfg(name).color }));
+  const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+  const TYPE_COLORS = { Entity: "#FF5252", Rite: "#00BFFF", Flash: "#F2A900", Relic: "#22E07B" };
+  const curveData = curve.map((v, i) => ({ cost: i === 6 ? "6+" : String(i), count: v }));
+
   return (
     <div data-testid="deckbuilder-page" className="max-w-7xl mx-auto px-5 py-10">
       <h1 className="font-display text-4xl md:text-5xl font-bold mb-2">Deck Builder</h1>
@@ -168,7 +207,12 @@ export default function DeckBuilder() {
             {filtered.map((c) => {
               const count = deck[c.id]?.count || 0;
               return (
-                <div key={c.id} className="relative">
+                <div 
+                  key={c.id} 
+                  className="relative cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData("cardId", c.id); }}
+                >
                   <CardTemplate card={c} size="sm" onClick={() => add(c)} testId={`deck-pool-${c.collector_number}`} />
                   {count > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 z-10 w-6 h-6 rounded-full bg-[#F2A900] text-black font-num font-bold text-sm flex items-center justify-center border-2 border-[#0B0C10]">
@@ -182,7 +226,18 @@ export default function DeckBuilder() {
         </div>
 
         {/* deck panel */}
-        <div className="lg:sticky lg:top-20 self-start space-y-4">
+        <div 
+          className="lg:sticky lg:top-20 self-start space-y-4"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const cardId = e.dataTransfer.getData("cardId");
+            if (cardId) {
+              const card = cards.find(c => c.id === cardId);
+              if (card) add(card);
+            }
+          }}
+        >
           <div className="glass rounded-2xl p-5">
             <input
               data-testid="deck-name-input"
@@ -198,25 +253,45 @@ export default function DeckBuilder() {
               </span>
             </div>
 
-            {/* faction identity */}
-            <div className="flex gap-1.5 mb-4">
-              {Object.entries(factionCounts).map(([fac, n]) => (
-                <span key={fac} className="text-[10px] font-head px-2 py-0.5 rounded" style={{ background: `${factionCfg(fac).color}22`, color: factionCfg(fac).color }}>
-                  {fac} {n}
-                </span>
-              ))}
-            </div>
+            {/* stats charts */}
+            <div className="grid grid-cols-2 gap-4 mb-5">
+              <div className="glass rounded-xl p-3">
+                <p className="text-[10px] font-head text-white/40 mb-2 uppercase tracking-wider text-center">Energy Curve</p>
+                <div className="h-20">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={curveData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                      <XAxis dataKey="cost" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} dy={5} />
+                      <RechartsTooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px" }} />
+                      <Bar dataKey="count" fill="#00BFFF" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-            {/* mana curve */}
-            <div className="mb-4">
-              <p className="text-xs font-head text-white/40 mb-1.5">Energy Curve</p>
-              <div className="flex items-end gap-1 h-16">
-                {curve.map((v, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full rounded-t bg-[#00BFFF]/70 transition-all" style={{ height: `${(v / maxCurve) * 100}%`, minHeight: v ? 4 : 0 }} />
-                    <span className="text-[9px] text-white/40 font-num">{i === 6 ? "6+" : i}</span>
-                  </div>
-                ))}
+              <div className="glass rounded-xl p-3 flex flex-col justify-between">
+                <div className="h-10 mb-2 flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={factionData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
+                        {factionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      </Pie>
+                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Fac</div>
+                </div>
+                
+                <div className="h-10 flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={typeData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
+                        {typeData.map((entry, index) => <Cell key={`cell-${index}`} fill={TYPE_COLORS[entry.name] || "#FFF"} />)}
+                      </Pie>
+                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Typ</div>
+                </div>
               </div>
             </div>
 
@@ -224,8 +299,14 @@ export default function DeckBuilder() {
               <button onClick={saveDeck} data-testid="deck-save-btn" className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F2A900] text-black font-head font-semibold text-sm hover:bg-[#ffc21f]">
                 <Save className="w-4 h-4" /> Save
               </button>
-              <button onClick={() => printProxy(null)} data-testid="deck-print-btn" title="Print proxy sheet" className="px-4 py-2.5 rounded-xl bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30 text-sm font-head inline-flex items-center gap-1.5">
-                <Printer className="w-4 h-4" /> Proxy
+              <button onClick={generateDeckCode} title="Share Deck Code" className="px-4 py-2.5 rounded-xl bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30 text-sm font-head inline-flex items-center gap-1.5">
+                <Share2 className="w-4 h-4" />
+              </button>
+              <button onClick={importDeckCode} title="Import Deck Code" className="px-4 py-2.5 rounded-xl bg-[#22E07B]/20 text-[#22E07B] hover:bg-[#22E07B]/30 text-sm font-head inline-flex items-center gap-1.5">
+                <Upload className="w-4 h-4" />
+              </button>
+              <button onClick={() => printProxy(null)} data-testid="deck-print-btn" title="Print Proxy" className="px-4 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-head inline-flex items-center gap-1.5">
+                <Printer className="w-4 h-4" />
               </button>
               <button onClick={() => { setDeck({}); setDeckName("New Deck"); }} className="px-4 py-2.5 rounded-xl glass hover:border-white/25 text-sm font-head">
                 <Trash2 className="w-4 h-4" />
