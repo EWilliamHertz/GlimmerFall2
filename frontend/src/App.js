@@ -13,6 +13,7 @@ import PrintPage from "@/pages/PrintPage";
 import Dashboard from "@/pages/Dashboard";
 import Stores from "@/pages/Stores";
 import Community from "@/pages/Community";
+import Codex from "@/pages/Codex";
 import AdminDashboard from "@/pages/AdminDashboard";
 import { AuthProvider } from "@/lib/auth";
 
@@ -32,6 +33,7 @@ function Shell() {
           <Route path="/decks" element={<DeckBuilder />} />
           <Route path="/booster" element={<Booster />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/codex" element={<Codex />} />
           <Route path="/community" element={<Community />} />
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
