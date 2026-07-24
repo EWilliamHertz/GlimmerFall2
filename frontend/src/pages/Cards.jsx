@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, Sword, Heart, Zap } from "lucide-react";
+import useSWR from "swr";
 import { api } from "@/lib/api";
+
+const fetcher = (url) => api.get(url).then((r) => r.data);
 import { FACTIONS, RARITY, CARD_TYPES, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
@@ -21,16 +24,12 @@ const FilterChip = ({ active, onClick, children, color, testId }) => (
 );
 
 export default function Cards() {
-  const [cards, setCards] = useState([]);
+  const { data: cards = [] } = useSWR("/cards", fetcher);
   const [q, setQ] = useState("");
   const [faction, setFaction] = useState(null);
   const [type, setType] = useState(null);
   const [rarity, setRarity] = useState(null);
   const [active, setActive] = useState(null);
-
-  useEffect(() => {
-    api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
-  }, []);
 
   const filtered = useMemo(() => {
     return cards.filter((c) => {
