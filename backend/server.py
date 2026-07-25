@@ -220,7 +220,8 @@ def redact_state(state, viewer_slot):
         pl.pop("library", None)
         if slot != v:
             pl["handCount"] = len(pl.get("hand", []))
-            pl["hand"] = [{"instanceId": c["instanceId"], "hidden": True} for c in pl.get("hand", [])]
+            if not pl.get("handRevealed"):
+                pl["hand"] = [c if c.get("revealed") else {"instanceId": c["instanceId"], "hidden": True} for c in pl.get("hand", [])]
         else:
             pl["handCount"] = len(pl.get("hand", []))
     return s

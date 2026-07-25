@@ -542,11 +542,24 @@ function GameBoard({ session, match, refresh, onExit }) {
           </div>
         </div>
 
-        {/* opponent hand (facedown) */}
+        {/* opponent hand */}
         <div className="flex justify-center gap-1 h-10 -mt-1">
-          {Array.from({ length: Math.min(opp.handCount ?? 0, 8) }).map((_, i) => (
-            <div key={i} className="w-8 h-11 rounded bg-[#12151E] border border-white/10 -ml-3 first:ml-0" style={{ transform: `rotate(${(i - 3) * 3}deg)` }} />
-          ))}
+          {(opp.hand || Array.from({ length: Math.min(opp.handCount ?? 0, 8) })).slice(0, 8).map((c, i) => {
+            const isHidden = !c || c.hidden;
+            return (
+              <div
+                key={c?.instanceId || i}
+                className={`w-8 h-11 rounded -ml-3 first:ml-0 transition-transform hover:z-50 hover:scale-[3] hover:-translate-y-4 ${isHidden ? "bg-[#12151E] border border-white/10" : ""}`}
+                style={{ transform: `rotate(${(i - 3) * 3}deg)`, transformOrigin: "bottom center" }}
+              >
+                {!isHidden && (
+                  <div className="w-[180px] h-[252px] origin-top-left" style={{ transform: "scale(0.177)" }}>
+                    <CardTemplate card={c} size="md" tilt={false} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* opponent battlefield */}
@@ -659,27 +672,29 @@ function GameBoard({ session, match, refresh, onExit }) {
         </div>
 
         {/* log */}
-        <div className="glass rounded-2xl p-3 h-64 overflow-y-auto flex flex-col-reverse" data-testid="game-log">
-          <div className="flex flex-col gap-1.5">
-            {[...(state.log || [])].map((l, i) => {
-              let color = "text-white/60";
-              let text = l;
-              if (typeof l === 'string') {
-                if (l.startsWith("[P1] ")) {
-                  color = slot === "1" ? "text-[#39E58C]" : "text-red-400";
-                  text = l.replace("[P1] ", "");
-                } else if (l.startsWith("[P2] ")) {
-                  color = slot === "2" ? "text-[#39E58C]" : "text-red-400";
-                  text = l.replace("[P2] ", "");
-                } else if (l.startsWith("[P0] ")) {
-                  color = "text-[#F2A900]";
-                  text = l.replace("[P0] ", "");
+        <div className="glass rounded-2xl p-3 h-64 flex flex-col" data-testid="game-log">
+          <div className="flex items-center gap-1.5 text-white/40 text-xs font-head mb-2 shrink-0 pb-1 border-b border-white/5"><ScrollText className="w-3.5 h-3.5" /> Battle Log</div>
+          <div className="flex-1 overflow-y-auto flex flex-col-reverse min-h-0 pr-1 custom-scrollbar">
+            <div className="flex flex-col gap-1.5">
+              {[...(state.log || [])].map((l, i) => {
+                let color = "text-white/60";
+                let text = l;
+                if (typeof l === 'string') {
+                  if (l.startsWith("[P1] ")) {
+                    color = slot === "1" ? "text-[#39E58C]" : "text-red-400";
+                    text = l.replace("[P1] ", "");
+                  } else if (l.startsWith("[P2] ")) {
+                    color = slot === "2" ? "text-[#39E58C]" : "text-red-400";
+                    text = l.replace("[P2] ", "");
+                  } else if (l.startsWith("[P0] ")) {
+                    color = "text-[#F2A900]";
+                    text = l.replace("[P0] ", "");
+                  }
                 }
-              }
-              return <p key={i} className={`text-xs leading-relaxed ${color}`}>{text}</p>;
-            })}
+                return <p key={i} className={`text-xs leading-relaxed ${color}`}>{text}</p>;
+              })}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-white/40 text-xs font-head mb-2 sticky top-0 bg-[#0B0C10]/90 backdrop-blur-md z-10 py-1"><ScrollText className="w-3.5 h-3.5" /> Battle Log</div>
         </div>
       </div>
 
