@@ -569,14 +569,14 @@ def do_attack_entity(state, slot, payload):
     # attacker hits target
     if "Lethal" in atk["keywords"] and atk_pow > 0:
         overflow = 0
-        if "Overwhelm" in atk["keywords"] and "Guard" in tgt["keywords"]:
+        if "Overwhelm" in atk["keywords"]:
             overflow = max(0, atk_pow - (tgt["curHealth"] or 0))
         tgt["curHealth"] = 0
     else:
         before = tgt["curHealth"] or 0
         tgt["curHealth"] = before - atk_pow
         overflow = 0
-        if "Overwhelm" in atk["keywords"] and "Guard" in tgt["keywords"] and atk_pow > before:
+        if "Overwhelm" in atk["keywords"] and atk_pow > before:
             overflow = atk_pow - before
     if overflow > 0:
         dp["hp"] -= overflow

@@ -299,6 +299,9 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
 );
 
 function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, testId }) {
+  const isGuard = entity.keywords?.includes("Guard") && !entity.keywords?.includes("Stealth");
+  const isStealth = entity.keywords?.includes("Stealth");
+
   return (
     <CardTooltip card={entity} side="top">
       <motion.div
@@ -307,6 +310,7 @@ function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, te
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.2, filter: "brightness(2) blur(10px)" }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        className={`relative ${isStealth ? "opacity-60" : ""}`}
       >
         <CardTemplate
           card={entity}
@@ -319,6 +323,7 @@ function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, te
           testId={testId}
           className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
         />
+        {isGuard && <div className="absolute -inset-1.5 border-[3px] border-slate-300/80 rounded-2xl pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.4)]" />}
       </motion.div>
     </CardTooltip>
   );
@@ -496,7 +501,10 @@ function GameBoard({ session, match, refresh, onExit }) {
     }
   };
 
-  const enemyHasGuard = opp.battlefield?.some((e) => e.keywords?.includes("Guard"));
+  const enemyHasGuard = opp.battlefield?.some((e) => e.keywords?.includes("Guard") && !e.keywords?.includes("Stealth"));
+  const attackerObj = me.battlefield?.find((e) => e.instanceId === selectedAttacker);
+  const attackerIsEvasive = attackerObj?.keywords?.includes("Evasive");
+  
   const primaryFaction = me.hand?.[0]?.faction || me.resonanceRow?.[0]?.faction || "solari";
   const ambientTrack = `/audio/ambient_${primaryFaction.toLowerCase().split(',')[0]}.mp3`;
 
@@ -509,7 +517,7 @@ function GameBoard({ session, match, refresh, onExit }) {
           <Nexus
             player={opp}
             mine={false}
-            isTarget={(!!selectedAttacker && !enemyHasGuard) || !!pendingSpell}
+            isTarget={(!!selectedAttacker && (!enemyHasGuard || attackerIsEvasive)) || !!pendingSpell}
             onClick={() => clickNexus(oppSlot)}
             testId="enemy-nexus"
           />
@@ -545,16 +553,21 @@ function GameBoard({ session, match, refresh, onExit }) {
         <div className="glass rounded-2xl p-3 min-h-[130px] relative flex items-center justify-center gap-3 flex-wrap">
           {opp.battlefield?.length ? (
             <AnimatePresence>
-              {opp.battlefield.map((e) => (
-                <BattlefieldEntity
-                  key={e.instanceId}
-                  entity={e}
-                  selectable={!!selectedAttacker || !!pendingSpell}
-                  isTarget={(!!selectedAttacker && (!enemyHasGuard || e.keywords?.includes("Guard"))) || !!pendingSpell}
-                  onClick={() => clickEntity(e, oppSlot)}
-                  testId={`enemy-entity-${e.instanceId}`}
-                />
-              ))}
+              {opp.battlefield.map((e) => {
+                const isStealth = e.keywords?.includes("Stealth");
+                const isGuard = e.keywords?.includes("Guard") && !isStealth;
+                const isValidAttack = !!selectedAttacker && !isStealth && (!enemyHasGuard || attackerIsEvasive || isGuard);
+                return (
+                  <BattlefieldEntity
+                    key={e.instanceId}
+                    entity={e}
+                    selectable={!!selectedAttacker || !!pendingSpell}
+                    isTarget={isValidAttack || !!pendingSpell}
+                    onClick={() => clickEntity(e, oppSlot)}
+                    testId={`enemy-entity-${e.instanceId}`}
+                  />
+                );
+              })}
             </AnimatePresence>
           ) : (
             <span className="text-white/25 font-head text-sm">Enemy Battlefield</span>
