@@ -298,33 +298,40 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
   </button>
 );
 
-function BattlefieldEntity({ entity, selectable, selected, isTarget, onClick, testId }) {
+function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTarget, onClick, testId }) {
   const isGuard = entity.keywords?.includes("Guard") && !entity.keywords?.includes("Stealth");
   const isStealth = entity.keywords?.includes("Stealth");
 
   return (
     <CardTooltip card={entity} side="top">
-      <motion.div
-        layoutId={`card-${entity.instanceId}`}
-        initial={{ opacity: 0, scale: 0.5, y: -20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.2, filter: "brightness(2) blur(10px)" }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className={`relative ${isStealth ? "opacity-60" : ""}`}
-      >
-        <CardTemplate
-          card={entity}
-          size="sm"
-          tilt={false}
-          selected={selected}
-          exhausted={entity.exhausted}
-          dimmed={selectable === false && !isTarget}
-          onClick={onClick}
-          testId={testId}
-          className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
-        />
-        {isGuard && <div className="absolute -inset-1.5 border-[3px] border-slate-300/80 rounded-2xl pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.4)]" />}
-      </motion.div>
+      <div className="relative flex flex-col items-center">
+        {attachedRelics?.map((relic) => (
+          <div key={relic.instanceId} className="w-[100px] h-5 mb-[-6px] relative z-0 bg-gradient-to-t from-black to-[#2A2D3E] rounded-t-md border-t border-x border-[#F2A900]/40 flex items-start justify-center pt-1 shadow-lg pointer-events-none">
+            <span className="text-[7px] text-[#F2A900] font-head font-bold tracking-widest uppercase truncate px-2">{relic.name}</span>
+          </div>
+        ))}
+        <motion.div
+          layoutId={`card-${entity.instanceId}`}
+          initial={{ opacity: 0, scale: 0.5, y: -20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.2, filter: "brightness(2) blur(10px)" }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          className={`relative z-10 ${isStealth ? "opacity-60" : ""}`}
+        >
+          <CardTemplate
+            card={entity}
+            size="sm"
+            tilt={false}
+            selected={selected}
+            exhausted={entity.exhausted}
+            dimmed={selectable === false && !isTarget}
+            onClick={onClick}
+            testId={testId}
+            className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
+          />
+          {isGuard && <div className="absolute -inset-1.5 border-[3px] border-slate-300/80 rounded-2xl pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.4)]" />}
+        </motion.div>
+      </div>
     </CardTooltip>
   );
 }
@@ -570,10 +577,12 @@ function GameBoard({ session, match, refresh, onExit }) {
                 const isStealth = e.keywords?.includes("Stealth");
                 const isGuard = e.keywords?.includes("Guard") && !isStealth;
                 const isValidAttack = !!selectedAttacker && !isStealth && (!enemyHasGuard || attackerIsEvasive || isGuard);
+                const attachedRelics = opp.relics?.filter(r => r.attachedTo === e.instanceId) || [];
                 return (
                   <BattlefieldEntity
                     key={e.instanceId}
                     entity={e}
+                    attachedRelics={attachedRelics}
                     selectable={!!selectedAttacker || !!pendingSpell}
                     isTarget={isValidAttack || !!pendingSpell}
                     onClick={() => clickEntity(e, oppSlot)}
@@ -581,6 +590,17 @@ function GameBoard({ session, match, refresh, onExit }) {
                   />
                 );
               })}
+              {opp.relics?.filter(r => !r.attachedTo).map((e) => (
+                <BattlefieldEntity
+                  key={e.instanceId}
+                  entity={e}
+                  attachedRelics={[]}
+                  selectable={!!selectedAttacker || !!pendingSpell}
+                  isTarget={!!pendingSpell}
+                  onClick={() => clickEntity(e, oppSlot)}
+                  testId={`enemy-relic-${e.instanceId}`}
+                />
+              ))}
             </AnimatePresence>
           ) : (
             <span className="text-white/25 font-head text-sm">Enemy Battlefield</span>
@@ -599,18 +619,22 @@ function GameBoard({ session, match, refresh, onExit }) {
         {/* player battlefield */}
         <DropZone id="battlefield" active={!!activeDrag} label="Drag Entities & Relics here" className="glass p-3 min-h-[140px] relative flex items-center justify-center gap-3 flex-wrap">
           <AnimatePresence>
-            {me.battlefield?.map((e) => (
-              <BattlefieldEntity
-                key={e.instanceId}
-                entity={e}
-                selectable={isMyTurn}
-                selected={selectedAttacker === e.instanceId}
-                onClick={() => clickEntity(e, slot)}
-                testId={`my-entity-${e.instanceId}`}
-              />
-            ))}
-            {me.relics?.map((e) => (
-              <BattlefieldEntity key={e.instanceId} entity={e} selectable={false} onClick={() => {}} testId={`my-relic-${e.instanceId}`} />
+            {me.battlefield?.map((e) => {
+              const attachedRelics = me.relics?.filter(r => r.attachedTo === e.instanceId) || [];
+              return (
+                <BattlefieldEntity
+                  key={e.instanceId}
+                  entity={e}
+                  attachedRelics={attachedRelics}
+                  selectable={isMyTurn}
+                  selected={selectedAttacker === e.instanceId}
+                  onClick={() => clickEntity(e, slot)}
+                  testId={`my-entity-${e.instanceId}`}
+                />
+              );
+            })}
+            {me.relics?.filter(r => !r.attachedTo).map((e) => (
+              <BattlefieldEntity key={e.instanceId} entity={e} attachedRelics={[]} selectable={false} onClick={() => {}} testId={`my-relic-${e.instanceId}`} />
             ))}
           </AnimatePresence>
         </DropZone>
