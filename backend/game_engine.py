@@ -620,9 +620,15 @@ def do_attack_nexus(state, slot, payload):
     log(state, f"{atk['name']} struck {dp['username']}'s Nexus for {dmg}.")
     
     # combat damage triggers
-    if "ready one glimmer node" in (atk.get("description") or "").lower():
+    desc_low = (atk.get("description") or "").lower()
+    if "ready one glimmer node" in desc_low:
         pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
         log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
+    
+    if "reveals their hand" in desc_low:
+        for c in dp["hand"]:
+            c["revealed"] = True
+        log(state, f"{dp['username']}'s hand was revealed by {atk['name']}!")
         
     check_win(state)
 
