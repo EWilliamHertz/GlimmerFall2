@@ -271,18 +271,38 @@ def matchmaking(req: MatchmakeReq):
                 "SELECT * FROM matches WHERE room_code=%s AND status='WAITING' AND player2 IS NULL ORDER BY id DESC LIMIT 1",
                 (room,),
             )
+            waiting = cur.fetchone()
         else:
+            # Look for an opponent first
             cur.execute(
-                "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL ORDER BY id DESC LIMIT 1"
+                "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 != %s ORDER BY id DESC LIMIT 1", (req.username,)
             )
-        waiting = cur.fetchone()
+            waiting = cur.fetchone()
+            if not waiting:
+                # No opponent found, check if we already have our own waiting room
+                cur.execute(
+                    "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 = %s ORDER BY id DESC LIMIT 1", (req.username,)
+                )
+                waiting = cur.fetchone()
 
-    if waiting and waiting["player1"] != req.username:
-        wstate = waiting["state"]
-        deck_p1 = wstate["p1_deck"]
-        state = ge.new_match_state(waiting["player1"], deck_p1, req.username, deck1, is_ai=False)
-        save_match(waiting["id"], state)
-        return {"matchId": waiting["id"], "slot": 2, "roomCode": waiting["room_code"], "status": "PLAYING", "vsAI": False}
+    if waiting:
+        if waiting["player1"] == req.username:
+            # Rejoin our own waiting room (update deck just in case)
+            waiting_state = waiting["state"]
+            waiting_state["p1_deck"] = deck1
+            with DB() as cur:
+                cur.execute("UPDATE matches SET state=%s WHERE id=%s", (Json(waiting_state), waiting["id"]))
+            return {"matchId": waiting["id"], "slot": 1, "roomCode": waiting["room_code"], "status": "WAITING", "vsAI": False}
+        else:
+            # Join as player 2
+            with DB() as cur:
+                # Clean up any stale waiting rooms we might have created
+                cur.execute("DELETE FROM matches WHERE status='WAITING' AND player1=%s", (req.username,))
+            wstate = waiting["state"]
+            deck_p1 = wstate["p1_deck"]
+            state = ge.new_match_state(waiting["player1"], deck_p1, req.username, deck1, is_ai=False)
+            save_match(waiting["id"], state)
+            return {"matchId": waiting["id"], "slot": 2, "roomCode": waiting["room_code"], "status": "PLAYING", "vsAI": False}
 
     # ----- create a new waiting room -----
     if not room:
@@ -503,6 +523,30 @@ def admin_telemetry():
             "second": 45.8
         }
     }
+
+class ReportReq(BaseModel):
+    username: str
+    title: str
+    description: str
+
+@api.get("/reports")
+def get_reports():
+    with DB() as cur:
+        cur.execute("SELECT * FROM reports ORDER BY created_at DESC LIMIT 100")
+        reports = [dict(r) for r in cur.fetchall()]
+        for r in reports:
+            r["created_at"] = str(r["created_at"])
+        return reports
+
+@api.post("/reports")
+def create_report(req: ReportReq):
+    with DB() as cur:
+        cur.execute(
+            "INSERT INTO reports (username, title, description) VALUES (%s, %s, %s) RETURNING id",
+            (req.username, req.title, req.description)
+        )
+        report_id = cur.fetchone()["id"]
+    return {"status": "success", "id": report_id}
 
 app.include_router(api)
 app.add_middleware(

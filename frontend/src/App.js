@@ -15,6 +15,7 @@ import Stores from "@/pages/Stores";
 import Community from "@/pages/Community";
 import Codex from "@/pages/Codex";
 import AdminDashboard from "@/pages/AdminDashboard";
+import Support from "@/pages/Support";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
@@ -40,6 +41,7 @@ function Shell() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/stores" element={<Stores />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/support" element={<Support />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
