@@ -343,6 +343,16 @@ def resolve_effect(state, slot, card, payload, auto=False):
             state["players"][slot]["energy"] += 1
             frags.append("added a Glimmer Node from deck")
 
+    # ---- look at top card / scry ----
+    if "look at the top card of your deck" in low:
+        if state["players"][slot]["library"]:
+            top_card = state["players"][slot]["library"][0]
+            if top_card.get("cost", 0) > state["players"][slot]["maxEnergy"] + 1:
+                state["players"][slot]["library"].append(state["players"][slot]["library"].pop(0))
+                frags.append(f"looked at the top card and put {top_card['name']} on the bottom")
+            else:
+                frags.append(f"looked at the top card and left {top_card['name']} on top")
+
     return frags
 
 

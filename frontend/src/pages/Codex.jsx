@@ -11,22 +11,46 @@ const FACTION_LORE = {
   Solari: {
     title: "Solari, The Light",
     icon: "/solari_nobg.png",
-    desc: "The Solari believe order is mercy and truth is a weapon. Beneath vast aureate spires and skies split by holy radiance, angelic guardians and celestial champions stand as the last unbroken shield against the Fall. Solari decks endure through healing, protective Bastions, and disciplined defenses—then turn the tide with towering late-game Entities whose brilliance leaves nowhere for darkness to hide."
+    desc: (
+      <div className="space-y-4">
+        <p>The Solari believe order is mercy and truth is a weapon. Beneath vast aureate spires and skies split by holy radiance, angelic guardians and celestial champions stand as the last unbroken shield against the Fall.</p>
+        <p>Originating from the High Heavens—a domain where shadows cannot exist—the Solari are unyielding zealots bound by the "Decree of the Sun." They deploy healing magic, impenetrable Bastions, and disciplined defenses to outlast their enemies. When the time is right, they unleash towering late-game Entities whose brilliance incinerates darkness instantly.</p>
+        <p className="italic text-white/50">"Where there is light, there is law. Where there is shadow, there is a lesson to be taught in fire."</p>
+      </div>
+    )
   },
   Umbri: {
     title: "Umbri, The Darkness",
     icon: "/umbri_nobg.png",
-    desc: "The Umbri do not fear the Void; they listen to it. In hidden sanctums and moonless alleys, assassins, spectres, and forbidden scholars trade certainty for power, turning secrets into blades. Their playstyle is swift, cruel, and deliberate: disrupt an opponent’s plans, drain their strength, strike from stealth, and sacrifice what is expendable to claim an advantage no honest force could match."
+    desc: (
+      <div className="space-y-4">
+        <p>The Umbri do not fear the Void; they listen to it. In hidden sanctums and moonless alleys, assassins, spectres, and forbidden scholars trade certainty for power, turning secrets into blades.</p>
+        <p>Born from the deepest chasms of the fractured world, the Umbri manipulate the creeping corruption of the Fall rather than fight it. Their playstyle is swift, cruel, and deliberate: disrupt an opponent’s plans, drain their strength, strike from stealth, and sacrifice their own followers to claim an advantage no honest force could match.</p>
+        <p className="italic text-white/50">"The light blinds you to the truth. Only in the dark can you see the strings that move the world."</p>
+      </div>
+    )
   },
   Terra: {
     title: "Terra, The Earth",
     icon: "/terra_nobg.png",
-    desc: "The Terra answer to older laws: root, stone, storm, and tooth. Their realm is alive with colossal elementals, primeval beasts, and wardens whose patience is measured in centuries. Terra builds momentum like a gathering mountain—accelerating its resources, fielding resilient defenders, and eventually unleashing overwhelming force that is almost impossible to move once it takes hold."
+    desc: (
+      <div className="space-y-4">
+        <p>The Terra answer to older laws: root, stone, storm, and tooth. Their realm is alive with colossal elementals, primeval beasts, and wardens whose patience is measured in centuries.</p>
+        <p>Connected through a massive subterranean Mycelial Network, the Terra harness raw elemental fury and unmatched resilience. They build momentum like a gathering mountain—accelerating their resources, fielding towering defenders, and eventually unleashing overwhelming force that simply flattens anything foolish enough to stand in its path.</p>
+        <p className="italic text-white/50">"Civilizations rise and fall like the autumn leaves. The roots, however, remain forever."</p>
+      </div>
+    )
   },
   Aether: {
     title: "Aether, The Magic",
     icon: "/aether_nobg.png",
-    desc: "The Aether see reality as a current to be redirected, not a law to be obeyed. Amid cosmic storms, floating observatories, and fractured constellations, wizards and astral adepts weave possibility into power. Aether decks reward spell mastery, extra card draw, and clever manipulation, chaining Rites into explosive combinations that can transform the battlefield in a single, spectacular moment."
+    desc: (
+      <div className="space-y-4">
+        <p>The Aether see reality as a current to be redirected, not a law to be obeyed. Amid cosmic storms, floating observatories, and fractured constellations, wizards and astral adepts weave possibility into power.</p>
+        <p>Masters of the arcane and the infinite loop of time, the Aether twist the battlefield to their advantage. They reward spell mastery, rapid card draw, and clever manipulation, chaining devastating Rites into explosive combinations that can completely reshape existence in a single, spectacular moment.</p>
+        <p className="italic text-white/50">"Do not look at the stars and wonder what they are. Look at the stars and tell them what to be."</p>
+      </div>
+    )
   }
 };
 
@@ -129,9 +153,9 @@ export default function Codex() {
                 {activeData.title}
               </h3>
             </div>
-            <p className="text-white/80 font-head text-xl leading-relaxed mb-12">
+            <div className="text-white/80 font-head text-xl leading-relaxed mb-12">
               {activeData.desc}
-            </p>
+            </div>
 
             {/* Faction Cards */}
             <div>
