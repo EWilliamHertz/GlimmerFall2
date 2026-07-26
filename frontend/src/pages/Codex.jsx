@@ -1,7 +1,15 @@
 import React from "react";
 import { BookOpen } from "lucide-react";
+import useSWR from "swr";
+import { api } from "@/lib/api";
+import { factionCfg } from "@/lib/factions";
+
+const fetcher = (url) => api.get(url).then((r) => r.data);
 
 export default function Codex() {
+  const { data: cards = [] } = useSWR("/cards", fetcher);
+  const loreCards = cards.filter(c => c.lore && c.lore.trim().length > 0);
+
   return (
     <div className="max-w-4xl mx-auto px-5 py-24 space-y-12">
       <div className="text-center">
@@ -53,10 +61,40 @@ export default function Codex() {
         </div>
 
         <div className="glass rounded-3xl p-8 border-l-4 border-[#00BFFF]">
-          <h3 className="font-display text-2xl font-bold mb-4 text-[#00BFFF]">Aether   The Magic</h3>
+          <h3 className="font-display text-2xl font-bold mb-4 text-[#00BFFF]">Aether — The Magic</h3>
           <p className="text-white/80 font-head leading-relaxed">
             The Aether see reality as a current to be redirected, not a law to be obeyed. Amid cosmic storms, floating observatories, and fractured constellations, wizards and astral adepts weave possibility into power. Aether decks reward spell mastery, extra card draw, and clever manipulation, chaining Rites into explosive combinations that can transform the battlefield in a single, spectacular moment.
           </p>
+        </div>
+      </section>
+
+      {/* NEW: Legends and Artifacts (Card Lore) */}
+      <section className="space-y-8 pt-10">
+        <div className="text-center">
+          <h2 className="font-display text-3xl font-bold mb-4 text-white">Legends & Artifacts</h2>
+          <p className="text-white/60 font-head max-w-2xl mx-auto">
+            Discover the stories behind the most iconic figures, spells, and relics in GlimmerFall.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {loreCards.map((c) => (
+            <div key={c.id} className="glass rounded-3xl overflow-hidden flex flex-col sm:flex-row h-full">
+              {c.image_url && (
+                <div className="w-full sm:w-48 h-48 sm:h-auto shrink-0 relative border-b sm:border-b-0 sm:border-r border-white/10">
+                  <img src={c.image_url} alt={c.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent sm:hidden" />
+                </div>
+              )}
+              <div className="p-6 flex flex-col justify-center">
+                <h3 className="font-display text-2xl font-bold mb-1" style={{ color: factionCfg(c.faction).color }}>{c.name}</h3>
+                <p className="text-white/40 text-xs font-head mb-4 uppercase tracking-widest">{c.card_type} · {c.faction}</p>
+                <p className="text-white/70 italic font-head leading-relaxed text-sm">
+                  "{c.lore}"
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>

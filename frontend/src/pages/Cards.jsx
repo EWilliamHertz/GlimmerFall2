@@ -142,7 +142,16 @@ export const CardModal = ({ card, onClose }) => {
             </div>
           )}
 
-          <p className="text-white/75 leading-relaxed text-sm">{card.description || "No rules text."}</p>
+          <p className="text-white/75 leading-relaxed text-sm mb-4">{card.description || "No rules text."}</p>
+
+          {card.lore && (
+            <div className="mt-4 pt-4 border-t border-white/10 relative">
+              <div className="absolute -top-3 left-4 bg-[#0B0C10] px-2 text-[10px] uppercase tracking-widest text-white/30 font-head">Lore Fragment</div>
+              <p className="text-white/50 italic text-sm leading-relaxed" style={{ color: f.soft }}>
+                "{card.lore}"
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
