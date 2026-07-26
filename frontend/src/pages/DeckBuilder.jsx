@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart, Users } from "lucide-react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { api } from "@/lib/api";
@@ -157,6 +157,27 @@ export default function DeckBuilder() {
     setSaved(next);
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
     toast.success(`Saved "${entry.name}" (${total} cards).`);
+  };
+
+  const [publishing, setPublishing] = useState(false);
+  const publishDeck = async () => {
+    if (total === 0) return toast.error("Add some cards first.");
+    const username = prompt("Enter your Summoner Name to publish this deck:") || "Anonymous";
+    
+    setPublishing(true);
+    try {
+      await api.post("/decks", {
+        username,
+        deck_name: deckName || "Untitled",
+        deck_cards: Object.values(deck).map(({ card, count }) => ({ card_name: card.name, count }))
+      });
+      toast.success(`Published "${deckName || "Untitled"}" to the Community!`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to publish deck.");
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const loadDeck = (entry) => {
@@ -330,6 +351,9 @@ export default function DeckBuilder() {
             <div className="flex gap-2">
               <button onClick={saveDeck} data-testid="deck-save-btn" className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F2A900] text-black font-head font-semibold text-sm hover:bg-[#ffc21f]">
                 <Save className="w-4 h-4" /> Save
+              </button>
+              <button onClick={publishDeck} disabled={publishing} title="Publish to Community" className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#00BFFF] text-black font-head font-semibold text-sm hover:bg-[#00BFFF]/80 disabled:opacity-50">
+                <Users className="w-4 h-4" /> Publish
               </button>
               <button onClick={generateDeckCode} title="Share Deck Code" className="px-4 py-2.5 rounded-xl bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30 text-sm font-head inline-flex items-center gap-1.5">
                 <Share2 className="w-4 h-4" />
