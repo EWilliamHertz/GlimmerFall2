@@ -1,9 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Users, Trophy, Vote, Swords, Video, MessageSquare } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function Community() {
   const [voted, setVoted] = useState(false);
+  const [decks, setDecks] = useState([]);
+  const [loadingDecks, setLoadingDecks] = useState(true);
+
+  useEffect(() => {
+    api.get("/community-decks").then(r => {
+      setDecks(r.data);
+      setLoadingDecks(false);
+    }).catch(err => {
+      console.error(err);
+      setLoadingDecks(false);
+    });
+  }, []);
 
   const handleVote = (factionPref) => {
     setVoted(true);
@@ -101,6 +114,76 @@ export default function Community() {
           </div>
 
         </div>
+      </section>
+
+      {/* Community Decks Section */}
+      <section className="pt-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="font-display text-3xl font-bold mb-2">Community Decks</h2>
+            <p className="text-white/60 font-head">Discover and try out decks created by other Summoners.</p>
+          </div>
+        </div>
+
+        {loadingDecks ? (
+          <div className="text-center py-20 text-white/50 font-head animate-pulse">Loading community decks...</div>
+        ) : decks.length === 0 ? (
+          <div className="glass rounded-3xl p-12 text-center border-dashed border-white/20">
+            <h3 className="font-display text-2xl font-bold text-white/40 mb-2">No Decks Published Yet</h3>
+            <p className="text-white/40 font-head">Be the first to publish a deck from the Deck Builder!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {decks.map(deck => {
+              const totalCards = deck.cards.reduce((sum, c) => sum + c.count, 0);
+              
+              // Figure out main faction based on most common card faction
+              const factions = {};
+              deck.cards.forEach(c => {
+                if(c.faction) {
+                  factions[c.faction] = (factions[c.faction] || 0) + c.count;
+                }
+              });
+              const dominantFaction = Object.entries(factions).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Neutral';
+              
+              return (
+                <div key={deck.id} className="glass rounded-2xl overflow-hidden hover:border-white/20 transition-all flex flex-col group">
+                  <div className="p-6 pb-4 border-b border-white/10 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-screen bg-cover bg-center" 
+                         style={{ backgroundImage: deck.cards[0]?.image_url ? `url(${deck.cards[0].image_url})` : 'none', filter: 'blur(10px)' }} />
+                    <div className="relative z-10 flex justify-between items-start">
+                      <div>
+                        <h3 className="font-display font-bold text-2xl mb-1 group-hover:text-[#F2A900] transition-colors">{deck.deck_name}</h3>
+                        <p className="font-head text-sm text-white/50">by <span className="text-white/80 font-bold">{deck.username}</span></p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-head font-bold bg-white/10 text-white border border-white/20">
+                          {dominantFaction}
+                        </span>
+                        <div className="text-[10px] text-white/40 mt-2 uppercase tracking-wider">{totalCards} Cards</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 bg-black/40 flex-1">
+                    <div className="flex flex-wrap gap-2">
+                      {deck.cards.slice(0, 15).map(c => (
+                        <div key={c.card_name} className="px-2 py-1 bg-white/5 rounded text-[11px] font-head text-white/70 border border-white/5 flex gap-2 items-center">
+                          <span className="text-white/30">{c.count}x</span>
+                          <span className="truncate max-w-[120px]">{c.card_name}</span>
+                        </div>
+                      ))}
+                      {deck.cards.length > 15 && (
+                        <div className="px-2 py-1 bg-white/5 rounded text-[11px] font-head text-white/40 border border-white/5">
+                          +{deck.cards.length - 15} more...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
     </div>

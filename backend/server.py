@@ -118,6 +118,50 @@ def get_starter_decks():
     return decks
 
 
+@api.post("/decks")
+def save_community_deck(payload: dict):
+    # payload: { username, deck_name, deck_cards: [{card_name, count}] }
+    username = payload.get("username", "Anonymous")
+    deck_name = payload.get("deck_name", "Untitled Deck")
+    cards = payload.get("deck_cards", [])
+    
+    with DB() as cur:
+        # insert deck
+        cur.execute("INSERT INTO decks (username, deck_name) VALUES (%s, %s) RETURNING id", (username, deck_name))
+        deck_id = cur.fetchone()["id"]
+        
+        # insert cards
+        for c in cards:
+            cur.execute("INSERT INTO deck_cards (deck_id, card_name, count) VALUES (%s, %s, %s)",
+                        (deck_id, c["card_name"], c["count"]))
+                        
+    return {"status": "success", "deck_id": deck_id}
+
+
+@api.get("/community-decks")
+def get_community_decks():
+    with DB() as cur:
+        # fetch all decks
+        cur.execute("SELECT d.id, d.username, d.deck_name, d.created_at FROM decks d ORDER BY d.created_at DESC LIMIT 50")
+        decks = [dict(r) for r in cur.fetchall()]
+        
+        if not decks:
+            return []
+            
+        deck_ids = tuple(d["id"] for d in decks)
+        
+        # fetch all associated cards for these decks
+        cur.execute("SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url FROM deck_cards dc JOIN cards c ON dc.card_name = c.name WHERE dc.deck_id IN %s", (deck_ids,))
+        cards = [dict(r) for r in cur.fetchall()]
+        
+    for d in decks:
+        # Format dates properly
+        d["created_at"] = str(d["created_at"])
+        d["cards"] = [c for c in cards if c["deck_id"] == d["id"]]
+        
+    return decks
+
+
 # ---------------- matchmaking + match ----------------
 
 class MatchmakeReq(BaseModel):
