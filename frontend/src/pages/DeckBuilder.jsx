@@ -5,6 +5,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
+import { useAuth } from "@/lib/auth";
 import CardTemplate from "@/components/CardTemplate";
 
 const DECK_MAX = 40;
@@ -47,6 +48,7 @@ export default function DeckBuilder() {
   const [deckName, setDeckName] = useState("New Deck");
   const [saved, setSaved] = useState([]);
   const [starters, setStarters] = useState([]);
+  const { user } = useAuth();
 
   useEffect(() => {
     api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
@@ -162,7 +164,9 @@ export default function DeckBuilder() {
   const [publishing, setPublishing] = useState(false);
   const publishDeck = async () => {
     if (total === 0) return toast.error("Add some cards first.");
-    const username = prompt("Enter your Summoner Name to publish this deck:") || "Anonymous";
+    
+    // Automatically use the logged-in user's nickname, or fallback to Anonymous
+    const username = user?.nickname || "Anonymous";
     
     setPublishing(true);
     try {
