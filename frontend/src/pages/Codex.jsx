@@ -127,7 +127,7 @@ export default function Codex() {
                 }}
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity" style={{ backgroundColor: cfg.color }} />
-                <img src={data.icon} alt={faction} className={`w-10 h-10 object-contain transition-transform duration-500 ${isActive ? "scale-110" : ""}`} style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.2))" }} />
+                <img src={data.icon} alt={faction} className={`w-20 h-20 object-contain transition-transform duration-500 ${isActive ? "scale-110" : ""}`} style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.2))" }} />
                 {faction}
               </button>
             );
