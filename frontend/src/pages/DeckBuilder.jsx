@@ -161,6 +161,13 @@ export default function DeckBuilder() {
     toast.success(`Saved "${entry.name}" (${total} cards).`);
   };
 
+  const deleteSavedDeck = (id) => {
+    const next = saved.filter(d => d.id !== id);
+    setSaved(next);
+    localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    toast.success("Deck deleted.");
+  };
+
   const [publishing, setPublishing] = useState(false);
   const publishDeck = async () => {
     if (total === 0) return toast.error("Add some cards first.");
@@ -431,9 +438,14 @@ export default function DeckBuilder() {
                       <span className="truncate">{d.name}</span>
                       <span className="text-white/40 inline-flex items-center gap-1"><Download className="w-3.5 h-3.5" /> {d.cards.reduce((s, c) => s + c.count, 0)}</span>
                     </button>
-                    <button onClick={() => printProxy(d)} data-testid={`saved-deck-print-${d.id}`} title="Print proxy" className="px-2.5 py-2 rounded-lg bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30">
-                      <Printer className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => printProxy(d)} data-testid={`saved-deck-print-${d.id}`} title="Print proxy" className="px-2.5 py-2 rounded-lg bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30">
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => deleteSavedDeck(d.id)} data-testid={`saved-deck-delete-${d.id}`} title="Delete deck" className="px-2.5 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -13,6 +13,7 @@ const LINKS = [
   { to: "/rules", label: "Rulebook", id: "rules" },
   { to: "/codex", label: "Lore Codex", id: "codex" },
   { to: "/community", label: "Community", id: "community" },
+  { to: "/support", label: "Support", id: "support" },
 ];
 
 export const Navbar = () => {
