@@ -10,22 +10,22 @@ const fetcher = (url) => api.get(url).then((r) => r.data);
 const FACTION_LORE = {
   Solari: {
     title: "Solari, The Light",
-    icon: Sun,
+    icon: "/solari_nobg.png",
     desc: "The Solari believe order is mercy and truth is a weapon. Beneath vast aureate spires and skies split by holy radiance, angelic guardians and celestial champions stand as the last unbroken shield against the Fall. Solari decks endure through healing, protective Bastions, and disciplined defenses—then turn the tide with towering late-game Entities whose brilliance leaves nowhere for darkness to hide."
   },
   Umbri: {
     title: "Umbri, The Darkness",
-    icon: Moon,
+    icon: "/umbri_nobg.png",
     desc: "The Umbri do not fear the Void; they listen to it. In hidden sanctums and moonless alleys, assassins, spectres, and forbidden scholars trade certainty for power, turning secrets into blades. Their playstyle is swift, cruel, and deliberate: disrupt an opponent’s plans, drain their strength, strike from stealth, and sacrifice what is expendable to claim an advantage no honest force could match."
   },
   Terra: {
     title: "Terra, The Earth",
-    icon: Mountain,
+    icon: "/terra_nobg.png",
     desc: "The Terra answer to older laws: root, stone, storm, and tooth. Their realm is alive with colossal elementals, primeval beasts, and wardens whose patience is measured in centuries. Terra builds momentum like a gathering mountain—accelerating its resources, fielding resilient defenders, and eventually unleashing overwhelming force that is almost impossible to move once it takes hold."
   },
   Aether: {
     title: "Aether, The Magic",
-    icon: Sparkles,
+    icon: "/aether_nobg.png",
     desc: "The Aether see reality as a current to be redirected, not a law to be obeyed. Amid cosmic storms, floating observatories, and fractured constellations, wizards and astral adepts weave possibility into power. Aether decks reward spell mastery, extra card draw, and clever manipulation, chaining Rites into explosive combinations that can transform the battlefield in a single, spectacular moment."
   }
 };
@@ -103,7 +103,7 @@ export default function Codex() {
                 }}
               >
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity" style={{ backgroundColor: cfg.color }} />
-                <Icon className={`w-8 h-8 transition-transform duration-500 ${isActive ? "scale-110" : ""}`} />
+                <img src={data.icon} alt={faction} className={`w-10 h-10 object-contain transition-transform duration-500 ${isActive ? "scale-110" : ""}`} style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.2))" }} />
                 {faction}
               </button>
             );
@@ -122,8 +122,8 @@ export default function Codex() {
             style={{ borderTopColor: activeCfg.color }}
           >
             <div className="flex items-center gap-5 mb-8">
-              <div className="p-4 rounded-2xl bg-black/50" style={{ color: activeCfg.color }}>
-                <ActiveIcon className="w-10 h-10" />
+              <div className="p-4 rounded-2xl bg-black/50" style={{ boxShadow: `0 0 30px ${activeCfg.glow}` }}>
+                <img src={activeData.icon} alt={activeFaction} className="w-16 h-16 object-contain" />
               </div>
               <h3 className="font-display text-4xl font-bold" style={{ color: activeCfg.color }}>
                 {activeData.title}
