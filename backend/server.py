@@ -162,6 +162,49 @@ def get_community_decks():
     return decks
 
 
+# ---------------- the forge (custom cards) ----------------
+
+@api.get("/custom-cards")
+def get_custom_cards():
+    with DB() as cur:
+        cur.execute("SELECT * FROM custom_cards ORDER BY upvotes DESC, created_at DESC LIMIT 50")
+        cards = [dict(r) for r in cur.fetchall()]
+        for c in cards:
+            c["created_at"] = str(c["created_at"])
+        return cards
+
+@api.post("/custom-cards")
+def create_custom_card(payload: dict):
+    # Payload matches the custom_cards schema
+    name = payload.get("name", "Untitled")
+    faction = payload.get("faction", "Neutral")
+    card_type = payload.get("card_type", "Entity")
+    cost = payload.get("cost", 0)
+    power = payload.get("power", None)
+    health = payload.get("health", None)
+    description = payload.get("description", "")
+    lore = payload.get("lore", "")
+    author = payload.get("author", "Anonymous")
+
+    with DB() as cur:
+        cur.execute("""
+            INSERT INTO custom_cards (name, faction, card_type, cost, power, health, description, lore, author)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (name, faction, card_type, cost, power, health, description, lore, author))
+        card_id = cur.fetchone()["id"]
+        
+    return {"status": "success", "id": card_id}
+
+@api.post("/custom-cards/{card_id}/upvote")
+def upvote_custom_card(card_id: int):
+    with DB() as cur:
+        cur.execute("UPDATE custom_cards SET upvotes = upvotes + 1 WHERE id = %s RETURNING upvotes", (card_id,))
+        res = cur.fetchone()
+        if not res:
+            raise HTTPException(status_code=404, detail="Card not found")
+        return {"status": "success", "upvotes": res["upvotes"]}
+
+
 # ---------------- matchmaking + match ----------------
 
 class MatchmakeReq(BaseModel):
