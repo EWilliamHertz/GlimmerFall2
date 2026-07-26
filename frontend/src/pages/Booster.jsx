@@ -107,7 +107,7 @@ export default function Booster() {
             </button>
           </div>
 
-          {bestPull && (
+          {bestPull && Object.keys(revealed).length === pack.length && (
             <p className="text-center mb-6 font-head text-sm">
               Best pull:{" "}
               <span style={{ color: (RARITY[bestPull.rarity] || RARITY.Common).color, fontWeight: 700 }}>
