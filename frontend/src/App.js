@@ -21,7 +21,7 @@ import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
   const { pathname } = useLocation();
-  const isPrint = pathname === "/print" || pathname === "/print-all" || pathname === "/retailer-flyer";
+  const isPrint = pathname === "/print" || pathname === "/print-all";
   const hideChrome = isPrint;
   const hideFooter = isPrint || pathname === "/play";
   return (

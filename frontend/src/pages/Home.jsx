@@ -148,8 +148,8 @@ export default function Home() {
               Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops.
             </p>
             <div className="mt-6 flex items-baseline gap-4">
-              <span className="text-5xl font-black text-white drop-shadow-lg">$60</span>
-              <span className="text-xl text-white/60 ml-2">Customer Price</span>
+              <span className="text-5xl font-black text-white drop-shadow-lg">$62</span>
+              <span className="text-xl text-white/60 ml-2">Pre-release Price</span>
               <span className="text-sm text-white/60 ml-2 uppercase tracking-wide">+ Shipping</span>
             </div>
           </div>

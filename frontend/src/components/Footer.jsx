@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { LOGO } from "@/lib/factions";
 
 export const Footer = () => (
-  <footer className="mt-16 border-t border-white/10 glass">
+  <footer className="mt-16 border-t border-white/10 glass print:hidden">
     <div className="max-w-7xl mx-auto px-5 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
       <div className="flex items-center gap-3">
         <img src={LOGO} alt="GlimmerFall" className="w-10 h-10 object-contain" />
@@ -17,6 +17,7 @@ export const Footer = () => (
         <Link to="/rules" className="hover:text-white transition-colors">Rules</Link>
         <Link to="/decks" className="hover:text-white transition-colors">Decks</Link>
         <Link to="/booster" className="hover:text-white transition-colors">Booster</Link>
+        <Link to="/support" className="hover:text-white transition-colors text-[#F2A900]">Support</Link>
       </div>
       <p className="text-white/30 text-xs font-head">© {new Date().getFullYear()} GlimmerFall TCG</p>
     </div>
