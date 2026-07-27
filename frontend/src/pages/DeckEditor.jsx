@@ -48,6 +48,7 @@ export default function DeckEditor({ initialDeck, onExit }) {
   const [deckName, setDeckName] = useState("New Deck");
   const [saved, setSaved] = useState([]);
   const [starters, setStarters] = useState([]);
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -58,9 +59,11 @@ export default function DeckEditor({ initialDeck, onExit }) {
     } catch {
       setSaved([]);
     }
+  }, []);
     
+  useEffect(() => {
     // Auto-load initial deck if provided
-    if (initialDeck && initialDeck.cards && cards.length > 0) {
+    if (initialDeck && initialDeck.cards && cards.length > 0 && !hasLoadedInitial) {
       const nd = {};
       initialDeck.cards.forEach((e) => {
         // e.id is usually the card ID from localStorage
@@ -69,8 +72,9 @@ export default function DeckEditor({ initialDeck, onExit }) {
       });
       setDeck(nd);
       setDeckName(initialDeck.name);
+      setHasLoadedInitial(true);
     }
-  }, [cards.length > 0]); // Re-run when cards load so initialDeck can resolve
+  }, [cards, initialDeck, hasLoadedInitial]);
 
   const total = useMemo(() => Object.values(deck).reduce((s, e) => s + e.count, 0), [deck]);
 
