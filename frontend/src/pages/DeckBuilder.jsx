@@ -1,458 +1,266 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart, Users } from "lucide-react";
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
-import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Search, Plus, Trash2, Heart, Users, BookOpen, Download, ArrowLeft, Zap, Sword } from "lucide-react";
 import { api } from "@/lib/api";
-import { FACTIONS, factionCfg } from "@/lib/factions";
-import { useAuth } from "@/lib/auth";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
+import DeckEditor from "./DeckEditor";
 import CardTemplate from "@/components/CardTemplate";
+import { useAuth } from "@/lib/auth";
 
-const DECK_MAX = 40;
-const COPY_MAX = 3;
 const STORE_KEY = "glimmerfall_decks";
-const PRINT_DECK_KEY = "gf_print_deck";
-
-const CardTooltip = ({ card, children, side="right" }) => {
-  if (!card) return children;
-  const f = factionCfg(card.faction);
-  return (
-    <HoverCard openDelay={200} closeDelay={0}>
-      <HoverCardTrigger asChild>
-        {children}
-      </HoverCardTrigger>
-      <HoverCardContent side={side} sideOffset={8} className="w-72 bg-black/95 border border-white/20 shadow-2xl p-4">
-        <div className="flex justify-between items-start mb-2">
-          <h4 className="font-display text-xl font-bold" style={{color: f.color}}>{card.name}</h4>
-          <span className="text-[10px] font-head px-2 py-0.5 rounded-full" style={{background: `${f.color}22`, color: f.color}}>{card.card_type}</span>
-        </div>
-        <div className="flex gap-4 mb-3 text-xs font-head">
-          {card.cost !== null && <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-[#F2A900]"/> {card.cost}</span>}
-          {card.power !== null && card.power !== "None" && <span className="flex items-center gap-1"><Sword className="w-3 h-3 text-[#FF5252]"/> {card.power}</span>}
-          {card.health !== null && card.health !== "None" && <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-[#22E07B]"/> {card.health}</span>}
-        </div>
-        {card.keywords && card.keywords !== "None" && (
-          <div className="mb-2 text-[11px] font-head font-bold text-[#00BFFF] uppercase tracking-wide">{card.keywords}</div>
-        )}
-        <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{card.description || "No rules text."}</p>
-      </HoverCardContent>
-    </HoverCard>
-  );
-};
 
 export default function DeckBuilder() {
+  const [view, setView] = useState("hub"); // 'hub', 'editor'
+  const [activeTab, setActiveTab] = useState("community"); // 'community', 'my-decks'
+  const [communityDecks, setCommunityDecks] = useState([]);
+  const [myDecks, setMyDecks] = useState([]);
   const [cards, setCards] = useState([]);
-  const [q, setQ] = useState("");
-  const [faction, setFaction] = useState(null);
-  const [deck, setDeck] = useState({}); // cardId -> {card, count}
-  const [deckName, setDeckName] = useState("New Deck");
-  const [saved, setSaved] = useState([]);
-  const [starters, setStarters] = useState([]);
+  const [viewDeck, setViewDeck] = useState(null); // The deck object to view in modal
+  const [editorInitialDeck, setEditorInitialDeck] = useState(null);
+  const [votedDecks, setVotedDecks] = useState([]);
+  
   const { user } = useAuth();
 
   useEffect(() => {
+    if (view !== "hub") return;
+    
+    // Fetch community decks
+    api.get("/community-decks").then((r) => setCommunityDecks(r.data)).catch(() => {});
+    // Fetch all cards for modal display
     api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
-    api.get("/starter-decks").then((r) => setStarters(r.data)).catch(() => {});
+    
+    // Load local decks
     try {
-      setSaved(JSON.parse(localStorage.getItem(STORE_KEY) || "[]"));
+      setMyDecks(JSON.parse(localStorage.getItem(STORE_KEY) || "[]"));
     } catch {
-      setSaved([]);
+      setMyDecks([]);
     }
-  }, []);
 
-  const total = useMemo(() => Object.values(deck).reduce((s, e) => s + e.count, 0), [deck]);
-
-  const filtered = useMemo(
-    () =>
-      cards.filter((c) => {
-        if (q && !c.name.toLowerCase().includes(q.toLowerCase())) return false;
-        if (faction && c.faction !== faction) return false;
-        return true;
-      }),
-    [cards, q, faction]
-  );
-
-  const add = (card) => {
-    setDeck((d) => {
-      const cur = d[card.id]?.count || 0;
-      if (total >= DECK_MAX) {
-        toast.error(`Deck is full (${DECK_MAX} cards).`);
-        return d;
-      }
-      if (cur >= COPY_MAX) {
-        toast.error("Max 3 copies of a card.");
-        return d;
-      }
-      return { ...d, [card.id]: { card, count: cur + 1 } };
-    });
-  };
-
-  const remove = (cardId) => {
-    setDeck((d) => {
-      const cur = d[cardId]?.count || 0;
-      if (cur <= 1) {
-        const nd = { ...d };
-        delete nd[cardId];
-        return nd;
-      }
-      return { ...d, [cardId]: { ...d[cardId], count: cur - 1 } };
-    });
-  };
-
-  const curve = useMemo(() => {
-    const buckets = [0, 0, 0, 0, 0, 0, 0]; // 0,1,2,3,4,5,6+
-    Object.values(deck).forEach(({ card, count }) => {
-      const c = Math.min(6, Number(card.cost) || 0);
-      buckets[c] += count;
-    });
-    return buckets;
-  }, [deck]);
-  const maxCurve = Math.max(1, ...curve);
-
-  const factionCounts = useMemo(() => {
-    const m = {};
-    Object.values(deck).forEach(({ card, count }) => (m[card.faction] = (m[card.faction] || 0) + count));
-    return m;
-  }, [deck]);
-
-  const typeCounts = useMemo(() => {
-    const m = {};
-    Object.values(deck).forEach(({ card, count }) => (m[card.card_type] = (m[card.card_type] || 0) + count));
-    return m;
-  }, [deck]);
-
-  const generateDeckCode = () => {
-    if (total === 0) return toast.error("Deck is empty.");
-    const payload = Object.values(deck).map(({ card, count }) => `${card.id}:${count}`).join(",");
-    const code = btoa(payload);
-    navigator.clipboard.writeText(code);
-    toast.success("Deck code copied to clipboard!");
-  };
-
-  const importDeckCode = () => {
-    const code = prompt("Enter deck code:");
-    if (!code) return;
+    // Load voted decks
     try {
-      const payload = atob(code);
-      const parts = payload.split(",");
-      const nd = {};
-      parts.forEach(p => {
-        const [id, count] = p.split(":");
-        const card = cards.find(c => c.id === id);
-        if (card) nd[id] = { card, count: Number(count) };
-      });
-      setDeck(nd);
-      toast.success("Deck imported!");
-    } catch (err) {
-      toast.error("Invalid deck code.");
+      setVotedDecks(JSON.parse(localStorage.getItem("gf_voted_decks") || "[]"));
+    } catch {
+      setVotedDecks([]);
     }
+  }, [view]);
+
+  const toggleVote = (deckId) => {
+    setVotedDecks((prev) => {
+      let next;
+      if (prev.includes(deckId)) {
+        next = prev.filter(id => id !== deckId);
+        toast.info("Vote removed.");
+      } else {
+        next = [...prev, deckId];
+        toast.success("You voted for this deck!");
+      }
+      localStorage.setItem("gf_voted_decks", JSON.stringify(next));
+      return next;
+    });
   };
 
-  const saveDeck = () => {
-    if (total === 0) return toast.error("Add some cards first.");
+  const importDeck = (deck) => {
+    // deck cards from community might just have card_name, so resolve to id
+    const resolvedCards = [];
+    (deck.cards || []).forEach(c => {
+      const found = cards.find(fullCard => fullCard.name === (c.card_name || c.name));
+      if (found) {
+        resolvedCards.push({ id: found.id, name: found.name, count: c.count });
+      } else if (c.id) {
+        resolvedCards.push(c); // fallback if already resolved
+      }
+    });
+
     const entry = {
       id: Date.now(),
-      name: deckName || "Untitled",
-      cards: Object.values(deck).map(({ card, count }) => ({ id: card.id, name: card.name, count })),
+      name: `${deck.username} - ${deck.deck_name || deck.name}`,
+      cards: resolvedCards
     };
-    const next = [entry, ...saved].slice(0, 20);
-    setSaved(next);
+
+    const next = [entry, ...myDecks].slice(0, 20);
+    setMyDecks(next);
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    toast.success(`Saved "${entry.name}" (${total} cards).`);
+    toast.success(`Imported "${entry.name}" to My Decks!`);
   };
 
-  const deleteSavedDeck = (id) => {
-    const next = saved.filter(d => d.id !== id);
-    setSaved(next);
+  const deleteDeck = (id) => {
+    const next = myDecks.filter(d => d.id !== id);
+    setMyDecks(next);
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
     toast.success("Deck deleted.");
   };
 
-  const [publishing, setPublishing] = useState(false);
-  const publishDeck = async () => {
-    if (total === 0) return toast.error("Add some cards first.");
-    
-    // Automatically use the logged-in user's nickname, or fallback to Anonymous
-    const username = user?.nickname || "Anonymous";
-    
-    setPublishing(true);
-    try {
-      await api.post("/decks", {
-        username,
-        deck_name: deckName || "Untitled",
-        deck_cards: Object.values(deck).map(({ card, count }) => ({ card_name: card.name, count }))
-      });
-      toast.success(`Published "${deckName || "Untitled"}" to the Community!`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to publish deck.");
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const loadDeck = (entry) => {
-    const nd = {};
-    entry.cards.forEach((e) => {
-      const card = cards.find((c) => c.id === e.id);
-      if (card) nd[card.id] = { card, count: e.count };
-    });
-    setDeck(nd);
-    setDeckName(entry.name);
-    toast.success(`Loaded "${entry.name}".`);
-  };
-
-  const loadStarter = (sd) => {
-    const nd = {};
-    (sd.cards || []).forEach((e) => {
-      const card = cards.find((c) => c.name === e.card_name);
-      if (card) nd[card.id] = { card, count: Math.min(COPY_MAX, e.count || 1) };
-    });
-    if (!Object.keys(nd).length) return toast.error("Deck cards not found.");
-    setDeck(nd);
-    setDeckName(sd.deck_name);
-    toast.success(`Loaded starter deck "${sd.deck_name}".`);
-  };
-
-  const printProxy = (entry) => {
-    const payload = entry
-      ? { name: entry.name, cards: entry.cards.map((c) => ({ id: c.id, count: c.count })) }
-      : { name: deckName || "Custom Deck", cards: Object.values(deck).map(({ card, count }) => ({ id: card.id, count })) };
-    if (!payload.cards.length) return toast.error("Add cards to print.");
-    localStorage.setItem(PRINT_DECK_KEY, JSON.stringify(payload));
-    window.open("/print?src=deck", "_blank");
-  };
-
-  const factionData = Object.entries(factionCounts).map(([name, value]) => ({ name, value, color: factionCfg(name).color }));
-  const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
-  const TYPE_COLORS = { Entity: "#FF5252", Rite: "#00BFFF", Flash: "#F2A900", Relic: "#22E07B" };
-  const curveData = curve.map((v, i) => ({ cost: i === 6 ? "6+" : String(i), count: v }));
+  if (view === "editor") {
+    return <DeckEditor onExit={() => setView("hub")} initialDeck={editorInitialDeck} />;
+  }
 
   return (
-    <div data-testid="deckbuilder-page" className="max-w-7xl mx-auto px-5 py-10">
-      <h1 className="font-display text-4xl md:text-5xl font-bold mb-2">Deck Builder</h1>
-      <p className="text-white/50 font-head mb-8">Forge your deck up to {DECK_MAX} cards, max 3 copies each.</p>
+    <div className="max-w-7xl mx-auto px-5 py-10" data-testid="deck-hub-page">
+      {/* Landing Header */}
+      <div className="text-center max-w-4xl mx-auto mb-12">
+        <h1 className="font-display text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00BFFF] to-[#F2A900] drop-shadow-[0_0_20px_rgba(242,169,0,0.4)] mb-6 uppercase tracking-wider">
+          The Deck Hub
+        </h1>
+        <p className="font-head text-white/80 text-lg md:text-xl leading-relaxed">
+          This is the haven where you can browse, study, and play professionally built decks. 
+          Vote on your favorites to give them a chance to land in the community spotlights!
+        </p>
+      </div>
 
-      <div className="grid lg:grid-cols-[1fr_380px] gap-6">
-        {/* gallery */}
-        <div>
-          <div className="glass rounded-2xl p-4 mb-5 flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <input
-                data-testid="deck-search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search cards..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#F2A900]/60"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setFaction(null)} className={`px-3 py-1.5 rounded-full text-xs font-head border ${!faction ? "bg-white text-black" : "border-white/15 text-white/60"}`}>All</button>
-              {Object.values(FACTIONS).map((f) => (
-                <button
-                  key={f.name}
-                  data-testid={`deck-faction-${f.name.toLowerCase()}`}
-                  onClick={() => setFaction(faction === f.name ? null : f.name)}
-                  className="px-3 py-1.5 rounded-full text-xs font-head border transition-all"
-                  style={faction === f.name ? { background: f.color, borderColor: f.color, color: "#000" } : { borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)" }}
-                >
-                  {f.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-3 gap-y-5 justify-items-center">
-            {filtered.map((c) => {
-              const count = deck[c.id]?.count || 0;
-              return (
-                <div 
-                  key={c.id} 
-                  className="relative cursor-grab active:cursor-grabbing"
-                  draggable
-                  onDragStart={(e) => { e.dataTransfer.setData("cardId", c.id); }}
-                >
-                  <CardTooltip card={c} side="right">
-                    <div className="relative">
-                      <CardTemplate card={c} size="sm" onClick={() => add(c)} testId={`deck-pool-${c.collector_number}`} />
-                      {count > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 z-10 w-6 h-6 rounded-full bg-[#F2A900] text-black font-num font-bold text-sm flex items-center justify-center border-2 border-[#0B0C10]">
-                          {count}
-                        </span>
-                      )}
-                    </div>
-                  </CardTooltip>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* deck panel */}
-        <div 
-          className="lg:sticky lg:top-20 self-start space-y-4"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const cardId = e.dataTransfer.getData("cardId");
-            if (cardId) {
-              const card = cards.find(c => c.id === cardId);
-              if (card) add(card);
-            }
-          }}
+      {/* Tabs */}
+      <div className="flex justify-center gap-4 mb-8 border-b border-white/10 pb-4">
+        <button 
+          onClick={() => setActiveTab("community")}
+          className={`px-8 py-3 rounded-full font-display font-bold text-lg transition-all ${activeTab === "community" ? "bg-[#F2A900] text-black shadow-[0_0_20px_rgba(242,169,0,0.5)]" : "glass text-white/60 hover:text-white"}`}
         >
-          <div className="glass rounded-2xl p-5">
-            <input
-              data-testid="deck-name-input"
-              value={deckName}
-              onChange={(e) => setDeckName(e.target.value)}
-              className="w-full bg-transparent font-display text-xl font-bold outline-none border-b border-white/10 pb-2 mb-3 focus:border-[#F2A900]"
-            />
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-head text-sm text-white/60">Cards</span>
-              <span className="font-num text-lg font-bold" data-testid="deck-count">
-                <span className={total === DECK_MAX ? "text-[#22E07B]" : "text-white"}>{total}</span>
-                <span className="text-white/40"> / {DECK_MAX}</span>
-              </span>
-            </div>
+          Community Decks
+        </button>
+        <button 
+          onClick={() => setActiveTab("my-decks")}
+          className={`px-8 py-3 rounded-full font-display font-bold text-lg transition-all ${activeTab === "my-decks" ? "bg-[#00BFFF] text-black shadow-[0_0_20px_rgba(0,191,255,0.5)]" : "glass text-white/60 hover:text-white"}`}
+        >
+          My Decks
+        </button>
+      </div>
 
-            {/* stats charts */}
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div className="glass rounded-xl p-3">
-                <p className="text-[10px] font-head text-white/40 mb-2 uppercase tracking-wider text-center">Energy Curve</p>
-                <div className="h-20">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={curveData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                      <XAxis dataKey="cost" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} dy={5} />
-                      <RechartsTooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px" }} />
-                      <Bar dataKey="count" fill="#00BFFF" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+      {/* Tab Content */}
+      {activeTab === "community" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {communityDecks.map(deck => (
+            <div key={deck.id} className="glass-strong rounded-2xl p-6 relative group overflow-hidden border border-white/10 hover:border-[#F2A900]/50 transition-colors">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-display text-xl font-bold text-[#F2A900]">{deck.deck_name}</h3>
+                  <p className="font-head text-sm text-white/50">By {deck.username}</p>
                 </div>
+                <button 
+                  onClick={() => toggleVote(deck.id)}
+                  className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${
+                    votedDecks.includes(deck.id) 
+                      ? "text-[#FF5252] drop-shadow-[0_0_8px_rgba(255,82,82,0.6)]" 
+                      : "text-white/40 hover:text-[#FF5252]"
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${votedDecks.includes(deck.id) ? "fill-current" : ""}`} /> 
+                  {votedDecks.includes(deck.id) ? "Voted" : "Vote"}
+                </button>
               </div>
-
-              <div className="glass rounded-xl p-3 flex flex-col justify-between">
-                <div className="h-10 mb-2 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={factionData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
-                        {factionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Fac</div>
-                </div>
-                
-                <div className="h-10 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={typeData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
-                        {typeData.map((entry, index) => <Cell key={`cell-${index}`} fill={TYPE_COLORS[entry.name] || "#FFF"} />)}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Typ</div>
-                </div>
+              
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setViewDeck(deck)} className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 font-head text-sm transition-colors border border-white/10 hover:border-white/20">
+                  View List
+                </button>
+                <button onClick={() => importDeck(deck)} className="flex-1 py-2 rounded-xl bg-[#00BFFF]/20 text-[#00BFFF] hover:bg-[#00BFFF]/40 font-head text-sm transition-colors flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" /> Import
+                </button>
               </div>
             </div>
-
-            <div className="flex gap-2">
-              <button onClick={saveDeck} data-testid="deck-save-btn" className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F2A900] text-black font-head font-semibold text-sm hover:bg-[#ffc21f]">
-                <Save className="w-4 h-4" /> Save
-              </button>
-              <button onClick={publishDeck} disabled={publishing} title="Publish to Community" className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#00BFFF] text-black font-head font-semibold text-sm hover:bg-[#00BFFF]/80 disabled:opacity-50">
-                <Users className="w-4 h-4" /> Publish
-              </button>
-              <button onClick={generateDeckCode} title="Share Deck Code" className="px-4 py-2.5 rounded-xl bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30 text-sm font-head inline-flex items-center gap-1.5">
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button onClick={importDeckCode} title="Import Deck Code" className="px-4 py-2.5 rounded-xl bg-[#22E07B]/20 text-[#22E07B] hover:bg-[#22E07B]/30 text-sm font-head inline-flex items-center gap-1.5">
-                <Upload className="w-4 h-4" />
-              </button>
-              <button onClick={() => printProxy(null)} data-testid="deck-print-btn" title="Print Proxy" className="px-4 py-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 text-sm font-head inline-flex items-center gap-1.5">
-                <Printer className="w-4 h-4" />
-              </button>
-              <button onClick={() => { setDeck({}); setDeckName("New Deck"); }} className="px-4 py-2.5 rounded-xl glass hover:border-white/25 text-sm font-head">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* starter / tournament decks */}
-          {starters.length > 0 && (
-            <div className="glass rounded-2xl p-4" data-testid="starter-decks">
-              <p className="font-head text-sm text-white/60 mb-2 flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> Starter &amp; Tournament Decks</p>
-              <div className="space-y-1.5">
-                {starters.map((sd) => (
-                  <button
-                    key={sd.id}
-                    onClick={() => loadStarter(sd)}
-                    data-testid={`starter-deck-${sd.id}`}
-                    className="w-full text-left px-3 py-2 rounded-lg bg-black/30 hover:bg-black/50 transition-colors"
-                  >
-                    <div className="font-head text-sm font-semibold">{sd.deck_name}</div>
-                    <div className="text-white/40 text-xs line-clamp-1">{sd.description}</div>
-                  </button>
-                ))}
-              </div>
+          ))}
+          {communityDecks.length === 0 && (
+            <div className="col-span-full py-20 text-center text-white/40 font-head">
+              No community decks found yet. Be the first to publish one from your arsenal!
             </div>
           )}
+        </div>
+      )}
 
-          {/* deck list */}
-          <div className="glass rounded-2xl p-4 max-h-[340px] overflow-y-auto">
-            {total === 0 ? (
-              <p className="text-white/40 text-sm text-center py-8 font-head">Click cards to add them.</p>
-            ) : (
-              <div className="space-y-1.5" data-testid="deck-list">
-                {Object.values(deck)
-                  .sort((a, b) => (Number(a.card.cost) || 0) - (Number(b.card.cost) || 0))
-                  .map(({ card, count }) => {
-                    const f = factionCfg(card.faction);
-                    return (
-                      <div key={card.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5" style={{ background: `${f.color}12` }}>
-                        <span className="w-6 h-6 rounded flex items-center justify-center font-num font-bold text-xs text-black" style={{ background: f.color }}>{card.cost}</span>
-                        <CardTooltip card={card} side="left">
-                          <span className="flex-1 text-sm truncate font-head cursor-help hover:text-white transition-colors underline decoration-white/20 underline-offset-4">{card.name}</span>
-                        </CardTooltip>
-                        <button onClick={() => remove(card.id)} className="text-white/50 hover:text-white"><Minus className="w-4 h-4" /></button>
-                        <span className="font-num text-sm w-4 text-center">{count}</span>
-                        <button onClick={() => add(card)} className="text-white/50 hover:text-white"><Plus className="w-4 h-4" /></button>
-                      </div>
-                    );
-                  })}
+      {activeTab === "my-decks" && (
+        <div>
+          <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+            <h2 className="font-display text-2xl font-bold text-white uppercase tracking-widest">Your Arsenal</h2>
+            <button 
+              onClick={() => { setEditorInitialDeck(null); setView("editor"); }}
+              className="px-6 py-2.5 rounded-full bg-gradient-to-r from-purple-500 to-[#00BFFF] text-white font-bold font-head shadow-[0_0_20px_rgba(0,191,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Create New Deck
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {myDecks.map(deck => (
+              <div key={deck.id} className="glass rounded-2xl p-6 relative group border border-white/5 hover:border-[#00BFFF]/50 transition-colors">
+                <h3 className="font-display text-xl font-bold text-white mb-1 truncate" title={deck.name}>{deck.name}</h3>
+                <p className="font-head text-sm text-white/40 mb-6">{deck.cards.reduce((acc, c) => acc + c.count, 0)} Cards</p>
+                
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    const resolved = { ...deck, cards: deck.cards.map(c => ({ card_name: c.name || c.id, count: c.count })) };
+                    setViewDeck(resolved);
+                  }} className="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 font-head text-sm transition-colors border border-white/10 hover:border-white/20">
+                    View
+                  </button>
+                  <button onClick={() => { setEditorInitialDeck(deck); setView("editor"); }} className="flex-1 py-2 rounded-xl bg-[#F2A900]/20 text-[#F2A900] hover:bg-[#F2A900]/40 font-head text-sm transition-colors flex items-center justify-center gap-2">
+                    Edit
+                  </button>
+                  <button onClick={() => deleteDeck(deck.id)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/10">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {myDecks.length === 0 && (
+              <div className="col-span-full py-20 text-center text-white/40 font-head glass rounded-3xl">
+                You haven't built or imported any decks yet! Start forging your first deck.
               </div>
             )}
           </div>
+        </div>
+      )}
 
-          {/* saved decks */}
-          {saved.length > 0 && (
-            <div className="glass rounded-2xl p-4">
-              <p className="font-head text-sm text-white/60 mb-2">Saved Decks</p>
-              <div className="space-y-1.5">
-                {saved.map((d) => (
-                  <div key={d.id} className="flex items-center gap-1.5">
-                    <button onClick={() => loadDeck(d)} data-testid={`saved-deck-${d.id}`} className="flex-1 flex items-center justify-between px-3 py-2 rounded-lg bg-black/30 hover:bg-black/50 text-sm font-head">
-                      <span className="truncate">{d.name}</span>
-                      <span className="text-white/40 inline-flex items-center gap-1"><Download className="w-3.5 h-3.5" /> {d.cards.reduce((s, c) => s + c.count, 0)}</span>
-                    </button>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => printProxy(d)} data-testid={`saved-deck-print-${d.id}`} title="Print proxy" className="px-2.5 py-2 rounded-lg bg-[#00BFFF]/20 text-[#7FDBFF] hover:bg-[#00BFFF]/30">
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => deleteSavedDeck(d.id)} data-testid={`saved-deck-delete-${d.id}`} title="Delete deck" className="px-2.5 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+      {/* Deck View Modal */}
+      {viewDeck && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
+          <div className="w-full max-w-5xl bg-gray-900 border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-full">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40 rounded-t-3xl">
+              <div>
+                <h2 className="font-display text-3xl font-bold text-[#F2A900] uppercase tracking-wide drop-shadow-lg">
+                  {viewDeck.deck_name || viewDeck.name}
+                </h2>
+                {viewDeck.username && <p className="font-head text-white/50 text-sm mt-1">Built by <span className="text-white/80">{viewDeck.username}</span></p>}
+              </div>
+              <button onClick={() => setViewDeck(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <ArrowLeft className="w-6 h-6 text-white" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-black/20">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {viewDeck.cards.map((c, i) => {
+                  const fullCard = cards.find(fc => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id);
+                  if (!fullCard) return null;
+                  
+                  return (
+                    <HoverCard key={i} openDelay={100} closeDelay={0}>
+                      <HoverCardTrigger asChild>
+                        <div className="relative group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
+                          <CardTemplate card={fullCard} size="sm" tilt={true} />
+                          <div className="absolute -top-3 -right-3 w-8 h-8 bg-black rounded-full border-2 border-[#F2A900] flex items-center justify-center font-display font-bold text-sm text-[#F2A900] shadow-[0_0_10px_rgba(242,169,0,0.8)] z-10">
+                            x{c.count}
+                          </div>
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="right" sideOffset={8} className="w-72 bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
+                        <CardTemplate card={fullCard} size="md" tilt={false} />
+                      </HoverCardContent>
+                    </HoverCard>
+                  );
+                })}
               </div>
             </div>
-          )}
+            
+            <div className="p-6 border-t border-white/10 bg-black/40 rounded-b-3xl flex justify-end gap-4">
+              {viewDeck.username && (
+                <button onClick={() => { importDeck(viewDeck); setViewDeck(null); }} className="px-6 py-2.5 rounded-full bg-[#00BFFF] text-black font-bold font-head shadow-[0_0_20px_rgba(0,191,255,0.4)] hover:bg-[#20caff] hover:scale-105 transition-all flex items-center gap-2">
+                  <Download className="w-4 h-4" /> Import to My Decks
+                </button>
+              )}
+              <button onClick={() => setViewDeck(null)} className="px-8 py-2.5 rounded-full glass text-white font-bold font-head hover:bg-white/10 transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
