@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Printer, MapPin, Calendar, Clock } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { Printer, MapPin, Calendar, Clock, ArrowLeft } from "lucide-react";
 import { LOGO } from "@/lib/factions";
 
 export default function FlyerGenerator() {
@@ -14,7 +14,7 @@ export default function FlyerGenerator() {
   const [extraText, setExtraText] = useState(
     type === "marketing" 
       ? "Pre-order your booster boxes today and secure exclusive Founders Foil promos!"
-      : "Join us for our first official GlimmerFall draft tournament. Prizing included!"
+      : "Join us for our first official GlimmerFall Swiss tournament. Prizing included!"
   );
 
   const printFlyer = () => {
@@ -26,6 +26,9 @@ export default function FlyerGenerator() {
       
       {/* Editor UI - Hidden on Print */}
       <div className="print:hidden mb-10">
+        <Link to="/stores" className="inline-flex items-center gap-2 text-[#00BFFF] hover:text-white transition-colors font-head mb-6">
+          <ArrowLeft className="w-4 h-4" /> Return to Stores
+        </Link>
         <h1 className="font-display text-4xl font-bold mb-2">
           {type === "marketing" ? "Marketing Flyer Generator" : "Event Flyer Generator"}
         </h1>

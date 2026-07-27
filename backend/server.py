@@ -497,7 +497,7 @@ def admin_stats():
         "registered_gamers": gamers,
         "active_matches": matches,
         "total_preorders": preorders,
-        "gross_revenue": preorders * 60
+        "gross_revenue": preorders * 80
     }
 
 @api.get("/admin/telemetry")

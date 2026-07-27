@@ -26,7 +26,7 @@ export default function Stores() {
           <ShieldCheck className="w-10 h-10 text-[#00BFFF] mb-4" />
           <h3 className="font-display text-2xl font-bold text-white mb-3">Sanctioned Pricing</h3>
           <p className="text-white/70 font-head leading-relaxed">
-            While our direct customer price is €60 (or $60), Sanctioned Stores access an exclusive wholesale price of <strong>€52 / 520 SEK</strong> per booster box.
+            While our direct customer price is €80 (or $80), Sanctioned Stores access an exclusive wholesale price of <strong>€52 / 520 SEK</strong> per booster box.
           </p>
         </div>
 

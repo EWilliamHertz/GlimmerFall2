@@ -804,14 +804,26 @@ export default function Arena() {
 
   const refresh = (newState) => setMatch((m) => (m ? { ...m, state: newState, status: newState.phase, activePlayer: newState.activePlayer } : m));
 
-  if (!session) return <Lobby onStart={persist} />;
+  const FeedbackBtn = () => (
+    <a href="/support" className="fixed bottom-4 right-4 z-[100] px-4 py-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white/50 hover:text-white font-head text-xs backdrop-blur-sm transition-all flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      Give Feedback
+    </a>
+  );
+
+  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /></>;
 
   const status = match?.status || session.status;
   if (status === "WAITING") {
-    return <WaitingRoom roomCode={session.roomCode} onCancel={() => persist(null)} />;
+    return <><WaitingRoom roomCode={session.roomCode} onCancel={() => persist(null)} /><FeedbackBtn /></>;
   }
   if (!match) {
     return <div className="py-32 text-center text-white/50 font-head">Loading match…</div>;
   }
-  return <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />;
+  return (
+    <>
+      <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />
+      <FeedbackBtn />
+    </>
+  );
 }
