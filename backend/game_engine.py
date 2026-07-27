@@ -291,7 +291,7 @@ def resolve_effect(state, slot, card, payload, auto=False):
             frags.append(f"returned {te['name']} to hand")
 
     # ---- exhaust ----
-    if "exhaust target" in low or "exhaust two target" in low:
+    if "exhaust target" in low or "exhaust two target" in low or "exhaust it" in low:
         n = 2 if "two target" in low else 1
         if tgt_id:
             ts, te = resolve_target_entity()
@@ -315,7 +315,8 @@ def resolve_effect(state, slot, card, payload, auto=False):
             for kw in GRANT_KEYWORDS:
                 if kw.lower() in low and kw not in te["keywords"]:
                     te["keywords"].append(kw)
-            frags.append(f"buffed {te['name']} ({dp:+}/{dh:+})")
+            verb = "buffed" if (dp > 0 or dh > 0) else "targeted"
+            frags.append(f"{verb} {te['name']} ({dp:+}/{dh:+})")
 
     # ---- heal nexus ----
     hm = _re.search(r"heal your nexus\s+(\d+)", low)
