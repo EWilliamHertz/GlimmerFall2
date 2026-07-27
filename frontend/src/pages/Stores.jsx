@@ -87,24 +87,24 @@ export default function Stores() {
         <section className="glass p-8 rounded-3xl h-fit border border-white/10">
           <h2 className="font-display text-2xl font-bold text-white mb-6">Retailer Resources</h2>
           <div className="space-y-4">
-            <a href="#" className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10">
+            <Link to="/retailer-flyer?type=marketing" className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10">
               <div className="bg-[#9932CC]/20 p-2 rounded-lg text-[#9932CC]">
                 <Download className="w-5 h-5" />
               </div>
               <div>
                 <div className="font-semibold text-white text-sm">Marketing Flyer</div>
-                <div className="text-xs text-white/50">Print-ready PDF (12MB)</div>
+                <div className="text-xs text-white/50">Customizable Print Poster</div>
               </div>
-            </a>
-            <a href="#" className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10">
+            </Link>
+            <Link to="/retailer-flyer?type=event" className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/10">
               <div className="bg-[#22E07B]/20 p-2 rounded-lg text-[#22E07B]">
                 <Download className="w-5 h-5" />
               </div>
               <div>
                 <div className="font-semibold text-white text-sm">Event Invitation</div>
-                <div className="text-xs text-white/50">Editable Template</div>
+                <div className="text-xs text-white/50">Editable Custom Template</div>
               </div>
-            </a>
+            </Link>
             <div className="mt-8 pt-6 border-t border-white/10">
               <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Questions?</h3>
               <a href="mailto:retailers@GlimmerFallTCG.com" className="flex items-center gap-2 text-white hover:text-[#00BFFF] transition-colors font-head">

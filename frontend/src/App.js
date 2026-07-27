@@ -16,11 +16,12 @@ import Community from "@/pages/Community";
 import Codex from "@/pages/Codex";
 import AdminDashboard from "@/pages/AdminDashboard";
 import Support from "@/pages/Support";
+import FlyerGenerator from "@/pages/FlyerGenerator";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
   const { pathname } = useLocation();
-  const isPrint = pathname === "/print" || pathname === "/print-all";
+  const isPrint = pathname === "/print" || pathname === "/print-all" || pathname === "/retailer-flyer";
   const hideChrome = isPrint;
   const hideFooter = isPrint || pathname === "/play";
   return (
@@ -42,6 +43,7 @@ function Shell() {
           <Route path="/stores" element={<Stores />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/retailer-flyer" element={<FlyerGenerator />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
