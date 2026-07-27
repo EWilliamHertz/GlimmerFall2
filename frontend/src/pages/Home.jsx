@@ -145,7 +145,7 @@ export default function Home() {
               </span>
             </h2>
             <p className="mt-4 text-white/70 max-w-xl text-lg font-head">
-              Secure your physical collector's box. Each booster box contains 36 packs, with 15 cards per pack including guaranteed rare or higher drops.
+              Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops.
             </p>
             <div className="mt-6 flex items-baseline gap-4">
               <span className="text-5xl font-black text-white drop-shadow-lg">$60</span>
@@ -193,7 +193,7 @@ export default function Home() {
               
               <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Policies & Contact</h3>
               <p>
-                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please reach out to us at: <a href="mailto:support@glimmerfall.com" className="text-white hover:underline">support@glimmerfall.com</a>.
+                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please reach out to us at: <a href="mailto:support@GlimmerFallTCG.com" className="text-white hover:underline">support@GlimmerFallTCG.com</a>.
               </p>
             </div>
           </div>
