@@ -640,6 +640,11 @@ def do_attack_nexus(state, slot, payload):
         for c in dp["hand"]:
             c["revealed"] = True
         log(state, f"{dp['username']}'s hand was revealed by {atk['name']}!")
+
+    if "deals combat damage to a nexus" in desc_low:
+        tfrags = create_tokens(state, slot, desc_low)
+        if tfrags:
+            log(state, f"{atk['name']} {', '.join(tfrags)}.")
         
     check_win(state)
 
