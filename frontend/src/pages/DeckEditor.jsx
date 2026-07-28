@@ -295,6 +295,7 @@ export default function DeckEditor({ initialDeck, onExit }) {
                   className="relative cursor-grab active:cursor-grabbing"
                   draggable
                   onDragStart={(e) => { e.dataTransfer.setData("cardId", c.id); }}
+                  onContextMenu={(e) => { e.preventDefault(); remove(c.id); }}
                 >
                   <CardTooltip card={c} side="right">
                     <div className="relative">
