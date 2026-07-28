@@ -12,7 +12,7 @@ const KW_ICONS = { Guard: Shield, Evasive: Eye, Stealth: Ghost, Lethal: Skull, O
 
 const TYPES = [
   { name: "Entity", desc: "Creatures placed on the battlefield. No summoning sickness   they can attack immediately." },
-  { name: "Rite", desc: "Slow spells. Can only be cast during your own main turn." },
+  { name: "Rite", desc: "Slow spells. Can be cast anytime during your turn." },
   { name: "Flash", desc: "Fast spells. Can be cast during either player's turn to interrupt or respond." },
   { name: "Relic", desc: "Artifacts that stay on the board providing passive effects." },
 ];
@@ -41,7 +41,7 @@ export default function Rules() {
           <li>Your Nexus begins with <b className="text-white">25 health</b>. Reduce your opponent's to 0 to win.</li>
           <li>Each turn, refill Energy to your maximum, then play one <b className="text-white">Resonance Node</b> (drag any card to the Resonance Row) to raise your maximum Energy by 1.</li>
           <li>You may <b className="text-white">draw only 1 card</b> and play <b className="text-white">1 Resonance Node</b> per turn.</li>
-          <li>Spend Energy to deploy Entities, cast spells and place Relics, then attack with your Entities.</li>
+          <li>Spend Energy to deploy Entities, cast Rites, place Relics, and attack with your Entities in any order anytime during your turn.</li>
         </ul>
       </section>
 

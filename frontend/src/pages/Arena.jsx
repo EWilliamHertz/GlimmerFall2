@@ -556,13 +556,20 @@ function GameBoard({ session, match, refresh, onExit }) {
             return (
               <div
                 key={c?.instanceId || i}
-                className={`w-8 h-11 rounded -ml-3 first:ml-0 transition-transform hover:z-50 hover:scale-[3] hover:-translate-y-4 ${isHidden ? "bg-[#12151E] border border-white/10" : ""}`}
+                className={`w-8 h-11 rounded -ml-3 first:ml-0 transition-transform ${isHidden ? "bg-[#12151E] border border-white/10 hover:z-50 hover:scale-[3] hover:-translate-y-4" : "hover:z-50 hover:-translate-y-2 cursor-help shadow-lg"}`}
                 style={{ transform: `rotate(${(i - 3) * 3}deg)`, transformOrigin: "bottom center" }}
               >
                 {!isHidden && (
-                  <div className="w-[180px] h-[252px] origin-top-left" style={{ transform: "scale(0.177)" }}>
-                    <CardTemplate card={c} size="md" tilt={false} />
-                  </div>
+                  <HoverCard openDelay={100} closeDelay={0}>
+                    <HoverCardTrigger asChild>
+                      <div className="w-[180px] h-[252px] origin-top-left outline-none" style={{ transform: "scale(0.177)" }}>
+                        <CardTemplate card={c} size="md" tilt={false} />
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent side="bottom" sideOffset={16} className="w-[180px] h-[252px] bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
+                      <CardTemplate card={c} size="md" tilt={false} />
+                    </HoverCardContent>
+                  </HoverCard>
                 )}
               </div>
             );
