@@ -16,6 +16,7 @@ import Community from "@/pages/Community";
 import Codex from "@/pages/Codex";
 import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
+import Shop from "@/pages/Shop";
 import { AuthProvider } from "@/lib/auth";
 
 function Shell() {
@@ -31,6 +32,7 @@ function Shell() {
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<Arena />} />
           <Route path="/cards" element={<Cards />} />
+          <Route path="/shop" element={<Shop />} />
           <Route path="/decks" element={<DeckBuilder />} />
           <Route path="/booster" element={<Booster />} />
           <Route path="/rules" element={<Rules />} />
