@@ -414,7 +414,7 @@ def register(req: RegisterReq, request: Request):
     try:
         origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
-            "from": "GlimmerFall <onboarding@resend.dev>",
+            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
             "to": [req.email],
             "subject": "Verify Your GlimmerFall Account",
             "html": f"<p>Welcome {nickname}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
@@ -446,7 +446,7 @@ def resend_verify(req: ResendVerifyReq, request: Request):
     try:
         origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
-            "from": "GlimmerFall <onboarding@resend.dev>",
+            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
             "to": [req.email],
             "subject": "Verify Your GlimmerFall Account",
             "html": f"<p>Welcome {u['nickname']}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
