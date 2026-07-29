@@ -577,6 +577,11 @@ def do_attack_entity(state, slot, payload):
     atk_pow = atk["power"] or 0
     tgt_pow = tgt["power"] or 0
 
+    desc_tgt = (tgt.get("description") or "").lower()
+    if "whenever this entity is attacked, deal 1 damage to the attacker" in desc_tgt:
+        atk["curHealth"] = (atk["curHealth"] or 0) - 1
+        log(state, f"{tgt['name']} dealt 1 damage to attacking {atk['name']}.")
+
     # attacker hits target
     if "Lethal" in atk["keywords"] and atk_pow > 0:
         overflow = 0
@@ -592,10 +597,15 @@ def do_attack_entity(state, slot, payload):
     if overflow > 0:
         dp["hp"] -= overflow
         log(state, f"{atk['name']} overwhelms for {overflow} spill damage to {dp['username']}'s Nexus.")
-        # combat damage triggers
-        if "ready one glimmer node" in (atk.get("description") or "").lower():
-            pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
-            log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
+        trigger_nexus_damage(state, slot, atk, dp)
+
+    # generic combat damage triggers
+    desc_atk = (atk.get("description") or "").lower()
+    if atk_pow > 0:
+        if "deals damage," in desc_atk and "create" in desc_atk:
+            tfrags = create_tokens(state, slot, desc_atk)
+            if tfrags:
+                log(state, f"{atk['name']} dealt damage and {', '.join(tfrags)}.")
 
     # target strikes back
     if tgt_pow > 0:
@@ -629,24 +639,53 @@ def do_attack_nexus(state, slot, payload):
     if "Stealth" in atk["keywords"]:
         atk["keywords"].remove("Stealth")
     log(state, f"{atk['name']} struck {dp['username']}'s Nexus for {dmg}.")
-    
-    # combat damage triggers
-    desc_low = (atk.get("description") or "").lower()
-    if "ready one glimmer node" in desc_low:
-        pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
-        log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
-    
-    if "reveals their hand" in desc_low:
-        for c in dp["hand"]:
-            c["revealed"] = True
-        log(state, f"{dp['username']}'s hand was revealed by {atk['name']}!")
 
-    if "deals combat damage to a nexus" in desc_low:
-        tfrags = create_tokens(state, slot, desc_low)
-        if tfrags:
-            log(state, f"{atk['name']} {', '.join(tfrags)}.")
+    trigger_nexus_damage(state, slot, atk, dp)
         
     check_win(state)
+
+def trigger_nexus_damage(state, slot, atk, dp):
+    pl = state["players"][slot]
+    active_descs = [(atk.get("description") or "").lower()]
+    for r in pl.get("relics", []):
+        if r.get("attachedTo") == atk["instanceId"]:
+            active_descs.append((r.get("description") or "").lower())
+            
+    for desc_low in active_descs:
+        if "ready one glimmer node" in desc_low:
+            pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
+            log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
+        
+        if "reveals their hand" in desc_low:
+            for c in dp["hand"]:
+                c["revealed"] = True
+            log(state, f"{dp['username']}'s hand was revealed by {atk['name']}!")
+
+        if ("deals damage to a nexus" in desc_low or "deals damage," in desc_low) and "create" in desc_low:
+            tfrags = create_tokens(state, slot, desc_low)
+            if tfrags:
+                log(state, f"{atk['name']} {', '.join(tfrags)}.")
+                
+        if "that player discards a card" in desc_low:
+            if dp["hand"]:
+                discarded = random.choice(dp["hand"])
+                dp["hand"].remove(discarded)
+                dp["void"].append(discarded)
+                log(state, f"{atk['name']} forced {dp['username']} to discard {discarded['name']}!")
+                
+        if "sacrifice borrowed face" in desc_low:
+            bf = next((r for r in pl.get("relics", []) if r.get("attachedTo") == atk["instanceId"] and r["name"] == "Borrowed Face"), None)
+            if bf:
+                pl["relics"].remove(bf)
+                pl["void"].append(bf)
+                log(state, f"Borrowed Face was sacrificed after {atk['name']} struck the Nexus.")
+                
+        if "return target opposing relic" in desc_low:
+            if dp.get("relics"):
+                bounced = random.choice(dp["relics"])
+                dp["relics"].remove(bounced)
+                dp["hand"].append(bounced)
+                log(state, f"{atk['name']} bounced {bounced['name']} to {dp['username']}'s hand!")
 
 
 def do_end_turn(state, slot):
