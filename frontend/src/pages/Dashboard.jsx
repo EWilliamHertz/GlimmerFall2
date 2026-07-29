@@ -143,6 +143,30 @@ function AdminPanel({ user }) {
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("https://api.imgbb.com/1/upload?key=b2492f987920d3e2a7903861b72ae3a4", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingProduct({ ...editingProduct, image_url: data.data.url });
+      } else {
+        alert("Failed to upload image.");
+      }
+    } catch (err) {
+      alert("Error uploading image: " + err.message);
+    }
+    setIsUploading(false);
+  };
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
@@ -406,8 +430,20 @@ function AdminPanel({ user }) {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-white/50 text-sm mb-1">Image URL</label>
-                        <input type="text" value={editingProduct.image_url || ''} onChange={e => setEditingProduct({...editingProduct, image_url: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" placeholder="Optional URL" />
+                        <label className="block text-white/50 text-sm mb-1">Image Upload (ImgBB)</label>
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleImageUpload} 
+                            disabled={isUploading}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600"
+                          />
+                          {isUploading && <span className="text-purple-400 text-sm animate-pulse">Uploading...</span>}
+                        </div>
+                        {editingProduct.image_url && (
+                          <div className="mt-2 text-xs text-green-400 truncate">Current: {editingProduct.image_url}</div>
+                        )}
                       </div>
                       <div>
                         <label className="block text-white/50 text-sm mb-1">Price ($)</label>
