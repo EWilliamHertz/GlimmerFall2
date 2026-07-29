@@ -160,7 +160,7 @@ export default function Codex() {
             {/* Faction Cards */}
             <div>
               <h4 className="font-display text-2xl font-bold mb-6 flex items-center gap-3 text-white/90">
-                Legends & Artifacts of {activeFaction}
+                The Complete Arsenal & Legends of {activeFaction}
               </h4>
               
               {displayedCards.length === 0 ? (
