@@ -8,6 +8,50 @@ export default function Shop() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const getProductLore = (name) => {
+    if (name.includes("Gaia")) {
+      return {
+        theme: "Unstoppable natural growth, giant elemental beasts, and the cyclical power of the earth.",
+        desc: "Embrace the primal heartbeat of the world. Gaia's Loop accelerates your Resonance capabilities at frightening speeds, allowing you to deploy colossal elemental behemoths while your opponent is still gathering their strength. Command the World-Soul and let the forest reclaim the battlefield.",
+        type: "40-Card Preconstructed Tuck-Box Deck"
+      };
+    }
+    if (name.includes("Solar")) {
+      return {
+        theme: "Blinding speed, radiant fire, and overwhelming aggressive Light magic.",
+        desc: "Strike with the fury of a dying star. Solar Singularity is a hyper-aggressive deck that utilizes fast, flying celestial entities to overwhelm the opponent's defenses before they can set up. Burn away their resources and crash through with the brilliant might of the Emberwings.",
+        type: "40-Card Preconstructed Tuck-Box Deck"
+      };
+    }
+    if (name.includes("Fractured")) {
+      return {
+        theme: "Time manipulation, spell echoing, and disruption of reality itself.",
+        desc: "Rewrite the rules of engagement. Fractured Continuum is a complex, spell-heavy control deck that bends time and space to its will. Copy your spells, counter your opponent's Rites, and trap their Entities in temporal loops until reality collapses entirely in your favor.",
+        type: "40-Card Preconstructed Tuck-Box Deck"
+      };
+    }
+    if (name.includes("Graveglass")) {
+      return {
+        theme: "Necromancy, forbidden knowledge, and sacrificial shadow magic.",
+        desc: "Look beyond the veil of mortality. The Graveglass Veil excels at utilizing the discard pile as a second hand. Sacrifice your own Entities to trigger devastating effects, gaze into the future, and overwhelm your foes with an endless tide of undying shadow horrors.",
+        type: "40-Card Preconstructed Tuck-Box Deck"
+      };
+    }
+    if (name.includes("Awakening")) {
+      return {
+        theme: "The First Edition Set featuring cards from all four primary factions.",
+        desc: "Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops. Build entirely new decks or enhance your starter decks with legendary mythics.",
+        type: "30-Pack Booster Box"
+      };
+    }
+    return {
+      theme: "GlimmerFall Product",
+      desc: "A premium product for the GlimmerFall Trading Card Game.",
+      type: "Product"
+    };
+  };
 
   useEffect(() => {
     api.get("/shop/products").then(res => {
@@ -111,6 +155,74 @@ export default function Shop() {
         </Dialog>
       </div>
 
+      {selectedProduct && (
+        <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+          <DialogContent className="glass-panel border border-white/10 sm:max-w-3xl p-0 overflow-hidden bg-[#0a0a0c]">
+            <div className="flex flex-col md:flex-row">
+              <div className="md:w-1/2 bg-black/60 relative flex items-center justify-center p-8 border-r border-white/10">
+                {selectedProduct.image_url ? (
+                  <img src={selectedProduct.image_url} alt={selectedProduct.name} className="max-w-full max-h-80 object-contain drop-shadow-2xl" />
+                ) : (
+                  <div className="w-48 h-64 bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-white/20 shadow-2xl flex items-center justify-center">
+                    <span className="text-white/20 font-display font-bold text-center leading-tight text-xl">PRODUCT<br/>MOCKUP</span>
+                  </div>
+                )}
+                <div className="absolute bottom-4 left-4 right-4 text-center text-[10px] text-white/40 uppercase tracking-widest bg-black/80 px-2 py-1 rounded backdrop-blur-sm">
+                  * Product design not final. 3D mockup for visualization purposes only.
+                </div>
+              </div>
+              <div className="md:w-1/2 p-8 flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="text-3xl font-display text-white mb-1">{selectedProduct.name}</DialogTitle>
+                </DialogHeader>
+                <div className="text-[#00BFFF] text-sm font-bold uppercase tracking-widest mb-4">
+                  {getProductLore(selectedProduct.name).type}
+                </div>
+                
+                <div className="space-y-4 flex-1">
+                  <div>
+                    <h4 className="text-white/80 font-bold text-sm uppercase tracking-wider mb-1">Theme</h4>
+                    <p className="text-white/60 text-sm">{getProductLore(selectedProduct.name).theme}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-white/80 font-bold text-sm uppercase tracking-wider mb-1">Lore</h4>
+                    <p className="text-white/60 text-sm leading-relaxed">{getProductLore(selectedProduct.name).desc}</p>
+                  </div>
+                  
+                  {selectedProduct.type === 'deck' && (
+                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 mt-4">
+                      <p className="text-xs text-white/70 italic">Contains a fully playable 40-card preconstructed deck with thematic art and exclusive game design.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/10">
+                  <div className="flex justify-between items-end mb-4">
+                    <div>
+                      <div className="text-3xl font-bold text-white">${selectedProduct.price}</div>
+                      <div className="text-white/40 text-sm">Weight: {selectedProduct.weight_kg} kg</div>
+                    </div>
+                    {selectedProduct.stock <= 0 && selectedProduct.is_preorder && (
+                      <div className="text-[#C77DFF] font-bold">ETA: {selectedProduct.eta}</div>
+                    )}
+                  </div>
+                  <Button 
+                    disabled={selectedProduct.stock <= 0 && !selectedProduct.is_preorder}
+                    onClick={() => {
+                      addToCart(selectedProduct);
+                      setSelectedProduct(null);
+                    }}
+                    className="w-full bg-[#F2A900] hover:bg-[#FFD700] text-black font-bold h-12 text-lg shadow-[0_0_20px_rgba(242,169,0,0.3)] hover:shadow-[0_0_30px_rgba(242,169,0,0.6)] transition-all"
+                  >
+                    {selectedProduct.stock <= 0 && selectedProduct.is_preorder ? 'Pre-order Now' : (selectedProduct.stock <= 0 ? 'Out of Stock' : 'Add to Cart')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {loading ? (
         <div className="text-center py-20 text-white/50">Loading products...</div>
       ) : (
@@ -120,21 +232,29 @@ export default function Shop() {
             const isPreorder = product.stock <= 0 && product.is_preorder;
             
             return (
-              <div key={product.id} className="glass-panel border border-white/10 rounded-2xl overflow-hidden group hover:border-white/30 transition-colors flex flex-col">
-                <div className="aspect-[4/3] bg-black/40 relative flex items-center justify-center p-6">
-                  {/* Placeholder box for deck */}
-                  <div className="w-32 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-white/20 shadow-2xl transform group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-                    <span className="text-white/20 font-display font-bold text-center leading-tight">STARTER<br/>DECK</span>
-                  </div>
+              <div 
+                key={product.id} 
+                className="glass-panel border border-white/10 rounded-2xl overflow-hidden group hover:border-white/30 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all cursor-pointer flex flex-col"
+                onClick={() => setSelectedProduct(product)}
+              >
+                <div className="aspect-[4/3] bg-black/60 relative flex items-center justify-center p-6 border-b border-white/5">
+                  {product.image_url ? (
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-contain drop-shadow-2xl transform group-hover:scale-110 transition-transform duration-700 ease-out" />
+                  ) : (
+                    <div className="w-32 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-white/20 shadow-2xl transform group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+                      <span className="text-white/20 font-display font-bold text-center leading-tight">MOCKUP</span>
+                    </div>
+                  )}
                   
                   {isPreorder && (
-                    <div className="absolute top-4 right-4 bg-[#9B30FF] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    <div className="absolute top-3 right-3 bg-[#9B30FF] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg border border-white/20 z-10">
                       Pre-order
                     </div>
                   )}
                 </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
+                <div className="p-6 flex-1 flex flex-col relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                  <h3 className="text-xl font-bold text-white mb-2 relative z-10">{product.name}</h3>
                   <p className="text-white/60 text-sm mb-4 flex-1">{product.description}</p>
                   
                   <div className="flex items-center gap-2 mb-6">
@@ -155,8 +275,11 @@ export default function Shop() {
                     </div>
                     <Button 
                       disabled={isOOS}
-                      onClick={() => addToCart(product)}
-                      className={isPreorder ? "bg-[#9B30FF] hover:bg-[#C77DFF] text-white" : "bg-white hover:bg-white/90 text-black"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart(product);
+                      }}
+                      className={isPreorder ? "bg-[#9B30FF] hover:bg-[#C77DFF] text-white shadow-[0_0_15px_rgba(155,48,255,0.4)]" : "bg-white hover:bg-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]"}
                     >
                       {isPreorder ? 'Pre-order' : (isOOS ? 'Out of Stock' : 'Add to Cart')}
                     </Button>
