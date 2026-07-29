@@ -26,6 +26,11 @@ const NAV_GROUPS = [
     label: "Community",
     to: "/community",
     id: "community"
+  },
+  {
+    label: "Store",
+    to: "/shop",
+    id: "shop"
   }
 ];
 
