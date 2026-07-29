@@ -84,13 +84,13 @@ export default function Home() {
               transition={{ delay: 0.35 }}
               className="mt-9 flex flex-wrap gap-4"
             >
-              <a
-                href="#pre-order"
+              <Link
+                to="/shop"
                 className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f] transition-all shadow-[0_0_30px_rgba(242,169,0,0.45)]"
               >
                 <Package className="w-5 h-5" /> Reserve a First Edition Box
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </a>
+              </Link>
               <Link
                 to="/stores"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
