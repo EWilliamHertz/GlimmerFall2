@@ -14,7 +14,6 @@ import Dashboard from "@/pages/Dashboard";
 import Stores from "@/pages/Stores";
 import Community from "@/pages/Community";
 import Codex from "@/pages/Codex";
-import AdminDashboard from "@/pages/AdminDashboard";
 import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
 import { AuthProvider } from "@/lib/auth";
@@ -41,7 +40,6 @@ function Shell() {
           <Route path="/print-all" element={<PrintPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/stores" element={<Stores />} />
-          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/support" element={<Support />} />
           <Route path="/retailer-flyer" element={<FlyerGenerator />} />
         </Routes>

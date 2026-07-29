@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -27,6 +27,17 @@ logger = logging.getLogger("glimmerfall")
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 CARDBACK_URL = os.environ.get("CARDBACK_URL", "")
+
+def get_user_from_request(request: Request):
+    auth = request.headers.get("Authorization")
+    if not auth or not auth.startswith("Bearer "):
+        return None
+    token = auth.split(" ")[1]
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        return None
+
 
 DB_POOL = pgpool.ThreadedConnectionPool(
     1, 10, dsn=DATABASE_URL,
@@ -384,7 +395,7 @@ class LoginReq(BaseModel):
     password: str
 
 @api.post("/auth/register")
-def register(req: RegisterReq):
+def register(req: RegisterReq, request: Request):
     hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     nickname = req.email.split('@')[0]
     token = str(uuid.uuid4())
@@ -401,11 +412,12 @@ def register(req: RegisterReq):
             raise HTTPException(400, "Email already exists")
     
     try:
+        origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
             "from": "GlimmerFall <onboarding@resend.dev>",
             "to": [req.email],
             "subject": "Verify Your GlimmerFall Account",
-            "html": f"<p>Welcome {nickname}! Please verify your account by clicking <a href='http://localhost:3000/dashboard?verify={token}'>here</a>.</p>"
+            "html": f"<p>Welcome {nickname}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")
@@ -416,7 +428,7 @@ class ResendVerifyReq(BaseModel):
     email: str
 
 @api.post("/auth/resend-verify")
-def resend_verify(req: ResendVerifyReq):
+def resend_verify(req: ResendVerifyReq, request: Request):
     with DB() as cur:
         cur.execute("SELECT nickname, verification_token, is_verified FROM users WHERE email=%s", (req.email,))
         u = cur.fetchone()
@@ -432,11 +444,12 @@ def resend_verify(req: ResendVerifyReq):
             cur.execute("UPDATE users SET verification_token=%s WHERE email=%s", (token, req.email))
     
     try:
+        origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
             "from": "GlimmerFall <onboarding@resend.dev>",
             "to": [req.email],
             "subject": "Verify Your GlimmerFall Account",
-            "html": f"<p>Welcome {u['nickname']}! Please verify your account by clicking <a href='http://localhost:3000/dashboard?verify={token}'>here</a>.</p>"
+            "html": f"<p>Welcome {u['nickname']}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")
@@ -500,27 +513,58 @@ def admin_stats():
         "gross_revenue": preorders * 80
     }
 
-@api.get("/admin/telemetry")
-def admin_telemetry():
-    # Telemetry data mock for the dashboard (until full pipeline is built)
+@api.get("/admin/stats/game")
+def admin_telemetry(request: Request):
+    with DB() as cur:
+        # 1. Deck Win Rates
+        cur.execute("""
+            SELECT COALESCE(deck_name, 'Unknown Deck') as deck, SUM(wins) as wins, SUM(total_games) as total_games
+            FROM (
+                SELECT player1_deck as deck_name, 
+                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 0 THEN 1 ELSE 0 END) as wins,
+                       COUNT(id) as total_games
+                FROM matches WHERE status='FINISHED' AND player1_deck IS NOT NULL
+                GROUP BY player1_deck
+                UNION ALL
+                SELECT player2_deck as deck_name, 
+                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 1 THEN 1 ELSE 0 END) as wins,
+                       COUNT(id) as total_games
+                FROM matches WHERE status='FINISHED' AND player2_deck IS NOT NULL
+                GROUP BY player2_deck
+            ) as combined
+            GROUP BY deck_name
+            ORDER BY total_games DESC, wins DESC
+        """)
+        raw_decks = cur.fetchall()
+        deck_win_rates = []
+        for rd in raw_decks:
+            win_rate = (rd["wins"] / rd["total_games"]) * 100 if rd["total_games"] > 0 else 0
+            deck_win_rates.append({
+                "deck": rd["deck"],
+                "winRate": round(win_rate, 1),
+                "totalGames": rd["total_games"]
+            })
+
+        # 2. Referrals
+        cur.execute("SELECT COALESCE(referral_source, 'Direct/Organic') as source, COUNT(*) as count FROM users GROUP BY source")
+        referrals = [dict(r) for r in cur.fetchall()]
+        
+        # 3. First vs Second
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='FINISHED' AND CAST(state->>'winner' AS INTEGER) = 0")
+        p1_wins = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='FINISHED' AND CAST(state->>'winner' AS INTEGER) = 1")
+        p2_wins = cur.fetchone()["c"]
+        
+        total_p = p1_wins + p2_wins
+        first_win = round((p1_wins / total_p * 100), 1) if total_p > 0 else 50
+        second_win = round((p2_wins / total_p * 100), 1) if total_p > 0 else 50
+
     return {
-        "most_drafted_cards": [
-            {"name": "Solar Flare", "count": 1245},
-            {"name": "Void Stalker", "count": 982},
-            {"name": "Mossback Forager", "count": 876},
-            {"name": "Luminous Guide", "count": 765},
-            {"name": "Duskblade Fiend", "count": 654},
-        ],
-        "faction_win_rates": [
-            {"faction": "Terra", "winRate": 52.4},
-            {"faction": "Umbri", "winRate": 51.1},
-            {"faction": "Solari", "winRate": 49.8},
-            {"faction": "Aether", "winRate": 48.5},
-            {"faction": "Shield", "winRate": 46.2},
-        ],
+        "deck_win_rates": deck_win_rates,
+        "referrals": referrals,
         "first_vs_second": {
-            "first": 54.2,
-            "second": 45.8
+            "first": first_win,
+            "second": second_win
         }
     }
 
@@ -548,11 +592,64 @@ def create_report(req: ReportReq):
         report_id = cur.fetchone()["id"]
     return {"status": "success", "id": report_id}
 
+@api.get("/admin/users")
+def get_admin_users(request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403, "Access denied")
+    with DB() as cur:
+        cur.execute("SELECT id, nickname as username, email, is_admin FROM users ORDER BY id DESC")
+        return [dict(r) for r in cur.fetchall()]
+
+@api.post("/admin/users/{target_id}/toggle_admin")
+def toggle_admin(target_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    
+    # Check if caller is one of the owners
+    owner_emails = ["swagyser9@gmail.com"]
+    if user.get("email") not in owner_emails:
+        raise HTTPException(403, "Only owners can modify admin roles")
+        
+    with DB() as cur:
+        cur.execute("SELECT is_admin FROM users WHERE id=%s", (target_id,))
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(404, "User not found")
+        
+        new_status = not target["is_admin"]
+        cur.execute("UPDATE users SET is_admin=%s WHERE id=%s", (new_status, target_id))
+    return {"status": "success", "is_admin": new_status}
+
+@api.get("/admin/shop/orders")
+def admin_get_shop_orders(request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403, "Access denied")
+    with DB() as cur:
+        cur.execute("""
+            SELECT o.id, u.email as user_email, o.first_name, o.last_name, 
+                   o.address, o.country, o.shipping_cost, o.total_amount, o.status, o.created_at
+            FROM shop_orders o
+            LEFT JOIN users u ON o.user_id = u.id
+            ORDER BY o.created_at DESC
+        """)
+        orders = []
+        for r in cur.fetchall():
+            rd = dict(r)
+            rd["created_at"] = str(rd["created_at"])
+            t = float(rd["total_amount"] or 0)
+            s = float(rd["shipping_cost"] or 0)
+            rd["net_profit"] = t - s
+            orders.append(rd)
+        return orders
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
