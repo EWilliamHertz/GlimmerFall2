@@ -130,45 +130,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ALPHA PRE-ORDER PROMO */}
-      <section id="pre-order" className="max-w-7xl mx-auto px-5 py-8 mt-4 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-900/40 via-blue-900/30 to-transparent rounded-3xl blur-md" />
-        <div className="relative glass rounded-3xl p-8 md:p-12 border border-purple-500/30 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
-          <div className="flex-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-xs font-bold uppercase tracking-wider text-purple-300 mb-4 border border-purple-500/30">
-              <Sparkles className="w-3.5 h-3.5" /> Alpha Users Exclusive
-            </div>
-            <h2 className="text-3xl md:text-4xl font-display font-black text-white leading-tight">
-              First Edition: <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-                The Awakening Booster Box
-              </span>
-            </h2>
-            <p className="mt-4 text-white/70 max-w-xl text-lg font-head">
-              Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops.
-            </p>
-            <div className="mt-6 flex items-baseline gap-4">
-              <span className="text-5xl font-black text-white drop-shadow-lg">$62</span>
-              <span className="text-xl text-white/60 ml-2">Pre-release Price</span>
-              <span className="text-sm text-white/60 ml-2 uppercase tracking-wide">+ Shipping</span>
-            </div>
-          </div>
-          <div className="w-full md:w-auto shrink-0 flex flex-col items-center">
-            <button className="w-full px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-105 active:scale-95 text-lg whitespace-nowrap">
-              Pre-order Now
-            </button>
-            <div className="mt-5 w-full bg-slate-800 rounded-full h-3 overflow-hidden shadow-inner border border-slate-700">
-              <div 
-                className="bg-gradient-to-r from-purple-500 to-cyan-400 h-full shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all duration-1000" 
-                style={{ width: `${(stats.total_preorders / 500) * 100}%` }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-purple-300 text-center uppercase tracking-widest font-bold">First Edition Production Progress</p>
-          </div>
-        </div>
-      </section>
-
-
       {/* TRUST BUILDING SECTION */}
       <section className="max-w-7xl mx-auto px-5 py-12">
         <div className="glass rounded-3xl p-8 md:p-12 border border-white/10">
