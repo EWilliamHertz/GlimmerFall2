@@ -142,6 +142,18 @@ function AdminPanel({ user }) {
 
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  const handleSaveProduct = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/admin/shop/products/${editingProduct.id}`, editingProduct);
+      setEditingProduct(null);
+      fetchData();
+    } catch (err) {
+      alert("Failed to save product: " + err.message);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -338,6 +350,7 @@ function AdminPanel({ user }) {
                       <th className="pb-3 font-medium">Stock</th>
                       <th className="pb-3 font-medium">Status</th>
                       <th className="pb-3 font-medium">Weight</th>
+                      <th className="pb-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -360,12 +373,73 @@ function AdminPanel({ user }) {
                           )}
                         </td>
                         <td className="py-4 text-white/50">{p.weight_kg} kg</td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => setEditingProduct({...p})} 
+                            className="bg-white/10 hover:bg-white/20 px-3 py-1 rounded text-sm transition-colors"
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {editingProduct && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                <div className="glass-strong rounded-3xl p-8 max-w-lg w-full relative">
+                  <button onClick={() => setEditingProduct(null)} className="absolute top-6 right-6 text-white/50 hover:text-white">
+                    <X className="w-6 h-6" />
+                  </button>
+                  <h3 className="text-2xl font-display font-bold text-white mb-6">Edit Product</h3>
+                  <form onSubmit={handleSaveProduct} className="space-y-4 font-head">
+                    <div>
+                      <label className="block text-white/50 text-sm mb-1">Name</label>
+                      <input type="text" required value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-white/50 text-sm mb-1">Description</label>
+                      <textarea required value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white h-20" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">Image URL</label>
+                        <input type="text" value={editingProduct.image_url || ''} onChange={e => setEditingProduct({...editingProduct, image_url: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" placeholder="Optional URL" />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">Price ($)</label>
+                        <input type="number" step="0.01" required value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">Stock</label>
+                        <input type="number" required value={editingProduct.stock} onChange={e => setEditingProduct({...editingProduct, stock: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">Weight (kg)</label>
+                        <input type="number" step="0.01" required value={editingProduct.weight_kg} onChange={e => setEditingProduct({...editingProduct, weight_kg: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">ETA (if preorder)</label>
+                        <input type="text" value={editingProduct.eta} onChange={e => setEditingProduct({...editingProduct, eta: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <input type="checkbox" id="is_preorder" checked={editingProduct.is_preorder} onChange={e => setEditingProduct({...editingProduct, is_preorder: e.target.checked})} className="w-4 h-4" />
+                      <label htmlFor="is_preorder" className="text-white">Allow Preorders</label>
+                    </div>
+                    <div className="pt-4 flex justify-end gap-3">
+                      <button type="button" onClick={() => setEditingProduct(null)} className="px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors">Cancel</button>
+                      <button type="submit" className="px-4 py-2 rounded-lg bg-[#00BFFF] text-black font-bold hover:brightness-110 transition-all">Save Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             <div className="glass rounded-3xl p-6">
               <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2">
