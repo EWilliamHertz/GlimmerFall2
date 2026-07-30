@@ -68,7 +68,7 @@ function Lobby({ onStart }) {
   const [room, setRoom] = useState("");
   const [faction, setFaction] = useState(null);
   const [deckCards, setDeckCards] = useState(null);
-  const [deckName, setDeckName] = useState("Random Chaos");
+  const [deckName, setDeckName] = useState("");
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [personalDecks, setPersonalDecks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -82,6 +82,7 @@ function Lobby({ onStart }) {
 
   const go = async (mode) => {
     if (!username.trim()) return toast.error("Enter a summoner name.");
+    if (!deckName) return toast.error("Please choose a deck.");
     localStorage.setItem("gf_username", username.trim());
     setLoading(true);
     try {
@@ -146,7 +147,7 @@ function Lobby({ onStart }) {
             onClick={() => setShowDeckModal(true)}
             className="mt-1.5 w-full bg-black/40 border border-white/10 hover:bg-white/5 rounded-xl px-4 py-3 text-left font-head transition-all flex items-center justify-between"
           >
-            <span>{deckName}</span>
+            <span className={!deckName ? "text-white/40 italic" : ""}>{deckName || "Please choose a deck."}</span>
             <Layers className="w-4 h-4 text-white/50" />
           </button>
         </div>

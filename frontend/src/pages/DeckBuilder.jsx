@@ -178,6 +178,7 @@ export default function DeckBuilder() {
                 </button>
               </div>
             </div>
+            );
           })}
           {allDecks.filter(d => d.is_preconstructed).length === 0 && (
             <div className="col-span-full py-20 text-center text-white/40 font-head">
