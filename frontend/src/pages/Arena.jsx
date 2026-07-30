@@ -85,7 +85,7 @@ function Lobby({ onStart }) {
     localStorage.setItem("gf_username", username.trim());
     setLoading(true);
     try {
-      const body = { username: username.trim(), faction, deckCards };
+      const body = { username: username.trim(), faction, deckCards, deckName };
       if (mode === "ai") body.vsAI = true;
       if (mode === "room") body.roomCode = room.trim();
       const r = await api.post("/matchmaking", body);
