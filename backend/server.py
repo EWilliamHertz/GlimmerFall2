@@ -457,13 +457,29 @@ def matchmaking(req: MatchmakeReq):
 
     # ----- vs AI -----
     if req.vsAI:
-        ai_faction = None
-        deck2 = ge.build_deck(pool, ai_faction)
+        import random
+        with DB() as cur:
+            cur.execute("SELECT id, deck_name FROM decks WHERE is_preconstructed = TRUE")
+            precons = cur.fetchall()
+            ai_deck = random.choice(precons) if precons else {"id": None, "deck_name": "Random Chaos"}
+            
+            ai_card_ids = None
+            if ai_deck["id"]:
+                cur.execute("SELECT c.id, dc.count FROM deck_cards dc JOIN cards c ON dc.card_name = c.name WHERE dc.deck_id = %s", (ai_deck["id"],))
+                rows = cur.fetchall()
+                if rows:
+                    ai_card_ids = []
+                    for r in rows:
+                        for _ in range(r["count"]):
+                            ai_card_ids.append(r["id"])
+                            
+        deck2 = ge.build_deck(pool, faction=None, card_ids=ai_card_ids)
         state = ge.new_match_state(req.username, deck1, ge.AI_NAME, deck2, is_ai=True)
+        state["log"].insert(1, f"GlimmerBot is to play {ai_deck['deck_name']}.")
         room = _rand_room()
         mid = insert_match(room, req.username, ge.AI_NAME, state)
         with DB() as cur:
-            cur.execute("UPDATE matches SET player1_deck=%s, player2_deck='AI Random' WHERE id=%s", (req.deckName or 'Unknown Deck', mid))
+            cur.execute("UPDATE matches SET player1_deck=%s, player2_deck=%s WHERE id=%s", (req.deckName or 'Unknown Deck', ai_deck['deck_name'], mid))
         return {"matchId": mid, "slot": 1, "roomCode": room, "status": "PLAYING", "vsAI": True}
 
     room = (req.roomCode or "").strip().upper()
