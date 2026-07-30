@@ -50,7 +50,7 @@ export const Navbar = () => {
 
   return (
     <>
-    <header className={`fixed top-0 inset-x-0 z-50 print:hidden transition-all duration-300 ${isScrolled ? "bg-white/5 border-b border-white/10 backdrop-blur-xl shadow-lg" : "bg-transparent border-transparent"}`}>
+    <header className={`fixed top-0 inset-x-0 z-[100] print:hidden transition-all duration-300 ${isScrolled ? "bg-white/5 border-b border-white/10 backdrop-blur-xl shadow-lg" : "bg-transparent border-transparent"}`}>
       <nav className="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
         <Link to="/" data-testid="nav-logo" className="flex items-center gap-2.5 group">
           <img src={LOGO} alt="GlimmerFall" className="w-8 h-8 object-contain group-hover:scale-110 transition-transform drop-shadow-[0_0_10px_rgba(56,204,255,0.5)]" />
