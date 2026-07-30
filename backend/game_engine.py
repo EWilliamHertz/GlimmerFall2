@@ -390,6 +390,31 @@ def resolve_effect(state, slot, card, payload, auto=False):
             else:
                 frags.append(f"looked at the top card and left {top_card['name']} on top")
 
+    if "look at the top two cards of your deck" in low and "void" in low:
+        library = state["players"][slot]["library"]
+        if len(library) >= 2:
+            c1 = library.pop(0)
+            c2 = library.pop(0)
+            energy = state["players"][slot]["maxEnergy"]
+            def score(c):
+                cost = c.get("cost", 0)
+                if cost <= energy + 1:
+                    return cost + (c.get("power") or 0) * 0.1
+                return -cost
+            
+            if score(c1) >= score(c2):
+                keep, dump = c1, c2
+            else:
+                keep, dump = c2, c1
+                
+            library.insert(0, keep)
+            state["players"][slot]["void"].append(dump)
+            frags.append(f"put {dump['name']} into the Void and left {keep['name']} on top of deck")
+        elif len(library) == 1:
+            dump = library.pop(0)
+            state["players"][slot]["void"].append(dump)
+            frags.append(f"put {dump['name']} into the Void")
+
     return frags
 
 
