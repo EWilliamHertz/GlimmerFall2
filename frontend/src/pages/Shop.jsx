@@ -278,7 +278,8 @@ export default function Shop() {
                     </button>
                   </div>
                 </div>
-                {isPreorder && (
+              </div>
+              {isPreorder && (
                   <div className="absolute -top-3 -right-3 bg-[#9B30FF] text-white text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(155,48,255,0.6)] border border-white/20 z-20 pointer-events-none">
                     Pre-order
                   </div>
