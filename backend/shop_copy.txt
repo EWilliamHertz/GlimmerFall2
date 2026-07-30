@@ -3,7 +3,6 @@ import { api } from "@/lib/api";
 import { ShoppingCart, Plus, Minus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 export default function Shop() {
   const [products, setProducts] = useState([]);
@@ -72,9 +71,6 @@ export default function Shop() {
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    toast.success(`Added ${product.name} to cart!`, {
-      style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
-    });
   };
 
   const updateQuantity = (id, delta) => {
@@ -96,7 +92,7 @@ export default function Shop() {
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-12 relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex justify-between items-center mb-8 sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl py-4 -mx-5 px-5 border-b border-white/10 rounded-b-xl shadow-2xl shadow-black/50">
+      <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-display font-bold text-white mb-2 tracking-wide">
             GLIMMERFALL <span className="text-[#F2A900]">STORE</span>
