@@ -23,6 +23,9 @@ from pydantic import BaseModel, Field
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+import stripe
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("glimmerfall")
 
@@ -931,6 +934,49 @@ async def update_admin_product(product_id: int, request: Request):
             product_id
         ))
         return {"success": True}
+
+class CheckoutItem(BaseModel):
+    id: int
+    quantity: int
+
+class CheckoutReq(BaseModel):
+    items: list[CheckoutItem]
+
+@api.post("/shop/checkout")
+def shop_checkout(req: CheckoutReq, request: Request):
+    user = get_user_from_request(request)
+    with DB() as cur:
+        line_items = []
+        for item in req.items:
+            cur.execute("SELECT name, price, image_url FROM shop_products WHERE id=%s", (item.id,))
+            prod = cur.fetchone()
+            if not prod: continue
+            
+            line_item = {
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": prod["name"],
+                    },
+                    "unit_amount": int(float(prod["price"]) * 100),
+                },
+                "quantity": item.quantity,
+            }
+            if prod["image_url"]:
+                line_item["price_data"]["product_data"]["images"] = [prod["image_url"]]
+            line_items.append(line_item)
+            
+        if not line_items:
+            raise HTTPException(400, "Invalid products")
+            
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            success_url=request.headers.get("origin", "http://localhost:3000") + "/shop?success=true",
+            cancel_url=request.headers.get("origin", "http://localhost:3000") + "/shop?canceled=true",
+        )
+        return {"url": session.url}
 
 app.include_router(api)
 app.add_middleware(

@@ -10,6 +10,22 @@ export default function Shop() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    try {
+      setCheckoutLoading(true);
+      const items = cart.map(item => ({ id: item.id, quantity: item.quantity }));
+      const res = await api.post("/shop/checkout", { items });
+      if (res.data.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to initiate checkout.");
+      setCheckoutLoading(false);
+    }
+  };
 
   const getProductLore = (name) => {
     if (name.includes("Gaia")) {
@@ -55,6 +71,14 @@ export default function Shop() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success")) {
+      toast.success("Payment successful! Your order will be processed.");
+    }
+    if (params.get("canceled")) {
+      toast.error("Checkout was canceled.");
+    }
+
     api.get("/shop/products").then(res => {
       setProducts(res.data);
       setLoading(false);
@@ -150,8 +174,8 @@ export default function Shop() {
                   <span className="text-white/60">Total</span>
                   <span className="text-2xl font-bold text-white">${cartTotal.toFixed(2)}</span>
                 </div>
-                <Button className="w-full bg-[#F2A900] hover:bg-[#FFD700] text-black font-bold h-12 text-lg">
-                  Checkout
+                <Button disabled={checkoutLoading} onClick={handleCheckout} className="w-full bg-[#F2A900] hover:bg-[#FFD700] text-black font-bold h-12 text-lg">
+                  {checkoutLoading ? "Redirecting..." : "Checkout"}
                 </Button>
               </div>
             )}
