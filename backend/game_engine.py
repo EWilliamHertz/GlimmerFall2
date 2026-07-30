@@ -348,9 +348,19 @@ def resolve_effect(state, slot, card, payload, auto=False):
             te["power"] = max(0, (te.get("power") or 0) + dp)
             te["health"] = (te.get("health") or 0) + dh
             te["curHealth"] = (te.get("curHealth") or 0) + dh
+            granted = []
             for kw in GRANT_KEYWORDS:
                 if kw.lower() in low and kw not in te["keywords"]:
                     te["keywords"].append(kw)
+                    granted.append(kw)
+            
+            if "until end phase" in low:
+                te.setdefault("tempBuffs", []).append({
+                    "power": dp,
+                    "health": dh,
+                    "keywords": granted
+                })
+                
             verb = "buffed" if (dp > 0 or dh > 0) else "targeted"
             frags.append(f"{verb} {te['name']} ({dp:+}/{dh:+})")
 
@@ -772,6 +782,20 @@ def do_end_turn(state, slot):
     nxt = opp(slot)
     state["activePlayer"] = int(nxt)
     state["turn"] += 1
+    
+    # clear temp buffs
+    for s in ("1", "2"):
+        for e in state["players"][s]["battlefield"]:
+            if "tempBuffs" in e:
+                for buff in e["tempBuffs"]:
+                    e["power"] = max(0, (e.get("power") or 0) - buff.get("power", 0))
+                    e["health"] = max(1, (e.get("health") or 1) - buff.get("health", 0))
+                    e["curHealth"] = min(e.get("curHealth", 1), e.get("health", 1))
+                    for kw in buff.get("keywords", []):
+                        if kw in e["keywords"]:
+                            e["keywords"].remove(kw)
+                e["tempBuffs"] = []
+                
     start_turn(state, nxt)
     log(state, f"{state['players'][nxt]['username']}'s turn {state['turn']}.")
 
