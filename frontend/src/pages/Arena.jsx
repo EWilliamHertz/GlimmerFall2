@@ -268,17 +268,14 @@ function WaitingRoom({ roomCode, onCancel }) {
 /* GAME PIECES                                                        */
 /* ------------------------------------------------------------------ */
 const EnergyDots = ({ energy, max }) => (
-  <div className="flex flex-col items-end">
-    <div className="flex flex-wrap gap-1 items-center">
-      {Array.from({ length: Math.max(max, 0) }).map((_, i) => (
-        <span
-          key={i}
-          className={`w-3 h-3 rounded-full transition-all ${i < energy ? "bg-[#00BFFF] shadow-[0_0_8px_rgba(0,191,255,0.9)]" : "bg-white/15"}`}
-        />
-      ))}
-      <span className="ml-2 font-num text-sm text-[#7FDBFF]">{energy}/{max}</span>
-    </div>
-    <span className="text-[10px] text-[#7FDBFF]/50 font-head mt-0.5">(Replenishes every turn)</span>
+  <div className="flex flex-wrap gap-1 items-center">
+    {Array.from({ length: Math.max(max, 0) }).map((_, i) => (
+      <span
+        key={i}
+        className={`w-3 h-3 rounded-full transition-all ${i < energy ? "bg-[#00BFFF] shadow-[0_0_8px_rgba(0,191,255,0.9)]" : "bg-white/15"}`}
+      />
+    ))}
+    <span className="ml-2 font-num text-sm text-[#7FDBFF]">{energy}/{max}</span>
   </div>
 );
 
