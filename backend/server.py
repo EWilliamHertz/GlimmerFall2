@@ -461,6 +461,8 @@ def matchmaking(req: MatchmakeReq):
         state = ge.new_match_state(req.username, deck1, ge.AI_NAME, deck2, is_ai=True)
         room = _rand_room()
         mid = insert_match(room, req.username, ge.AI_NAME, state)
+        with DB() as cur:
+            cur.execute("UPDATE matches SET player1_deck=%s, player2_deck='AI Random' WHERE id=%s", (req.deckName or 'Unknown Deck', mid))
         return {"matchId": mid, "slot": 1, "roomCode": room, "status": "PLAYING", "vsAI": True}
 
     room = (req.roomCode or "").strip().upper()
