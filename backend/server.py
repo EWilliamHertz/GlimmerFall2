@@ -741,13 +741,13 @@ def admin_telemetry(request: Request):
                 SELECT player1_deck as deck_name, 
                        SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 0 THEN 1 ELSE 0 END) as wins,
                        COUNT(id) as total_games
-                FROM matches WHERE status='FINISHED' AND player1_deck IS NOT NULL
+                FROM matches WHERE status='ENDED' AND player1_deck IS NOT NULL
                 GROUP BY player1_deck
                 UNION ALL
                 SELECT player2_deck as deck_name, 
                        SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 1 THEN 1 ELSE 0 END) as wins,
                        COUNT(id) as total_games
-                FROM matches WHERE status='FINISHED' AND player2_deck IS NOT NULL
+                FROM matches WHERE status='ENDED' AND player2_deck IS NOT NULL
                 GROUP BY player2_deck
             ) as combined
             GROUP BY deck_name
