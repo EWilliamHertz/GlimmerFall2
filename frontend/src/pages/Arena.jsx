@@ -177,8 +177,8 @@ function Lobby({ onStart }) {
                   <h2 className="font-display text-2xl font-bold mb-4">Starter Decks</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {[
-                      { name: "Graveglass Prophecy", desc: "A dark Umbri deck specializing in void manipulation and assassinations.", factions: "Umbri", color: "#9B30FF" },
-                      { name: "Aetherial Distortion", desc: "An Aether deck focused on reality distortion, card draw, and spells.", factions: "Aether", color: "#38CCFF" },
+                      { name: "The Graveglass Veil", desc: "A dark Umbri deck specializing in void manipulation and assassinations.", factions: "Umbri", color: "#9B30FF" },
+                      { name: "Fractured Continuum", desc: "An Aether deck focused on reality distortion, card draw, and spells.", factions: "Aether", color: "#38CCFF" },
                       { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
                       { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#22E07B" },
                       { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }

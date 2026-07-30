@@ -145,12 +145,20 @@ export default function DeckBuilder() {
       {/* Tab Content */}
       {activeTab === "precon" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {allDecks.filter(d => d.is_preconstructed).map(deck => (
-            <div key={deck.id} className="glass-strong rounded-2xl p-6 relative group overflow-hidden border border-[#9B30FF]/30 hover:border-[#9B30FF] transition-colors">
-              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><BookOpen className="w-24 h-24 text-[#9B30FF]" /></div>
+          {allDecks.filter(d => d.is_preconstructed).map(deck => {
+            const themeColor = deck.deck_name === "Solar Singularity" ? "#F2A900" :
+                          deck.deck_name === "Gaia's Loop" ? "#22E07B" :
+                          deck.deck_name === "Fractured Continuum" ? "#38CCFF" :
+                          deck.deck_name === "The Graveglass Veil" ? "#9B30FF" : "#ffffff";
+            return (
+            <div key={deck.id} className="glass-strong rounded-2xl p-6 relative group overflow-hidden border transition-colors"
+                 style={{ borderColor: `${themeColor}4D` }}
+                 onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
+                 onMouseLeave={(e) => e.currentTarget.style.borderColor = `${themeColor}4D`}>
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><BookOpen className="w-24 h-24" style={{ color: themeColor }} /></div>
               <div className="flex justify-between items-start mb-4 relative z-10">
                 <div>
-                  <h3 className="font-display text-xl font-bold text-[#9B30FF]">{deck.deck_name}</h3>
+                  <h3 className="font-display text-xl font-bold" style={{ color: themeColor }}>{deck.deck_name}</h3>
                   <p className="font-head text-sm text-white/50">Official Theme Deck</p>
                 </div>
                 <button 
@@ -170,7 +178,7 @@ export default function DeckBuilder() {
                 </button>
               </div>
             </div>
-          ))}
+          })}
           {allDecks.filter(d => d.is_preconstructed).length === 0 && (
             <div className="col-span-full py-20 text-center text-white/40 font-head">
               No preconstructed decks available yet.
