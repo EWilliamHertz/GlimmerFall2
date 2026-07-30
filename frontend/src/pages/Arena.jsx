@@ -13,8 +13,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Swords, Bot, Users, Shield, Zap, Layers, Sparkles, ScrollText,
-  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart
+  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
@@ -267,14 +268,17 @@ function WaitingRoom({ roomCode, onCancel }) {
 /* GAME PIECES                                                        */
 /* ------------------------------------------------------------------ */
 const EnergyDots = ({ energy, max }) => (
-  <div className="flex flex-wrap gap-1 items-center">
-    {Array.from({ length: Math.max(max, 0) }).map((_, i) => (
-      <span
-        key={i}
-        className={`w-3 h-3 rounded-full transition-all ${i < energy ? "bg-[#00BFFF] shadow-[0_0_8px_rgba(0,191,255,0.9)]" : "bg-white/15"}`}
-      />
-    ))}
-    <span className="ml-2 font-num text-sm text-[#7FDBFF]">{energy}/{max}</span>
+  <div className="flex flex-col items-end">
+    <div className="flex flex-wrap gap-1 items-center">
+      {Array.from({ length: Math.max(max, 0) }).map((_, i) => (
+        <span
+          key={i}
+          className={`w-3 h-3 rounded-full transition-all ${i < energy ? "bg-[#00BFFF] shadow-[0_0_8px_rgba(0,191,255,0.9)]" : "bg-white/15"}`}
+        />
+      ))}
+      <span className="ml-2 font-num text-sm text-[#7FDBFF]">{energy}/{max}</span>
+    </div>
+    <span className="text-[10px] text-[#7FDBFF]/50 font-head mt-0.5">(Replenishes every turn)</span>
   </div>
 );
 
@@ -298,7 +302,7 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
   </button>
 );
 
-function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTarget, onClick, testId }) {
+function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTarget, onClick, onInspect, testId }) {
   const isGuard = entity.keywords?.includes("Guard") && !entity.keywords?.includes("Stealth");
   const isStealth = entity.keywords?.includes("Stealth");
 
@@ -318,6 +322,14 @@ function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTar
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
           className={`relative z-10 ${isStealth ? "opacity-60" : ""}`}
         >
+          {onInspect && (
+            <button 
+              className="absolute -top-2 -right-2 bg-black/90 rounded-full p-2 z-50 md:hidden border border-white/20 shadow-xl"
+              onClick={(e) => { e.stopPropagation(); onInspect(entity); }}
+            >
+              <Eye className="w-4 h-4 text-[#00BFFF]" />
+            </button>
+          )}
           <CardTemplate
             card={entity}
             size="sm"
@@ -336,7 +348,7 @@ function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTar
   );
 }
 
-function HandCard({ card, draggable, onClick, testId }) {
+function HandCard({ card, draggable, onClick, onInspect, testId }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.instanceId,
     data: { card },
@@ -350,9 +362,18 @@ function HandCard({ card, draggable, onClick, testId }) {
       {...attributes}
       onClick={onClick}
       style={{ opacity: isDragging ? 0.25 : 1, touchAction: "none" }}
-      className="hover:-translate-y-4 transition-transform"
+      className="hover:-translate-y-4 transition-transform relative"
       data-testid={testId}
     >
+      {onInspect && (
+        <button 
+          className="absolute -top-3 -right-3 bg-black/90 rounded-full p-2 z-50 md:hidden border border-white/20 shadow-xl"
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onInspect(card); }}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <Eye className="w-4 h-4 text-[#00BFFF]" />
+        </button>
+      )}
       <CardTooltip card={card} side="top">
         <div>
           <CardTemplate card={card} size="md" tilt={false} />
@@ -394,6 +415,8 @@ function GameBoard({ session, match, refresh, onExit }) {
   const [pendingSpell, setPendingSpell] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [inspectCard, setInspectCard] = useState(null);
+  const [viewingVoid, setViewingVoid] = useState(null);
   const navigate = useNavigate();
   const audioRef = useRef(null);
 
@@ -538,9 +561,13 @@ function GameBoard({ session, match, refresh, onExit }) {
                 <Layers className="w-3.5 h-3.5 text-[#F2A900]" /> {opp.libraryCount ?? opp.library?.length ?? 0}
               </div>
               <div className="w-px h-3 bg-white/20 mx-1" />
-              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Void">
+              <button 
+                onClick={() => setViewingVoid("opp")}
+                className="flex items-center gap-1 text-white/50 hover:text-white transition-colors text-sm font-head" 
+                title="View Enemy Void"
+              >
                 <Skull className="w-3.5 h-3.5 text-[#9B30FF]" /> {opp.void?.length ?? 0}
-              </div>
+              </button>
             </div>
             <EnergyDots energy={opp.energy || 0} max={opp.maxEnergy || 0} />
             <button onClick={onExit} data-testid="exit-match" className="px-3 py-2 rounded-lg glass hover:border-white/25 text-sm">
@@ -593,6 +620,7 @@ function GameBoard({ session, match, refresh, onExit }) {
                     selectable={!!selectedAttacker || !!pendingSpell}
                     isTarget={isValidAttack || !!pendingSpell}
                     onClick={() => clickEntity(e, oppSlot)}
+                    onInspect={setInspectCard}
                     testId={`enemy-entity-${e.instanceId}`}
                   />
                 );
@@ -605,6 +633,7 @@ function GameBoard({ session, match, refresh, onExit }) {
                   selectable={!!selectedAttacker || !!pendingSpell}
                   isTarget={!!pendingSpell}
                   onClick={() => clickEntity(e, oppSlot)}
+                  onInspect={setInspectCard}
                   testId={`enemy-relic-${e.instanceId}`}
                 />
               ))}
@@ -636,12 +665,13 @@ function GameBoard({ session, match, refresh, onExit }) {
                   selectable={isMyTurn}
                   selected={selectedAttacker === e.instanceId}
                   onClick={() => clickEntity(e, slot)}
+                  onInspect={setInspectCard}
                   testId={`my-entity-${e.instanceId}`}
                 />
               );
             })}
             {me.relics?.filter(r => !r.attachedTo).map((e) => (
-              <BattlefieldEntity key={e.instanceId} entity={e} attachedRelics={[]} selectable={false} onClick={() => {}} testId={`my-relic-${e.instanceId}`} />
+              <BattlefieldEntity key={e.instanceId} entity={e} attachedRelics={[]} selectable={false} onClick={() => {}} onInspect={setInspectCard} testId={`my-relic-${e.instanceId}`} />
             ))}
           </AnimatePresence>
         </DropZone>
@@ -672,9 +702,13 @@ function GameBoard({ session, match, refresh, onExit }) {
               <Layers className="w-4 h-4 text-[#F2A900]" /> Deck ({me.libraryCount ?? me.library?.length ?? 0}) {me.hasDrawnThisTurn ? "✓" : ""}
             </button>
             <div className="w-px h-4 bg-white/20 mx-2" />
-            <div className="inline-flex items-center gap-1.5 text-white/50 font-head text-sm" title="Void">
+            <button
+              onClick={() => setViewingVoid("me")}
+              className="inline-flex items-center gap-1.5 text-white/50 font-head text-sm hover:text-white transition-colors" 
+              title="View Void"
+            >
               <Skull className="w-4 h-4 text-[#9B30FF]" /> Void ({me.void?.length ?? 0})
-            </div>
+            </button>
           </div>
           <button
             data-testid="btn-end-turn"
@@ -696,7 +730,7 @@ function GameBoard({ session, match, refresh, onExit }) {
           <div className="flex justify-center -space-x-6">
             <AnimatePresence>
               {me.hand?.map((c) => (
-                <HandCard key={c.instanceId} card={c} draggable={!ended} onClick={() => clickHandCard(c)} testId={`hand-card-${c.instanceId}`} />
+                <HandCard key={c.instanceId} card={c} draggable={!ended} onClick={() => clickHandCard(c)} onInspect={setInspectCard} testId={`hand-card-${c.instanceId}`} />
               ))}
             </AnimatePresence>
           </div>
@@ -767,6 +801,81 @@ function GameBoard({ session, match, refresh, onExit }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile Card Inspector Modal */}
+      <Dialog open={!!inspectCard} onOpenChange={() => setInspectCard(null)}>
+        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-md p-6">
+          {inspectCard && (
+            <div className="flex flex-col items-center">
+              <div className="mb-6 w-full flex justify-center">
+                <CardTemplate card={inspectCard} size="lg" tilt={false} />
+              </div>
+              <DialogHeader className="text-center mb-4">
+                <DialogTitle className="font-display text-2xl" style={{color: factionCfg(inspectCard.faction).color}}>{inspectCard.name}</DialogTitle>
+              </DialogHeader>
+              <div className="w-full space-y-3 font-head text-sm">
+                <div className="flex justify-between border-b border-white/10 pb-2">
+                  <span className="text-white/50">Type</span>
+                  <span className="text-white font-bold">{inspectCard.card_type || inspectCard.cardType}</span>
+                </div>
+                {inspectCard.cost !== null && (
+                  <div className="flex justify-between border-b border-white/10 pb-2">
+                    <span className="text-white/50">Cost</span>
+                    <span className="text-[#F2A900] font-bold flex items-center gap-1"><Zap className="w-3 h-3"/> {inspectCard.cost}</span>
+                  </div>
+                )}
+                {inspectCard.power !== null && inspectCard.power !== "None" && (
+                  <div className="flex justify-between border-b border-white/10 pb-2">
+                    <span className="text-white/50">Power</span>
+                    <span className="text-[#FF5252] font-bold flex items-center gap-1"><Sword className="w-3 h-3"/> {inspectCard.power}</span>
+                  </div>
+                )}
+                {inspectCard.health !== null && inspectCard.health !== "None" && (
+                  <div className="flex justify-between border-b border-white/10 pb-2">
+                    <span className="text-white/50">Health</span>
+                    <span className="text-[#22E07B] font-bold flex items-center gap-1"><Heart className="w-3 h-3"/> {inspectCard.health}</span>
+                  </div>
+                )}
+                {inspectCard.keywords && inspectCard.keywords !== "None" && (
+                  <div className="pt-2">
+                    <span className="text-[#00BFFF] font-bold uppercase tracking-wide text-xs">{inspectCard.keywords}</span>
+                  </div>
+                )}
+                <div className="pt-2 text-white/80 whitespace-pre-wrap leading-relaxed">
+                  {inspectCard.description || "No rules text."}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Void Viewer Modal */}
+      <Dialog open={!!viewingVoid} onOpenChange={() => setViewingVoid(null)}>
+        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-4xl p-6 h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-3">
+              <Skull className="w-6 h-6 text-[#9B30FF]"/> 
+              {viewingVoid === 'me' ? "Your Void" : "Enemy Void"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto mt-4 min-h-0">
+            {viewingVoid && (viewingVoid === 'me' ? me.void : opp.void)?.length > 0 ? (
+              <div className="flex flex-wrap gap-4 justify-center">
+                {(viewingVoid === 'me' ? me.void : opp.void).map((c, i) => (
+                  <div key={i} className="hover:scale-105 transition-transform">
+                    <CardTemplate card={c} size="md" tilt={false} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-white/40 font-head italic">
+                The void is empty.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
