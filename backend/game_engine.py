@@ -444,6 +444,26 @@ def resolve_effect(state, slot, card, payload, auto=False):
             library.extend(rest)
             frags.append(f"looked at the top {n} cards, put {keep['name']} in hand, and put the rest on the bottom")
 
+    if "look at your opponent" in low and "hand" in low and "discard" in low:
+        enemy_slot = opp(slot)
+        enemy_hand = state["players"][enemy_slot]["hand"]
+        if enemy_hand:
+            spells = [c for c in enemy_hand if c.get("cardType", "").lower() == "spell"]
+            if "spell" in low and spells:
+                spells.sort(key=lambda c: c.get("cost", 0), reverse=True)
+                dump = spells[0]
+                enemy_hand.remove(dump)
+                state["players"][enemy_slot]["void"].append(dump)
+                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
+            elif "spell" in low and not spells:
+                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand but found no Spells")
+            else:
+                enemy_hand.sort(key=lambda c: c.get("cost", 0), reverse=True)
+                dump = enemy_hand[0]
+                enemy_hand.remove(dump)
+                state["players"][enemy_slot]["void"].append(dump)
+                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
+
     return frags
 
 
