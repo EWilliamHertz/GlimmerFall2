@@ -266,16 +266,16 @@ export default function Shop() {
                         </div>
                       )}
                     </div>
-                    <Button 
+                    <button 
                       disabled={isOOS}
                       onClick={(e) => {
                         e.stopPropagation();
                         addToCart(product);
                       }}
-                      className={isPreorder ? "bg-[#9B30FF] hover:bg-[#C77DFF] text-white shadow-[0_0_15px_rgba(155,48,255,0.4)]" : "bg-white hover:bg-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]"}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${isPreorder ? "bg-[#9B30FF] hover:bg-[#C77DFF] text-white shadow-[0_0_15px_rgba(155,48,255,0.4)]" : "bg-white hover:bg-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]"}`}
                     >
                       {isPreorder ? 'Pre-order' : (isOOS ? 'Out of Stock' : 'Add to Cart')}
-                    </div>
+                    </button>
                   </div>
                 </div>
                 {isPreorder && (
