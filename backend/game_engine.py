@@ -312,6 +312,20 @@ def resolve_effect(state, slot, card, payload, auto=False):
             state["players"][ts]["hand"].append(te)
             frags.append(f"returned {te['name']} to hand")
 
+    if "from your void to your hand" in low:
+        # e.g., "return target entity with cost 2 or less from your void to your hand"
+        cost_limit = 99
+        cm = _re.search(r"cost\s+(\d+)\s+or\s+less", low)
+        if cm:
+            cost_limit = int(cm.group(1))
+            
+        valid_cards = [c for c in state["players"][slot]["void"] if c.get("cardType") == "Entity" and c.get("cost", 0) <= cost_limit]
+        if valid_cards:
+            best_card = max(valid_cards, key=lambda c: (c.get("cost", 0), c.get("power", 0) or 0))
+            state["players"][slot]["void"].remove(best_card)
+            state["players"][slot]["hand"].append(best_card)
+            frags.append(f"returned {best_card['name']} from the Void to hand")
+
     # ---- exhaust ----
     if "exhaust target" in low or "exhaust two target" in low or "exhaust it" in low:
         n = 2 if "two target" in low else 1
