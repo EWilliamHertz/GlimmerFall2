@@ -18,6 +18,7 @@ import bcrypt
 import jwt
 import datetime
 import uuid
+from pydantic import BaseModel, Field
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -216,6 +217,195 @@ def upvote_custom_card(card_id: int):
         return {"status": "success", "upvotes": res["upvotes"]}
 
 
+# ---------------- polls ----------------
+
+class PollCreateReq(BaseModel):
+    title: str
+    description: Optional[str] = None
+    finish_at: Optional[datetime.datetime] = None
+    options: list[str]
+
+class PollVoteReq(BaseModel):
+    option_id: int
+
+@api.get("/polls")
+def get_polls():
+    with DB() as cur:
+        cur.execute("SELECT * FROM polls ORDER BY created_at DESC")
+        polls = [dict(r) for r in cur.fetchall()]
+        
+        if not polls:
+            return []
+            
+        poll_ids = tuple(p["id"] for p in polls)
+        cur.execute("SELECT * FROM poll_options WHERE poll_id IN %s", (poll_ids,))
+        options = [dict(r) for r in cur.fetchall()]
+        
+        cur.execute("SELECT option_id, COUNT(*) as vote_count FROM poll_votes WHERE poll_id IN %s GROUP BY option_id", (poll_ids,))
+        vote_counts = {r["option_id"]: r["vote_count"] for r in cur.fetchall()}
+        
+        for opt in options:
+            opt["vote_count"] = vote_counts.get(opt["id"], 0)
+            
+        for p in polls:
+            p["created_at"] = str(p["created_at"])
+            if p["finish_at"]:
+                p["finish_at"] = str(p["finish_at"])
+            p["options"] = [opt for opt in options if opt["poll_id"] == p["id"]]
+            
+        return polls
+
+@api.post("/polls")
+def create_poll(req: PollCreateReq, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403, "Access denied")
+        
+    with DB() as cur:
+        cur.execute(
+            "INSERT INTO polls (title, description, finish_at) VALUES (%s, %s, %s) RETURNING id",
+            (req.title, req.description, req.finish_at)
+        )
+        poll_id = cur.fetchone()["id"]
+        
+        for opt in req.options:
+            cur.execute("INSERT INTO poll_options (poll_id, option_text) VALUES (%s, %s)", (poll_id, opt))
+            
+    return {"status": "success", "id": poll_id}
+
+@api.post("/polls/{poll_id}/vote")
+def vote_poll(poll_id: int, req: PollVoteReq, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+        
+    with DB() as cur:
+        cur.execute("SELECT * FROM polls WHERE id=%s", (poll_id,))
+        poll = cur.fetchone()
+        if not poll:
+            raise HTTPException(404, "Poll not found")
+        if not poll["is_active"] or (poll["finish_at"] and poll["finish_at"] < datetime.datetime.now()):
+            raise HTTPException(400, "Poll is closed")
+            
+        cur.execute("SELECT * FROM poll_options WHERE id=%s AND poll_id=%s", (req.option_id, poll_id))
+        if not cur.fetchone():
+            raise HTTPException(400, "Invalid option")
+            
+        cur.execute(
+            "INSERT INTO poll_votes (poll_id, option_id, user_email) VALUES (%s, %s, %s) "
+            "ON CONFLICT (poll_id, user_email) DO UPDATE SET option_id = EXCLUDED.option_id",
+            (poll_id, req.option_id, user["email"])
+        )
+    return {"status": "success"}
+
+# ---------------- decks ----------------
+
+@api.get("/decks")
+def get_all_decks(request: Request):
+    user = get_user_from_request(request)
+    user_email = user["email"] if user else None
+    
+    with DB() as cur:
+        cur.execute("""
+            SELECT d.id, d.username, d.deck_name, d.created_at, d.is_preconstructed,
+                   (SELECT COUNT(*) FROM deck_likes dl WHERE dl.deck_id = d.id) as likes_count
+            FROM decks d
+            ORDER BY d.created_at DESC
+            LIMIT 100
+        """)
+        decks = [dict(r) for r in cur.fetchall()]
+        
+        if not decks:
+            return []
+            
+        deck_ids = tuple(d["id"] for d in decks)
+        
+        cur.execute("SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url FROM deck_cards dc JOIN cards c ON dc.card_name = c.name WHERE dc.deck_id IN %s", (deck_ids,))
+        cards = [dict(r) for r in cur.fetchall()]
+        
+        user_likes = set()
+        if user_email:
+            cur.execute("SELECT deck_id FROM deck_likes WHERE user_email=%s AND deck_id IN %s", (user_email, deck_ids))
+            user_likes = {r["deck_id"] for r in cur.fetchall()}
+            
+        for d in decks:
+            d["created_at"] = str(d["created_at"])
+            d["cards"] = [c for c in cards if c["deck_id"] == d["id"]]
+            d["liked_by_me"] = d["id"] in user_likes
+            
+        return decks
+
+@api.post("/decks/{deck_id}/like")
+def toggle_deck_like(deck_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+        
+    with DB() as cur:
+        cur.execute("SELECT * FROM decks WHERE id=%s", (deck_id,))
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+            
+        cur.execute("SELECT * FROM deck_likes WHERE deck_id=%s AND user_email=%s", (deck_id, user["email"]))
+        existing = cur.fetchone()
+        
+        if existing:
+            cur.execute("DELETE FROM deck_likes WHERE deck_id=%s AND user_email=%s", (deck_id, user["email"]))
+            liked = False
+        else:
+            cur.execute("INSERT INTO deck_likes (deck_id, user_email) VALUES (%s, %s)", (deck_id, user["email"]))
+            liked = True
+            
+        cur.execute("SELECT COUNT(*) as likes_count FROM deck_likes WHERE deck_id=%s", (deck_id,))
+        likes_count = cur.fetchone()["likes_count"]
+        
+    return {"status": "success", "liked": liked, "likes_count": likes_count}
+
+class CommentCreateReq(BaseModel):
+    content: str
+    parent_id: Optional[int] = None
+
+@api.get("/decks/{deck_id}/comments")
+def get_deck_comments(deck_id: int):
+    with DB() as cur:
+        cur.execute("SELECT * FROM decks WHERE id=%s", (deck_id,))
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+            
+        cur.execute("SELECT * FROM deck_comments WHERE deck_id=%s ORDER BY created_at ASC", (deck_id,))
+        comments = [dict(r) for r in cur.fetchall()]
+        
+        for c in comments:
+            c["created_at"] = str(c["created_at"])
+            
+        return comments
+
+@api.post("/decks/{deck_id}/comments")
+def create_deck_comment(deck_id: int, req: CommentCreateReq, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+        
+    with DB() as cur:
+        cur.execute("SELECT * FROM decks WHERE id=%s", (deck_id,))
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+            
+        if req.parent_id:
+            cur.execute("SELECT * FROM deck_comments WHERE id=%s AND deck_id=%s", (req.parent_id, deck_id))
+            if not cur.fetchone():
+                raise HTTPException(404, "Parent comment not found")
+                
+        cur.execute(
+            "INSERT INTO deck_comments (deck_id, user_email, content, parent_id) VALUES (%s, %s, %s, %s) RETURNING id, created_at",
+            (deck_id, user["email"], req.content, req.parent_id)
+        )
+        res = cur.fetchone()
+        
+    return {"status": "success", "id": res["id"], "created_at": str(res["created_at"])}
+
+
+
 # ---------------- matchmaking + match ----------------
 
 class MatchmakeReq(BaseModel):
@@ -394,6 +584,31 @@ class LoginReq(BaseModel):
     email: str
     password: str
 
+def get_verification_email_html(nickname: str, token: str, origin: str) -> str:
+    return f"""
+    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0B0C10; color: #FFFFFF; padding: 40px; border-radius: 12px; border: 1px solid #1F2937;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 36px; color: #F2A900; letter-spacing: 4px; text-transform: uppercase; font-weight: 900;">GLIMMER<span style="color: #00BFFF;">FALL</span></h1>
+        <p style="margin: 10px 0 0; color: #A0A0A0; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;">Awaken the Nexus. Master the Resonance.</p>
+      </div>
+      <p style="font-size: 18px; color: #F3F4F6;">Greetings, Summoner <strong>{nickname}</strong>.</p>
+      <div style="background-color: #111827; padding: 20px; border-left: 4px solid #9B30FF; margin: 20px 0; font-style: italic; color: #D1D5DB; line-height: 1.6;">
+        "Before time was given shape, there was only the radiance of the Glimmer and the silence of the Fall. Between them stood the Nexus, a crystalline heart that bound matter, memory, and possibility. The Nexus has shattered. Now, powerful Summoners channel Resonance to call Entities from the fragments of creation. You are one of them."
+      </div>
+      <p style="line-height: 1.6; color: #F3F4F6;">
+        The war between Light and Void has begun. Before you can weave your spells and build your deck, you must awaken your account and secure your place in the arena.
+      </p>
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="{origin}/dashboard?verify={token}" style="background-color: #F2A900; color: #000000; padding: 16px 32px; text-decoration: none; font-weight: bold; border-radius: 8px; font-size: 16px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 14px rgba(242,169,0,0.4);">Verify Account</a>
+      </div>
+      <hr style="border: 0; border-top: 1px solid #374151; margin-top: 40px; margin-bottom: 20px;" />
+      <p style="font-size: 12px; color: #6B7280; text-align: center;">
+        If you did not request this summons, please ignore this email. The Void shall consume it soon enough.<br/>
+        &copy; 2026 GlimmerFall TCG. All rights reserved.
+      </p>
+    </div>
+    """
+
 @api.post("/auth/register")
 def register(req: RegisterReq, request: Request):
     hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -416,8 +631,8 @@ def register(req: RegisterReq, request: Request):
         resend.Emails.send({
             "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
             "to": [req.email],
-            "subject": "Verify Your GlimmerFall Account",
-            "html": f"<p>Welcome {nickname}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
+            "subject": "Awaken Your GlimmerFall Account",
+            "html": get_verification_email_html(nickname, token, origin)
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")
@@ -448,8 +663,8 @@ def resend_verify(req: ResendVerifyReq, request: Request):
         resend.Emails.send({
             "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
             "to": [req.email],
-            "subject": "Verify Your GlimmerFall Account",
-            "html": f"<p>Welcome {u['nickname']}! Please verify your account by clicking <a href='{origin}/dashboard?verify={token}'>here</a>.</p>"
+            "subject": "Awaken Your GlimmerFall Account",
+            "html": get_verification_email_html(u['nickname'], token, origin)
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")

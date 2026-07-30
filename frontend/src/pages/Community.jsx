@@ -11,6 +11,7 @@ export default function Community() {
   const [voted, setVoted] = useState(false);
   const [decks, setDecks] = useState([]);
   const [loadingDecks, setLoadingDecks] = useState(true);
+  const [polls, setPolls] = useState([]);
 
   // The Forge state
   const [customCards, setCustomCards] = useState([]);
@@ -33,7 +34,19 @@ export default function Community() {
       console.error(err);
       setLoadingDecks(false);
     });
+    api.get("/polls").then(r => setPolls(r.data)).catch(console.error);
   }, []);
+
+  const handleVotePoll = async (pollId, optionId) => {
+    if (!user) return toast.error("Please login to vote.");
+    try {
+      await api.post(`/polls/${pollId}/vote`, { option_id: optionId });
+      toast.success("Vote recorded!");
+      api.get("/polls").then(r => setPolls(r.data)).catch(console.error);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to vote.");
+    }
+  };
 
   const handleVote = (factionPref) => {
     setVoted(true);
@@ -79,41 +92,54 @@ export default function Community() {
         </p>
       </div>
 
-      {/* Alpha Poll */}
-      <section className="glass rounded-3xl p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Vote className="w-32 h-32" />
-        </div>
-        <div className="relative z-10 max-w-2xl">
-          <h2 className="font-display text-2xl font-bold mb-2 text-[#00BFFF]">Alpha Feedback: Faction Mixing</h2>
-          <p className="text-white/70 font-head mb-6">
-            It is currently undetermined if we will allow players to mix different factions in a single deck, or if you will be bound to one faction. What is your preference?
-          </p>
-          
-          {!voted ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button 
-                onClick={() => handleVote('mixed')}
-                className="glass hover:bg-white/5 border border-white/10 p-5 rounded-2xl text-left transition-all"
-              >
-                <div className="font-head font-bold text-lg mb-1">Allow Mixed Factions</div>
-                <div className="text-sm text-white/50">More deckbuilding freedom, but harder to balance.</div>
-              </button>
-              <button 
-                onClick={() => handleVote('single')}
-                className="glass hover:bg-white/5 border border-white/10 p-5 rounded-2xl text-left transition-all"
-              >
-                <div className="font-head font-bold text-lg mb-1">Strict Single Faction</div>
-                <div className="text-sm text-white/50">Stronger faction identity, easier to balance.</div>
-              </button>
-            </div>
-          ) : (
-            <div className="bg-[#22E07B]/10 border border-[#22E07B]/30 text-[#22E07B] rounded-2xl p-5 font-head font-semibold text-center">
-              Your feedback has been recorded! We'll announce the decision soon.
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Alpha Polls */}
+      {polls.length > 0 && (
+        <section className="space-y-6">
+          <h2 className="font-display text-3xl font-bold mb-4 flex items-center gap-3">
+            <Vote className="w-8 h-8 text-[#00BFFF]" /> Active Community Polls
+          </h2>
+          {polls.map(poll => {
+            // Find if user voted
+            const userVote = poll.votes?.find(v => v.user_email === user?.email)?.option_id;
+            const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.vote_count || 0), 0);
+            return (
+              <div key={poll.id} className="glass rounded-3xl p-8 relative overflow-hidden border border-[#00BFFF]/20">
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                  <Vote className="w-48 h-48" />
+                </div>
+                <div className="relative z-10 max-w-3xl">
+                  <h3 className="font-display text-2xl font-bold mb-2 text-[#00BFFF]">{poll.title}</h3>
+                  <p className="text-white/70 font-head mb-6">{poll.description}</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {poll.options.map(opt => {
+                      const pct = totalVotes > 0 ? Math.round(((opt.vote_count || 0) / totalVotes) * 100) : 0;
+                      return (
+                        <button 
+                          key={opt.id}
+                          onClick={() => handleVotePoll(poll.id, opt.id)}
+                          className={`relative glass border p-5 rounded-2xl text-left transition-all overflow-hidden ${userVote === opt.id ? 'border-[#00BFFF] bg-[#00BFFF]/10' : 'border-white/10 hover:bg-white/5'}`}
+                        >
+                          <div className="absolute left-0 top-0 bottom-0 bg-[#00BFFF]/20 z-0 transition-all" style={{ width: `${pct}%` }}></div>
+                          <div className="relative z-10 flex justify-between items-center">
+                            <div className="font-head font-bold text-lg">{opt.option_text}</div>
+                            {userVote && <div className="text-sm font-bold text-white/50">{pct}%</div>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {poll.finish_at && (
+                    <div className="mt-4 text-xs text-white/40 font-head">
+                      Closes on: {new Date(poll.finish_at).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
 
       {/* The Forge (Custom Cards) */}
       <section className="pt-10">

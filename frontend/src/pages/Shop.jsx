@@ -189,9 +189,15 @@ export default function Shop() {
                     <p className="text-white/60 text-sm leading-relaxed">{getProductLore(selectedProduct.name).desc}</p>
                   </div>
                   
-                  {selectedProduct.type === 'deck' && (
-                    <div className="bg-white/5 p-3 rounded-lg border border-white/10 mt-4">
-                      <p className="text-xs text-white/70 italic">Contains a fully playable 40-card preconstructed deck with thematic art and exclusive game design.</p>
+                  {getProductLore(selectedProduct.name).type.includes('Deck') && (
+                    <div className="bg-white/5 p-4 rounded-lg border border-[#F2A900]/30 mt-4 text-center">
+                      <p className="text-sm text-white/80 mb-3 font-bold">Contains a fully playable 40-card preconstructed deck.</p>
+                      <button 
+                        onClick={() => window.location.href = "/decks?tab=precon"}
+                        className="text-xs bg-[#F2A900] text-black px-4 py-2 rounded-full font-bold uppercase tracking-wider hover:bg-[#FFD700] transition-colors"
+                      >
+                        View Full Decklist
+                      </button>
                     </div>
                   )}
                 </div>
@@ -232,36 +238,23 @@ export default function Shop() {
             const isPreorder = product.stock <= 0 && product.is_preorder;
             
             return (
-              <div 
-                key={product.id} 
-                className="glass-panel border border-white/10 rounded-2xl overflow-hidden group hover:border-white/30 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all cursor-pointer flex flex-col"
-                onClick={() => setSelectedProduct(product)}
-              >
-                <div className="aspect-[4/3] bg-black/60 relative flex items-center justify-center p-6 border-b border-white/5">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-contain drop-shadow-2xl transform group-hover:scale-110 transition-transform duration-700 ease-out" />
-                  ) : (
-                    <div className="w-32 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-white/20 shadow-2xl transform group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-                      <span className="text-white/20 font-display font-bold text-center leading-tight">MOCKUP</span>
-                    </div>
-                  )}
-                  
-                  {isPreorder && (
-                    <div className="absolute top-3 right-3 bg-[#9B30FF] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg border border-white/20 z-10">
-                      Pre-order
-                    </div>
-                  )}
-                </div>
-                <div className="p-6 flex-1 flex flex-col relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                  <h3 className="text-xl font-bold text-white mb-2 relative z-10">{product.name}</h3>
-                  <p className="text-white/60 text-sm mb-4 flex-1">{product.description}</p>
-                  
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className="bg-white/10 px-2 py-1 rounded text-xs text-white/50 font-bold">{product.weight_kg} kg</span>
+              <div key={product.id} className="relative group h-full" onClick={() => setSelectedProduct(product)}>
+                <div className="glass-panel border border-white/10 rounded-2xl overflow-hidden h-full group-hover:border-white/30 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all cursor-pointer flex flex-col">
+                  <div className="aspect-[4/3] bg-black/60 relative flex items-center justify-center p-6 border-b border-white/5">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-contain drop-shadow-2xl transform group-hover:scale-110 transition-transform duration-700 ease-out" />
+                    ) : (
+                      <div className="w-32 h-48 bg-gradient-to-br from-white/10 to-white/5 rounded-lg border border-white/20 shadow-2xl transform group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
+                        <span className="text-white/20 font-display font-bold text-center leading-tight">MOCKUP</span>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div className="flex items-end justify-between mt-auto">
+                  <div className="p-6 flex-1 flex flex-col relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                    <h3 className="text-xl font-bold text-white mb-2 relative z-10">{product.name}</h3>
+                    <p className="text-white/60 text-sm mb-4 flex-1">{product.description}</p>
+                    
+                    <div className="flex items-end justify-between mt-auto">
                     <div>
                       <div className="text-2xl font-bold text-white">${product.price}</div>
                       {isPreorder && product.eta && (
@@ -282,9 +275,14 @@ export default function Shop() {
                       className={isPreorder ? "bg-[#9B30FF] hover:bg-[#C77DFF] text-white shadow-[0_0_15px_rgba(155,48,255,0.4)]" : "bg-white hover:bg-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]"}
                     >
                       {isPreorder ? 'Pre-order' : (isOOS ? 'Out of Stock' : 'Add to Cart')}
-                    </Button>
+                    </div>
                   </div>
                 </div>
+                {isPreorder && (
+                  <div className="absolute -top-3 -right-3 bg-[#9B30FF] text-white text-[10px] font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(155,48,255,0.6)] border border-white/20 z-20 pointer-events-none">
+                    Pre-order
+                  </div>
+                )}
               </div>
             );
           })}

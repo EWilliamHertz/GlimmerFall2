@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link } from 'lucide-react';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote } from 'lucide-react';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -139,11 +139,35 @@ function AdminPanel({ user }) {
   const [shopStats, setShopStats] = useState(null);
   const [userList, setUserList] = useState([]);
   const [orderList, setOrderList] = useState([]);
+  const [pollList, setPollList] = useState([]);
 
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [newPoll, setNewPoll] = useState({ title: "", description: "", finish_at: "", options: ["", ""] });
+
+  const handleAddPollOption = () => {
+    setNewPoll(prev => ({ ...prev, options: [...prev.options, ""] }));
+  };
+
+  const handleUpdatePollOption = (index, value) => {
+    const newOptions = [...newPoll.options];
+    newOptions[index] = value;
+    setNewPoll(prev => ({ ...prev, options: newOptions }));
+  };
+
+  const handleCreatePoll = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/polls", newPoll);
+      alert("Poll created successfully!");
+      setNewPoll({ title: "", description: "", finish_at: "", options: ["", ""] });
+      fetchData();
+    } catch(err) {
+      alert("Failed to create poll: " + (err.response?.data?.detail || err.message));
+    }
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -152,7 +176,7 @@ function AdminPanel({ user }) {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      const res = await fetch("https://api.imgbb.com/1/upload?key=b2492f987920d3e2a7903861b72ae3a4", {
+      const res = await fetch(`https://api.imgbb.com/1/upload?key=${process.env.REACT_APP_IMGBB_API_KEY}`, {
         method: "POST",
         body: formData,
       });
@@ -200,6 +224,9 @@ function AdminPanel({ user }) {
       } else if (adminTab === "orders") {
         const oRes = await api.get("/admin/shop/orders");
         setOrderList(oRes.data);
+      } else if (adminTab === "polls") {
+        const pRes = await api.get("/polls");
+        setPollList(pRes.data);
       }
     } catch (e) {
       console.error(e);
@@ -253,6 +280,12 @@ function AdminPanel({ user }) {
           className={`px-4 py-2 rounded-xl font-head font-bold transition-all ${adminTab === "users" ? "bg-[#9B30FF] text-black" : "text-white/50 hover:text-white"}`}
         >
           <Users className="w-4 h-4 inline-block mr-2" /> User Management
+        </button>
+        <button 
+          onClick={() => setAdminTab("polls")}
+          className={`px-4 py-2 rounded-xl font-head font-bold transition-all ${adminTab === "polls" ? "bg-[#FF5252] text-black" : "text-white/50 hover:text-white"}`}
+        >
+          <Vote className="w-4 h-4 inline-block mr-2" /> Polls
         </button>
       </div>
 
@@ -614,6 +647,66 @@ function AdminPanel({ user }) {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {adminTab === "polls" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in zoom-in-95">
+          <div className="glass rounded-3xl p-6">
+            <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#FF5252]">
+              <Vote className="w-6 h-6" /> Create Poll
+            </h2>
+            <form onSubmit={handleCreatePoll} className="space-y-4">
+              <div>
+                <label className="block text-white/50 text-xs uppercase tracking-wider mb-1">Title</label>
+                <input type="text" required value={newPoll.title} onChange={e => setNewPoll({...newPoll, title: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white" placeholder="e.g. Faction Mixing?" />
+              </div>
+              <div>
+                <label className="block text-white/50 text-xs uppercase tracking-wider mb-1">Description</label>
+                <textarea required value={newPoll.description} onChange={e => setNewPoll({...newPoll, description: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white h-24" placeholder="What is this poll about?"></textarea>
+              </div>
+              <div>
+                <label className="block text-white/50 text-xs uppercase tracking-wider mb-1">Finish Date (Optional)</label>
+                <input type="date" value={newPoll.finish_at} onChange={e => setNewPoll({...newPoll, finish_at: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white" />
+              </div>
+              
+              <div className="pt-4 border-t border-white/10">
+                <label className="block text-white/50 text-xs uppercase tracking-wider mb-2">Options</label>
+                <div className="space-y-2">
+                  {newPoll.options.map((opt, i) => (
+                    <input key={i} type="text" required value={opt} onChange={e => handleUpdatePollOption(i, e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white" placeholder={`Option ${i+1}`} />
+                  ))}
+                </div>
+                <button type="button" onClick={handleAddPollOption} className="mt-2 text-[#FF5252] text-sm font-bold flex items-center gap-1 hover:text-[#ff7676]"><Plus className="w-4 h-4"/> Add Option</button>
+              </div>
+
+              <button type="submit" className="w-full bg-[#FF5252] hover:bg-[#ff7676] text-white font-bold py-3 rounded-xl mt-6 shadow-[0_0_20px_rgba(255,82,82,0.4)] transition-colors">
+                Publish Poll
+              </button>
+            </form>
+          </div>
+
+          <div className="glass rounded-3xl p-6">
+            <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#FF5252]">
+              <ListOrdered className="w-6 h-6" /> Active Polls
+            </h2>
+            <div className="space-y-4">
+              {pollList.length === 0 ? <p className="text-white/50 italic">No active polls.</p> : pollList.map(poll => (
+                <div key={poll.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
+                  <h3 className="font-bold text-white mb-1">{poll.title}</h3>
+                  <p className="text-white/50 text-sm mb-3">{poll.description}</p>
+                  <div className="space-y-2">
+                    {poll.options.map(opt => (
+                      <div key={opt.id} className="flex justify-between items-center bg-white/5 px-3 py-1.5 rounded-lg text-sm">
+                        <span>{opt.option_text}</span>
+                        <span className="font-bold text-[#FF5252]">{opt.vote_count} votes</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
