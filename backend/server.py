@@ -413,6 +413,7 @@ class MatchmakeReq(BaseModel):
     roomCode: Optional[str] = None
     faction: Optional[str] = None
     deckCards: Optional[list] = None
+    deckName: Optional[str] = None
     vsAI: bool = False
 
 
