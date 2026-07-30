@@ -282,6 +282,28 @@ def resolve_effect(state, slot, card, payload, auto=False):
                 te["curHealth"] = 0
                 frags.append(f"destroyed {te['name']}")
 
+    # ---- sacrifice ----
+    if "sacrifices an entity with the lowest power" in low:
+        target = opp(slot)
+        entities = state["players"][target]["battlefield"]
+        if entities:
+            lowest = min(entities, key=lambda x: x.get("power") or 0)
+            lowest["curHealth"] = 0
+            frags.append(f"forced {state['players'][target]['username']} to sacrifice {lowest['name']}")
+
+    if "each player sacrifices two entities" in low:
+        for s in ("1", "2"):
+            pl_entities = state["players"][s]["battlefield"]
+            if pl_entities:
+                # Sacrifice lowest power first
+                pl_entities.sort(key=lambda x: x.get("power") or 0)
+                sacrificed = []
+                for e in pl_entities[:2]:
+                    e["curHealth"] = 0
+                    sacrificed.append(e["name"])
+                if sacrificed:
+                    frags.append(f"{state['players'][s]['username']} sacrificed {', '.join(sacrificed)}")
+
     # ---- bounce (return to hand) ----
     if "return target entity to its owner" in low or ("return target" in low and "to its owner" in low and "hand" in low):
         ts, te = resolve_target_entity()
