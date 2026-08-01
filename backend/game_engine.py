@@ -992,7 +992,7 @@ def apply_action(state, slot, action_type, payload):
                 
         cleanup_dead(state)
         check_win(state)
-        return
+        return state
 
     if state["phase"] == "ENDED":
         raise ActionError("The match has ended.")
