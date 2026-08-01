@@ -886,13 +886,16 @@ function GameBoard({ session, match, refresh, onExit }) {
             {match.state?.pendingChoice?.type === "discard" && (
               <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
                 {match.state?.pendingChoice?.options?.map((opt, i) => (
-                    <div key={i} className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all">
-                        <div className="scale-90 origin-top h-[380px]">
+                    <div 
+                        key={i} 
+                        onClick={() => handleMakeChoice(opt.payload)}
+                        className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10"
+                    >
+                        <div className="scale-90 origin-top h-[380px] pointer-events-none">
                             <CardTemplate card={opt.payload.dump} />
                         </div>
                         <button 
-                            onClick={() => handleMakeChoice(opt.payload)}
-                            className="w-full h-12 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/30 rounded font-bold transition-all"
+                            className="w-full h-12 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/30 rounded font-bold transition-all pointer-events-none"
                         >
                             Discard
                         </button>
@@ -923,13 +926,16 @@ function GameBoard({ session, match, refresh, onExit }) {
             {match.state?.pendingChoice?.type === "scry_3" && (
               <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
                 {match.state?.pendingChoice?.options?.map((opt, i) => (
-                    <div key={i} className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all">
-                        <div className="scale-90 origin-top h-[380px]">
+                    <div 
+                        key={i} 
+                        onClick={() => handleMakeChoice(opt.payload)}
+                        className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10"
+                    >
+                        <div className="scale-90 origin-top h-[380px] pointer-events-none">
                             <CardTemplate card={opt.payload.keep} />
                         </div>
                         <button 
-                            onClick={() => handleMakeChoice(opt.payload)}
-                            className="w-full h-12 bg-[#00BFFF]/20 hover:bg-[#00BFFF]/40 text-[#00BFFF] border border-[#00BFFF]/30 rounded font-bold transition-all"
+                            className="w-full h-12 bg-[#00BFFF]/20 hover:bg-[#00BFFF]/40 text-[#00BFFF] border border-[#00BFFF]/30 rounded font-bold transition-all pointer-events-none"
                         >
                             Take to Hand
                         </button>
@@ -942,9 +948,9 @@ function GameBoard({ session, match, refresh, onExit }) {
               <div className="flex flex-col items-center gap-6">
                 <div className="grid grid-cols-2 gap-8 w-full max-w-2xl">
                     {match.state?.pendingChoice?.options?.map((opt, i) => (
-                        <div key={i} className="flex flex-col gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer" onClick={() => handleMakeChoice(opt.payload)}>
+                        <div key={i} className="flex flex-col gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10" onClick={() => handleMakeChoice(opt.payload)}>
                             <div className="text-center font-bold text-lg text-white/80">{opt.text}</div>
-                            <div className="flex gap-2 justify-center scale-75 origin-top h-[320px]">
+                            <div className="flex gap-2 justify-center scale-75 origin-top h-[320px] pointer-events-none">
                                 <CardTemplate card={opt.payload.keep} />
                                 <CardTemplate card={opt.payload.void} />
                             </div>
