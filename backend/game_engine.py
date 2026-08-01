@@ -393,12 +393,25 @@ def resolve_effect(state, slot, card, payload, auto=False):
     # ---- look at top card / scry ----
     if "look at the top card of your deck" in low:
         if state["players"][slot]["library"]:
-            top_card = state["players"][slot]["library"][0]
-            if top_card.get("cost", 0) > state["players"][slot]["maxEnergy"] + 1:
-                state["players"][slot]["library"].append(state["players"][slot]["library"].pop(0))
-                frags.append(f"looked at the top card and put {top_card['name']} on the bottom")
+            top_card = state["players"][slot]["library"].pop(0)
+            if state.get("isAI") and slot == "2":
+                if top_card.get("cost", 0) > state["players"][slot]["maxEnergy"] + 1:
+                    state["players"][slot]["library"].append(top_card)
+                    frags.append(f"looked at the top card and put {top_card['name']} on the bottom")
+                else:
+                    state["players"][slot]["library"].insert(0, top_card)
+                    frags.append(f"looked at the top card and left {top_card['name']} on top")
             else:
-                frags.append(f"looked at the top card and left {top_card['name']} on top")
+                state["pendingChoice"] = {
+                    "player": slot,
+                    "prompt": f"Looked at top card: {top_card['name']} (Cost {top_card.get('cost', 0)})",
+                    "type": "scry_1",
+                    "options": [
+                        {"text": f"Leave {top_card['name']} on Top", "payload": {"card": top_card, "action": "top"}},
+                        {"text": f"Put {top_card['name']} on Bottom", "payload": {"card": top_card, "action": "bottom"}}
+                    ]
+                }
+                return frags
 
     if "look at the top two cards of your deck" in low and "void" in low:
         library = state["players"][slot]["library"]
@@ -956,6 +969,15 @@ def apply_action(state, slot, action_type, payload):
             state["players"][slot]["hand"].append(keep)
             state["players"][slot]["library"].extend(rest)
             log(state, f"{state['players'][slot]['username']} put {keep['name']} in hand and the rest on the bottom.")
+        elif choice_type == "scry_1":
+            action = payload.get("action")
+            card = payload.get("card")
+            if action == "top":
+                state["players"][slot]["library"].insert(0, card)
+                log(state, f"{state['players'][slot]['username']} left {card['name']} on top.")
+            else:
+                state["players"][slot]["library"].append(card)
+                log(state, f"{state['players'][slot]['username']} put {card['name']} on the bottom.")
         elif choice_type == "discard":
             dump = payload.get("dump")
             enemy_slot = opp(slot)
