@@ -405,21 +405,33 @@ def resolve_effect(state, slot, card, payload, auto=False):
         if len(library) >= 2:
             c1 = library.pop(0)
             c2 = library.pop(0)
-            energy = state["players"][slot]["maxEnergy"]
-            def score(c):
-                cost = c.get("cost", 0)
-                if cost <= energy + 1:
-                    return cost + (c.get("power") or 0) * 0.1
-                return -cost
             
-            if score(c1) >= score(c2):
-                keep, dump = c1, c2
-            else:
-                keep, dump = c2, c1
+            if state.get("isAI") and slot == "2":
+                energy = state["players"][slot]["maxEnergy"]
+                def score(c):
+                    cost = c.get("cost", 0)
+                    if cost <= energy + 1:
+                        return cost + (c.get("power") or 0) * 0.1
+                    return -cost
                 
-            library.insert(0, keep)
-            state["players"][slot]["void"].append(dump)
-            frags.append(f"put {dump['name']} into the Void and left {keep['name']} on top of deck")
+                if score(c1) >= score(c2):
+                    keep, dump = c1, c2
+                else:
+                    keep, dump = c2, c1
+                    
+                library.insert(0, keep)
+                state["players"][slot]["void"].append(dump)
+                frags.append(f"put {dump['name']} into the Void and left {keep['name']} on top of deck")
+            else:
+                state["pendingChoice"] = {
+                    "player": slot,
+                    "prompt": "Choose a card to put into the Void",
+                    "options": [
+                        {"text": f"Void {c1['name']}, Keep {c2['name']}", "payload": {"void": c1, "keep": c2}},
+                        {"text": f"Void {c2['name']}, Keep {c1['name']}", "payload": {"void": c2, "keep": c1}}
+                    ]
+                }
+                return frags # Stop resolving and wait for choice
         elif len(library) == 1:
             dump = library.pop(0)
             state["players"][slot]["void"].append(dump)
@@ -429,40 +441,66 @@ def resolve_effect(state, slot, card, payload, auto=False):
         if library:
             n = min(3, len(library))
             cards = [library.pop(0) for _ in range(n)]
-            energy = state["players"][slot]["maxEnergy"]
-            def score(c):
-                cost = c.get("cost", 0)
-                if cost <= energy + 1:
-                    return cost + (c.get("power") or 0) * 0.1
-                return -cost
+            if state.get("isAI") and slot == "2":
+                energy = state["players"][slot]["maxEnergy"]
+                def score(c):
+                    cost = c.get("cost", 0)
+                    if cost <= energy + 1:
+                        return cost + (c.get("power") or 0) * 0.1
+                    return -cost
+                    
+                cards.sort(key=score, reverse=True)
+                keep = cards[0]
+                rest = cards[1:]
                 
-            cards.sort(key=score, reverse=True)
-            keep = cards[0]
-            rest = cards[1:]
-            
-            state["players"][slot]["hand"].append(keep)
-            library.extend(rest)
-            frags.append(f"looked at the top {n} cards, put {keep['name']} in hand, and put the rest on the bottom")
+                state["players"][slot]["hand"].append(keep)
+                library.extend(rest)
+                frags.append(f"looked at the top {n} cards, put {keep['name']} in hand, and put the rest on the bottom")
+            else:
+                state["pendingChoice"] = {
+                    "player": slot,
+                    "prompt": f"Choose a card to put in your hand",
+                    "type": "scry_3",
+                    "options": [
+                        {"text": f"Take {c['name']}", "payload": {"keep": c, "rest": [x for x in cards if x["instanceId"] != c["instanceId"]]}} for c in cards
+                    ]
+                }
+                return frags
 
     if "look at your opponent" in low and "hand" in low and "discard" in low:
         enemy_slot = opp(slot)
         enemy_hand = state["players"][enemy_slot]["hand"]
         if enemy_hand:
-            spells = [c for c in enemy_hand if c.get("cardType", "").lower() == "spell"]
-            if "spell" in low and spells:
-                spells.sort(key=lambda c: c.get("cost", 0), reverse=True)
-                dump = spells[0]
-                enemy_hand.remove(dump)
-                state["players"][enemy_slot]["void"].append(dump)
-                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
-            elif "spell" in low and not spells:
-                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand but found no Spells")
+            if state.get("isAI") and slot == "2":
+                spells = [c for c in enemy_hand if c.get("cardType", "").lower() in ("rite", "flash")]
+                if "spell" in low and spells:
+                    spells.sort(key=lambda c: c.get("cost", 0), reverse=True)
+                    dump = spells[0]
+                    enemy_hand.remove(dump)
+                    state["players"][enemy_slot]["void"].append(dump)
+                    frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
+                elif "spell" in low and not spells:
+                    frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand but found no Spells")
+                else:
+                    enemy_hand.sort(key=lambda c: c.get("cost", 0), reverse=True)
+                    dump = enemy_hand[0]
+                    enemy_hand.remove(dump)
+                    state["players"][enemy_slot]["void"].append(dump)
+                    frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
             else:
-                enemy_hand.sort(key=lambda c: c.get("cost", 0), reverse=True)
-                dump = enemy_hand[0]
-                enemy_hand.remove(dump)
-                state["players"][enemy_slot]["void"].append(dump)
-                frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand and forced them to discard {dump['name']}")
+                valid_targets = [c for c in enemy_hand if (c.get("cardType", "").lower() in ("rite", "flash")) or "spell" not in low]
+                if not valid_targets:
+                    frags.append(f"looked at {state['players'][enemy_slot]['username']}'s hand but found no valid cards to discard")
+                else:
+                    state["pendingChoice"] = {
+                        "player": slot,
+                        "prompt": f"Choose a card from {state['players'][enemy_slot]['username']}'s hand to discard",
+                        "type": "discard",
+                        "options": [
+                            {"text": f"Discard {c['name']} ({c['cardType']}, Cost {c['cost']})", "payload": {"dump": c}} for c in valid_targets
+                        ]
+                    }
+                    return frags
 
     return frags
 
@@ -542,6 +580,7 @@ def start_turn(state, slot):
     pl["energy"] = pl["maxEnergy"]
     pl["hasDrawnThisTurn"] = False
     pl["hasResonatedThisTurn"] = False
+    pl["spellsCastThisTurn"] = 0
     for e in pl["battlefield"]:
         e["exhausted"] = False
 
@@ -590,7 +629,6 @@ def do_play_card(state, slot, payload):
     if card["cost"] > pl["energy"]:
         raise ActionError("Not enough Energy.")
     pl["hand"].pop(idx)
-    pl["energy"] -= card["cost"]
     if card["cardType"] == "Relic":
         low = (card.get("description") or "").lower()
         if "attached entity" in low:
@@ -643,8 +681,18 @@ def do_cast_spell(state, slot, payload):
         raise ActionError("That card is not a spell.")
     if card["cardType"] == "Rite" and str(state["activePlayer"]) != str(slot):
         raise ActionError("Rite (slow) spells can only be cast on your own turn.")
-    if card["cost"] > pl["energy"]:
+    cost = card["cost"]
+    
+    # Voltage Savant cost reduction
+    has_voltage = any(e["name"] == "Voltage Savant" for e in pl.get("battlefield", []))
+    if has_voltage and pl.get("spellsCastThisTurn", 0) == 0:
+        cost = max(0, cost - 1)
+        
+    if cost > pl["energy"]:
         raise ActionError("Not enough Energy.")
+        
+    pl["spellsCastThisTurn"] = pl.get("spellsCastThisTurn", 0) + 1
+    pl["energy"] -= cost
 
     # block targeting Stealth entities
     if payload.get("targetType") == "entity" and payload.get("targetId"):
@@ -886,6 +934,44 @@ ACTION_MAP = {
 def apply_action(state, slot, action_type, payload):
     """Validate turn ownership + dispatch. Returns new state."""
     slot = str(slot)
+
+    if state.get("pendingChoice"):
+        if state["pendingChoice"]["player"] != slot:
+            raise ActionError("Waiting for opponent to make a choice.")
+        if action_type != "MAKE_CHOICE":
+            raise ActionError("You must make a choice first.")
+        
+        choice_type = state["pendingChoice"].get("type", "scry_2")
+        state["pendingChoice"] = None
+        
+        if choice_type == "scry_2":
+            keep = payload.get("keep")
+            dump = payload.get("void")
+            state["players"][slot]["library"].insert(0, keep)
+            state["players"][slot]["void"].append(dump)
+            log(state, f"{state['players'][slot]['username']} put {dump['name']} into the Void and left {keep['name']} on top of deck.")
+        elif choice_type == "scry_3":
+            keep = payload.get("keep")
+            rest = payload.get("rest", [])
+            state["players"][slot]["hand"].append(keep)
+            state["players"][slot]["library"].extend(rest)
+            log(state, f"{state['players'][slot]['username']} put {keep['name']} in hand and the rest on the bottom.")
+        elif choice_type == "discard":
+            dump = payload.get("dump")
+            enemy_slot = opp(slot)
+            # find and remove from enemy hand
+            idx, c = find_in(state["players"][enemy_slot]["hand"], dump["instanceId"])
+            if c:
+                state["players"][enemy_slot]["hand"].pop(idx)
+                state["players"][enemy_slot]["void"].append(dump)
+                log(state, f"{state['players'][slot]['username']} forced {state['players'][enemy_slot]['username']} to discard {dump['name']}.")
+            else:
+                log(state, f"{state['players'][slot]['username']} tried to discard {dump['name']} but it was no longer in hand.")
+                
+        cleanup_dead(state)
+        check_win(state)
+        return
+
     if state["phase"] == "ENDED":
         raise ActionError("The match has ended.")
     if action_type not in ACTION_MAP:
