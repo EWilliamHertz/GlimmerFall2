@@ -266,6 +266,14 @@ def resolve_effect(state, slot, card, payload, auto=False):
                 state["players"][opp(slot)]["hp"] -= amt
                 frags.append(f"dealt {amt} to enemy Nexus")
 
+    # ---- exile ----
+    if "exile target" in low:
+        ts, te = resolve_target_entity()
+        if te:
+            state["players"][ts]["battlefield"].remove(te)
+            state["players"][ts]["void"].append(te)
+            frags.append(f"exiled {te['name']}")
+
     # ---- destroy ----
     if "destroy target" in low or "destroy all entities" in low:
         if "destroy all entities with power" in low:
