@@ -448,6 +448,10 @@ function GameBoard({ session, match, refresh, onExit }) {
     [session, refresh]
   );
 
+  const handleMakeChoice = (payload) => {
+    act("MAKE_CHOICE", payload);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
