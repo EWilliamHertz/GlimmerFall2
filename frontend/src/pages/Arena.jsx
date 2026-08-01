@@ -876,22 +876,97 @@ function GameBoard({ session, match, refresh, onExit }) {
       </Dialog>
       {/* Pending Choice Modal */}
       <Dialog open={match.state?.pendingChoice && match.state?.pendingChoice?.player === String(session.slot)} onOpenChange={() => {}}>
-        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-2xl p-8" hideClose>
+        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-6xl p-8 max-h-[90vh]" hideClose>
           <DialogHeader>
             <DialogTitle className="font-display text-2xl text-center text-[#00BFFF] mb-6">
               {match.state?.pendingChoice?.prompt}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-4 items-center">
-            {match.state?.pendingChoice?.options?.map((opt, i) => (
-              <button 
-                key={i} 
-                onClick={() => handleMakeChoice(opt.payload)}
-                className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all rounded"
-              >
-                {opt.text}
-              </button>
-            ))}
+          <div className="mt-4">
+            {match.state?.pendingChoice?.type === "discard" && (
+              <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
+                {match.state?.pendingChoice?.options?.map((opt, i) => (
+                    <div key={i} className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all">
+                        <div className="scale-90 origin-top h-[380px]">
+                            <CardTemplate card={opt.payload.dump} />
+                        </div>
+                        <button 
+                            onClick={() => handleMakeChoice(opt.payload)}
+                            className="w-full h-12 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/30 rounded font-bold transition-all"
+                        >
+                            Discard
+                        </button>
+                    </div>
+                ))}
+              </div>
+            )}
+            
+            {match.state?.pendingChoice?.type === "scry_1" && (
+              <div className="flex flex-col items-center gap-6">
+                <div className="scale-100">
+                    <CardTemplate card={match.state.pendingChoice.options[0]?.payload?.card} />
+                </div>
+                <div className="flex gap-4">
+                    {match.state?.pendingChoice?.options?.map((opt, i) => (
+                        <button
+                            key={i}
+                            onClick={() => handleMakeChoice(opt.payload)}
+                            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded font-bold transition-all"
+                        >
+                            {opt.text}
+                        </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {match.state?.pendingChoice?.type === "scry_3" && (
+              <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
+                {match.state?.pendingChoice?.options?.map((opt, i) => (
+                    <div key={i} className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all">
+                        <div className="scale-90 origin-top h-[380px]">
+                            <CardTemplate card={opt.payload.keep} />
+                        </div>
+                        <button 
+                            onClick={() => handleMakeChoice(opt.payload)}
+                            className="w-full h-12 bg-[#00BFFF]/20 hover:bg-[#00BFFF]/40 text-[#00BFFF] border border-[#00BFFF]/30 rounded font-bold transition-all"
+                        >
+                            Take to Hand
+                        </button>
+                    </div>
+                ))}
+              </div>
+            )}
+
+            {match.state?.pendingChoice?.type === "scry_2" && (
+              <div className="flex flex-col items-center gap-6">
+                <div className="grid grid-cols-2 gap-8 w-full max-w-2xl">
+                    {match.state?.pendingChoice?.options?.map((opt, i) => (
+                        <div key={i} className="flex flex-col gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer" onClick={() => handleMakeChoice(opt.payload)}>
+                            <div className="text-center font-bold text-lg text-white/80">{opt.text}</div>
+                            <div className="flex gap-2 justify-center scale-75 origin-top h-[320px]">
+                                <CardTemplate card={opt.payload.keep} />
+                                <CardTemplate card={opt.payload.void} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {!["discard", "scry_1", "scry_2", "scry_3"].includes(match.state?.pendingChoice?.type) && (
+              <div className="flex flex-col gap-4 items-center">
+                {match.state?.pendingChoice?.options?.map((opt, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => handleMakeChoice(opt.payload)}
+                    className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all rounded"
+                  >
+                    {opt.text}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
