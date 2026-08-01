@@ -884,13 +884,13 @@ function GameBoard({ session, match, refresh, onExit }) {
           </DialogHeader>
           <div className="flex flex-col gap-4 items-center">
             {match.state?.pendingChoice?.options?.map((opt, i) => (
-              <Button 
+              <button 
                 key={i} 
                 onClick={() => handleMakeChoice(opt.payload)}
-                className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all"
+                className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all rounded"
               >
                 {opt.text}
-              </Button>
+              </button>
             ))}
           </div>
         </DialogContent>
