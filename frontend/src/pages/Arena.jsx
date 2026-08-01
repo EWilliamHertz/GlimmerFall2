@@ -874,6 +874,27 @@ function GameBoard({ session, match, refresh, onExit }) {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Pending Choice Modal */}
+      <Dialog open={match.state?.pendingChoice && match.state?.pendingChoice?.player === String(session.slot)} onOpenChange={() => {}}>
+        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-2xl p-8" hideClose>
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl text-center text-[#00BFFF] mb-6">
+              {match.state?.pendingChoice?.prompt}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 items-center">
+            {match.state?.pendingChoice?.options?.map((opt, i) => (
+              <Button 
+                key={i} 
+                onClick={() => handleMakeChoice(opt.payload)}
+                className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all"
+              >
+                {opt.text}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
