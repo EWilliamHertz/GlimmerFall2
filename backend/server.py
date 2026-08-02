@@ -135,7 +135,7 @@ def get_starter_decks():
 
 @api.delete("/decks/{deck_id}")
 def delete_deck(deck_id: int, request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute("DELETE FROM deck_cards WHERE deck_id IN (SELECT id FROM decks WHERE id=%s AND username=%s)", (deck_id, user['nickname']))
         cur.execute("DELETE FROM decks WHERE id=%s AND username=%s", (deck_id, user['nickname']))
@@ -764,7 +764,7 @@ class AvatarReq(BaseModel):
 
 @api.put("/auth/me/avatar")
 def update_avatar(req: AvatarReq, request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute("UPDATE users SET avatar=%s WHERE id=%s", (req.avatar_url, user["id"]))
     return {"ok": True, "avatar": req.avatar_url}
@@ -779,14 +779,14 @@ def get_leaderboard():
 
 @api.get("/auth/me/matches")
 def get_my_matches(request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute("SELECT id, player1, player2, player1_deck, player2_deck, status, created_at, state->>'winner' as winner, state->>'turn' as turn FROM matches WHERE (player1=%s OR player2=%s) AND status='ENDED' ORDER BY id DESC LIMIT 20", (user['nickname'], user['nickname']))
         return cur.fetchall()
 
 @api.get("/auth/me/quests")
 def get_my_quests(request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute("SELECT * FROM user_quests WHERE user_id=%s AND created_at >= NOW() - INTERVAL '1 day'", (user['id'],))
         quests = cur.fetchall()
@@ -816,7 +816,7 @@ def get_my_quests(request: Request):
 
 @api.get("/auth/me/friends")
 def get_friends(request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute('''
             SELECT f.id, f.status, u.nickname, u.avatar, u.mmr,
@@ -835,7 +835,7 @@ class FriendReq(BaseModel):
 
 @api.post("/auth/me/friends/request")
 def request_friend(req: FriendReq, request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     if user['nickname'].lower() == req.nickname.lower():
         raise HTTPException(400, "Cannot add yourself.")
     with DB() as cur:
@@ -848,7 +848,7 @@ def request_friend(req: FriendReq, request: Request):
 
 @api.post("/auth/me/friends/{fid}/accept")
 def accept_friend(fid: int, request: Request):
-    user = get_current_user(request)
+    user = get_user_from_request(request)
     with DB() as cur:
         cur.execute("UPDATE friendships SET status='accepted' WHERE id=%s AND friend_id=%s", (fid, user['id']))
     return {"ok": True}
@@ -856,7 +856,7 @@ def accept_friend(fid: int, request: Request):
 
 @api.get("/admin/quests")
 def get_admin_quests(request: Request):
-    if not get_current_user(request).get('is_admin'): raise HTTPException(403)
+    if not get_user_from_request(request).get('is_admin'): raise HTTPException(403)
     with DB() as cur:
         cur.execute("SELECT * FROM daily_quests ORDER BY quest_date ASC")
         return cur.fetchall()
@@ -866,7 +866,7 @@ class GenerateQuestsReq(BaseModel):
 
 @api.post("/admin/quests/generate")
 def generate_admin_quests(req: GenerateQuestsReq, request: Request):
-    if not get_current_user(request).get('is_admin'): raise HTTPException(403)
+    if not get_user_from_request(request).get('is_admin'): raise HTTPException(403)
     import random
     from datetime import date, timedelta
     q_types = [
@@ -893,14 +893,14 @@ def generate_admin_quests(req: GenerateQuestsReq, request: Request):
 
 @api.post("/admin/quests/{qid}/approve")
 def approve_admin_quest(qid: int, request: Request):
-    if not get_current_user(request).get('is_admin'): raise HTTPException(403)
+    if not get_user_from_request(request).get('is_admin'): raise HTTPException(403)
     with DB() as cur:
         cur.execute("UPDATE daily_quests SET is_approved = TRUE WHERE id = %s", (qid,))
     return {"ok": True}
 
 @api.delete("/admin/quests/{qid}")
 def delete_admin_quest(qid: int, request: Request):
-    if not get_current_user(request).get('is_admin'): raise HTTPException(403)
+    if not get_user_from_request(request).get('is_admin'): raise HTTPException(403)
     with DB() as cur:
         cur.execute("DELETE FROM daily_quests WHERE id = %s", (qid,))
     return {"ok": True}
