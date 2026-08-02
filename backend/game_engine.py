@@ -782,6 +782,25 @@ def do_cast_spell(state, slot, payload):
     pl["hand"].pop(idx)
 
     frags = resolve_effect(state, slot, card, payload, auto=False)
+    if frags is None:
+        frags = []
+
+    # Mirrorgate effect
+    if not state.get("pendingChoice"):
+        has_mirrorgate = any(e.get("name") == "Mirrorgate" for e in pl.get("battlefield", []))
+        if has_mirrorgate and len(pl["library"]) > 0:
+            top_card = pl["library"].pop(0)
+            state["pendingChoice"] = {
+                "player": slot,
+                "prompt": f"Mirrorgate: Looked at top card: {top_card['name']} (Cost {top_card.get('cost', 0)})",
+                "type": "scry_1",
+                "options": [
+                    {"text": f"Leave {top_card['name']} on Top", "payload": {"card": top_card, "action": "top"}},
+                    {"text": f"Put {top_card['name']} on Bottom", "payload": {"card": top_card, "action": "bottom"}}
+                ]
+            }
+            frags.append("Mirrorgate triggered (Scry 1)")
+
     if frags:
         log(state, f"{pl['username']} cast {card['name']}: {', '.join(frags)}.")
     else:
