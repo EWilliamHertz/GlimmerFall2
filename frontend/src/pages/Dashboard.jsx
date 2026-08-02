@@ -133,7 +133,7 @@ function PlayerDashboard({ user, updateUser }) {
         setAvatars(unique);
       });
     }
-  }, [showAvatarModal]);
+  }, [showAvatarModal, avatars.length]);
 
   const selectAvatar = async (url) => {
     setSavingAvatar(true);
