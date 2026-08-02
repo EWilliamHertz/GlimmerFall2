@@ -547,6 +547,7 @@ function GameBoard({ session, match, refresh, onExit }) {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <audio ref={audioRef} src={ambientTrack} autoPlay loop />
+      {state.phase === "DICE_ROLL" && <DiceRollModal state={state} slot={slot} act={act} />}
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
         {/* top: opponent */}
         <div className="flex items-center justify-between gap-3">
@@ -1074,5 +1075,49 @@ export default function Arena() {
       <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />
       <FeedbackBtn />
     </>
+  );
+}
+
+function DiceRollModal({ state, slot, act }) {
+  const me = state.players[slot];
+  const oppSlot = slot === "1" ? "2" : "1";
+  const opp = state.players[oppSlot];
+  
+  const myRoll = state.diceRolls?.[slot];
+  const oppRoll = state.diceRolls?.[oppSlot];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="glass rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden">
+        <h2 className="font-display text-3xl font-bold mb-6 text-[#00BFFF]">Who Goes First?</h2>
+        
+        <div className="flex justify-between items-center mb-8 px-4">
+          <div className="flex flex-col items-center gap-2">
+            <span className="font-head text-[#F2A900]">{me?.username}</span>
+            <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl font-bold font-num">
+              {myRoll || "?"}
+            </div>
+          </div>
+          <span className="font-head text-white/30 text-xl font-bold">vs</span>
+          <div className="flex flex-col items-center gap-2">
+            <span className="font-head text-white/50">{opp?.username}</span>
+            <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl font-bold font-num text-white/50">
+              {oppRoll || "?"}
+            </div>
+          </div>
+        </div>
+
+        {myRoll ? (
+          <p className="font-head text-white/50 animate-pulse">Waiting for {opp?.username} to roll...</p>
+        ) : (
+          <button
+            onClick={() => act("ROLL_DICE")}
+            className="px-6 py-3 rounded-xl bg-[#00BFFF] text-black font-bold font-head hover:bg-[#38ccff] transition-colors shadow-[0_0_20px_rgba(0,191,255,0.4)]"
+          >
+            Roll 1d6
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

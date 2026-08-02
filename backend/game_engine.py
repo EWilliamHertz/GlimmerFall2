@@ -91,16 +91,33 @@ def new_player(username, deck):
 
 
 def new_match_state(p1_name, deck1, p2_name, deck2, is_ai=False):
+    # If playing against AI, we just skip the dice roll to keep it simple, or auto-roll it.
+    # Let's set phase to DICE_ROLL.
     state = {
         "players": {"1": new_player(p1_name, deck1), "2": new_player(p2_name, deck2)},
         "turn": 1,
         "activePlayer": 1,
-        "phase": "PLAYING",
+        "phase": "DICE_ROLL",
+        "diceRolls": {"1": None, "2": None},
         "winner": None,
         "isAI": is_ai,
-        "log": [f"Match begins! {p1_name} vs {p2_name}.", f"{p1_name}'s turn 1."],
+        "log": [f"Match begins! {p1_name} vs {p2_name}."],
     }
-    # active player gets first energy potential; energy refills at start of turn
+    
+    if is_ai:
+        # Auto-roll for both
+        import random
+        r1, r2 = random.randint(1, 6), random.randint(1, 6)
+        while r1 == r2:
+            r1, r2 = random.randint(1, 6), random.randint(1, 6)
+        state["diceRolls"] = {"1": r1, "2": r2}
+        state["log"].append(f"{p1_name} rolled a {r1}. GlimmerBot rolled a {r2}.")
+        winner = 1 if r1 > r2 else 2
+        state["activePlayer"] = winner
+        state["phase"] = "PLAYING"
+        state["log"].append(f"{p1_name if winner == 1 else p2_name} goes first!")
+        state["log"].append(f"{p1_name if winner == 1 else p2_name}'s turn 1.")
+
     return state
 
 
@@ -261,6 +278,8 @@ def resolve_effect(state, slot, card, payload, auto=False):
             if e:
                 return opp(slot), e
         return None, None
+
+
 
     # ---- damage ----
     dm = _re.search(r"deal\s+(\d+)\s+damage", low)
@@ -681,6 +700,7 @@ def do_play_card(state, slot, payload):
         raise ActionError(f"{card['cardType']} cards cannot be placed on the battlefield. Cast them instead.")
     if card["cost"] > pl["energy"]:
         raise ActionError("Not enough Energy.")
+    pl["energy"] -= card["cost"]
     pl["hand"].pop(idx)
     if card["cardType"] == "Relic":
         low = (card.get("description") or "").lower()
@@ -748,14 +768,12 @@ def do_cast_spell(state, slot, payload):
     pl["spellsCastThisTurn"] = pl.get("spellsCastThisTurn", 0) + 1
     pl["energy"] -= cost
 
-    # block targeting Stealth entities
     if payload.get("targetType") == "entity" and payload.get("targetId"):
         for e in enemy_entities(state, slot):
             if e["instanceId"] == payload["targetId"] and "Stealth" in e["keywords"]:
                 if "target" in (card.get("description") or "").lower():
                     raise ActionError("Stealth entities cannot be targeted.")
 
-    pl["energy"] -= card["cost"]
     pl["hand"].pop(idx)
 
     frags = resolve_effect(state, slot, card, payload, auto=False)
