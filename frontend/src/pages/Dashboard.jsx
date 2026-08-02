@@ -249,7 +249,7 @@ function PlayerDashboard({ user, updateUser }) {
                 return (
                   <div key={m.id} className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-white/90">vs {opponent}</span>
+                      <span className="font-bold text-white/90">vs {opponent || 'AI / Unknown'}</span>
                       <span className="text-xs text-white/50 font-head flex items-center gap-1 mt-1">
                         <Clock className="w-3 h-3" /> {new Date(m.created_at).toLocaleDateString()}
                       </span>
