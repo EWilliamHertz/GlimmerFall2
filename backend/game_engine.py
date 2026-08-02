@@ -1101,8 +1101,8 @@ def apply_action(state, slot, action_type, payload):
                 winner = "1" if r1 > r2 else "2"
                 state["activePlayer"] = int(winner)
                 state["phase"] = "PLAYING"
-                log(state, f"{state['players'][int(winner)]['username']} goes first!")
-                log(state, f"{state['players'][int(winner)]['username']}'s turn 1.")
+                log(state, f"{state['players'][winner]['username']} goes first!")
+                log(state, f"{state['players'][winner]['username']}'s turn 1.")
         return state
 
     if action_type not in ACTION_MAP:
