@@ -237,7 +237,7 @@ function Lobby({ onStart }) {
           disabled={loading}
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl glass font-head hover:border-white/25 transition-colors disabled:opacity-60"
         >
-          <Swords className="w-4 h-4" /> Quick Match
+          <Swords className="w-4 h-4" /> Solo Queue, Match Making
         </button>
       </div>
     </div>

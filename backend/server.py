@@ -441,18 +441,45 @@ def save_match(match_id, state):
     active_slot = str(state.get("activePlayer", 1))
     active_name = state["players"][active_slot]["username"]
     with DB() as cur:
-        cur.execute("SELECT status, player1, player2 FROM matches WHERE id=%s", (match_id,))
+        cur.execute("SELECT status, player1, player2, is_ranked FROM matches WHERE id=%s", (match_id,))
         old = cur.fetchone()
         if old and old["status"] != "ENDED" and state.get("phase") == "ENDED":
             w = state.get("winner")
+            
+            p1_name = old["player1"]
+            p2_name = old["player2"]
+            
+            # Fetch current MMR if it's a ranked match
+            if old["is_ranked"] and p1_name and p2_name and not state.get("isAI"):
+                cur.execute("SELECT nickname, mmr FROM users WHERE nickname IN (%s, %s)", (p1_name, p2_name))
+                users = cur.fetchall()
+                p1_mmr = 1000
+                p2_mmr = 1000
+                for u in users:
+                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1000
+                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1000
+                
+                # Basic Elo calculation (K=32)
+                expected_p1 = 1 / (1 + 10 ** ((p2_mmr - p1_mmr) / 400))
+                expected_p2 = 1 / (1 + 10 ** ((p1_mmr - p2_mmr) / 400))
+                
+                actual_p1 = 1 if w == 1 else (0 if w == 2 else 0.5)
+                actual_p2 = 1 if w == 2 else (0 if w == 1 else 0.5)
+                
+                new_p1_mmr = max(0, int(p1_mmr + 32 * (actual_p1 - expected_p1)))
+                new_p2_mmr = max(0, int(p2_mmr + 32 * (actual_p2 - expected_p2)))
+                
+                cur.execute("UPDATE users SET mmr = %s WHERE nickname = %s", (new_p1_mmr, p1_name))
+                cur.execute("UPDATE users SET mmr = %s WHERE nickname = %s", (new_p2_mmr, p2_name))
+            
             if w == 1:
-                cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (old["player1"],))
+                cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p1_name,))
                 if not state.get("isAI"):
-                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (old["player2"],))
+                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p2_name,))
             elif w == 2:
                 if not state.get("isAI"):
-                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (old["player2"],))
-                cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (old["player1"],))
+                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p2_name,))
+                cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p1_name,))
 
         cur.execute(
             "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s WHERE id=%s",
@@ -460,13 +487,13 @@ def save_match(match_id, state):
         )
 
 
-def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None):
+def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None, is_ranked=False):
     active_name = state["players"][state.get("activePlayer", 1) and str(state.get("activePlayer", 1))]["username"] if state.get("phase") == "PLAYING" else p1
     with DB() as cur:
         cur.execute(
-            "INSERT INTO matches (room_code, player1, player2, status, current_turn, active_player, state, player1_deck, player2_deck) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (room_code, p1, p2, state.get("phase", "WAITING"), state.get("turn", 1), active_name, Json(state), p1_deck, p2_deck),
+            "INSERT INTO matches (room_code, player1, player2, status, current_turn, active_player, state, player1_deck, player2_deck, is_ranked) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (room_code, p1, p2, state.get("phase", "WAITING"), state.get("turn", 1), active_name, Json(state), p1_deck, p2_deck, is_ranked),
         )
         return cur.fetchone()["id"]
 
@@ -509,6 +536,7 @@ def matchmaking(req: MatchmakeReq):
         return {"matchId": mid, "slot": 1, "roomCode": room, "status": "PLAYING", "vsAI": True}
 
     room = (req.roomCode or "").strip().upper()
+    is_ranked = not bool(room)
 
     # ----- join an existing waiting room -----
     with DB() as cur:
@@ -521,13 +549,13 @@ def matchmaking(req: MatchmakeReq):
         else:
             # Look for an opponent first
             cur.execute(
-                "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 != %s ORDER BY id DESC LIMIT 1", (req.username,)
+                "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 != %s AND is_ranked = TRUE ORDER BY id DESC LIMIT 1", (req.username,)
             )
             waiting = cur.fetchone()
             if not waiting:
                 # No opponent found, check if we already have our own waiting room
                 cur.execute(
-                    "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 = %s ORDER BY id DESC LIMIT 1", (req.username,)
+                    "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 = %s AND is_ranked = TRUE ORDER BY id DESC LIMIT 1", (req.username,)
                 )
                 waiting = cur.fetchone()
 
@@ -558,7 +586,7 @@ def matchmaking(req: MatchmakeReq):
     waiting_state = {"phase": "WAITING", "activePlayer": 1, "turn": 1,
                      "players": {"1": {"username": req.username}},
                      "p1_deck": deck1, "p1_deck_name": req.deckName or "Custom", "log": [f"{req.username} created room {room}. Waiting for an opponent..."]}
-    mid = insert_match(room, req.username, None, waiting_state, req.deckName or "Custom", None)
+    mid = insert_match(room, req.username, None, waiting_state, req.deckName or "Custom", None, is_ranked=is_ranked)
     return {"matchId": mid, "slot": 1, "roomCode": room, "status": "WAITING", "vsAI": False}
 
 
