@@ -27,8 +27,9 @@ jobs:
           import os
 
           url = "https://discord.com/api/v10/channels/1532031799952146555/messages"
+          token = os.environ.get("DISCORD_BOT_TOKEN")
           headers = {
-              "Authorization": f"Bot {os.environ.get('DISCORD_BOT_TOKEN')}",
+              "Authorization": f"Bot {token}",
               "Content-Type": "application/json",
               "User-Agent": "DiscordBot (https://github.com/EWilliamHertz/GlimmerFall2, 1.0.0)"
           }
