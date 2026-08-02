@@ -698,9 +698,14 @@ def do_play_card(state, slot, payload):
     # to battlefield: Entity or Relic
     if card["cardType"] not in ("Entity", "Relic"):
         raise ActionError(f"{card['cardType']} cards cannot be placed on the battlefield. Cast them instead.")
-    if card["cost"] > pl["energy"]:
+        
+    cost = card["cost"]
+    if "Gaia" in card["name"]:
+        cost = max(0, cost - len(pl["resonanceRow"]))
+
+    if cost > pl["energy"]:
         raise ActionError("Not enough Energy.")
-    pl["energy"] -= card["cost"]
+    pl["energy"] -= cost
     pl["hand"].pop(idx)
     if card["cardType"] == "Relic":
         low = (card.get("description") or "").lower()
@@ -708,7 +713,7 @@ def do_play_card(state, slot, payload):
             targets = [e for e in pl["battlefield"] if e.get("power") is not None]
             if not targets:
                 # refund and reject
-                pl["energy"] += card["cost"]
+                pl["energy"] += cost
                 pl["hand"].insert(idx, card)
                 raise ActionError("Deploy an Entity first — this Relic attaches to one of your Entities.")
             tgt = strongest(targets) or targets[0]
