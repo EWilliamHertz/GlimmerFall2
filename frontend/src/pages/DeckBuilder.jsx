@@ -103,6 +103,17 @@ export default function DeckBuilder() {
     toast.success("Deck deleted.");
   };
 
+  const deleteCommunityDeck = async (id) => {
+    if (!window.confirm("Delete this deck permanently?")) return;
+    try {
+      await api.delete(`/decks/${id}`);
+      setAllDecks(prev => prev.filter(d => d.id !== id));
+      toast.success("Deck deleted.");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Failed to delete deck");
+    }
+  };
+
   if (view === "editor") {
     return <DeckEditor onExit={() => setView("hub")} initialDeck={editorInitialDeck} />;
   }
@@ -213,6 +224,11 @@ export default function DeckBuilder() {
                 <button onClick={() => importDeck(deck)} className="flex-1 py-2 rounded-xl bg-[#00BFFF]/20 text-[#00BFFF] hover:bg-[#00BFFF]/40 font-head text-sm transition-colors flex items-center justify-center gap-2">
                   <Download className="w-4 h-4" /> Import
                 </button>
+                {user && user.nickname === deck.username && (
+                  <button onClick={() => deleteCommunityDeck(deck.id)} className="px-3 py-2 rounded-xl bg-red-500/20 text-red-500 hover:bg-red-500/40 font-head transition-colors" title="Delete Deck">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -68,7 +68,7 @@ export const CardTemplate = ({
   const reset = () => { mx.set(0); my.set(0); setHover(false); };
 
   const img = hidden ? CARDBACK : card?.image_url && card.image_url !== "None" ? card.image_url : CARDBACK;
-  const isHolo = !hidden && (card?.rarity === "Mythic" || card?.rarity === "Founders Foil");
+  const isHolo = !hidden && (card?.rarity === "Epic" || card?.rarity === "Founders Foil");
 
   if (hidden) {
     return (

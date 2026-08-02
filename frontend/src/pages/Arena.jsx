@@ -406,7 +406,7 @@ function GameBoard({ session, match, refresh, onExit }) {
   const state = match.state;
   const me = state.players[slot];
   const opp = state.players[oppSlot];
-  const isMyTurn = String(state.activePlayer) === slot && state.phase === "PLAYING";
+  const isMyTurn = String(state.activePlayer) === slot && state.phase === "PLAYING" && !session.isSpectator && !session.isReplay;
   const ended = state.phase === "ENDED";
 
   const [selectedAttacker, setSelectedAttacker] = useState(null);
@@ -428,6 +428,10 @@ function GameBoard({ session, match, refresh, onExit }) {
 
   const act = useCallback(
     async (action, payload) => {
+      if (session.isSpectator || session.isReplay) {
+        toast.info(session.isReplay ? "You cannot interact with a Replay." : "Spectators cannot perform actions.");
+        return;
+      }
       setBusy(true);
       try {
         const r = await api.post("/action", { matchId: session.matchId, slot: session.slot, action, payload });
@@ -989,6 +993,31 @@ function GameBoard({ session, match, refresh, onExit }) {
 /* ------------------------------------------------------------------ */
 export default function Arena() {
   const [session, setSession] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const specId = urlParams.get("spectateId");
+    const repId = urlParams.get("replayId");
+    if (specId) {
+      const s = {
+        matchId: parseInt(specId),
+        slot: parseInt(urlParams.get("slot") || "1"),
+        roomCode: urlParams.get("roomCode"),
+        status: "PLAYING",
+        isSpectator: true,
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      return s;
+    }
+    if (repId) {
+      const s = {
+        matchId: parseInt(repId),
+        slot: 1, // Doesn't matter for replays
+        roomCode: "Replay",
+        status: "ENDED",
+        isReplay: true,
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      return s;
+    }
     try {
       return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
     } catch {

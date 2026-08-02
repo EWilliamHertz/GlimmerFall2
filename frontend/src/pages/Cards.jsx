@@ -8,7 +8,7 @@ const fetcher = (url) => api.get(url).then((r) => r.data);
 import { FACTIONS, RARITY, CARD_TYPES, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
-const RARITIES = ["Common", "Uncommon", "Rare", "Mythic"];
+const RARITIES = ["Common", "Uncommon", "Rare", "Epic"];
 
 const FilterChip = ({ active, onClick, children, color, testId }) => (
   <button

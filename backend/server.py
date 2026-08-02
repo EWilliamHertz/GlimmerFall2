@@ -133,6 +133,16 @@ def get_starter_decks():
     return decks
 
 
+@api.delete("/decks/{deck_id}")
+def delete_deck(deck_id: int, request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        cur.execute("DELETE FROM deck_cards WHERE deck_id IN (SELECT id FROM decks WHERE id=%s AND username=%s)", (deck_id, user['nickname']))
+        cur.execute("DELETE FROM decks WHERE id=%s AND username=%s", (deck_id, user['nickname']))
+        if cur.rowcount == 0:
+            raise HTTPException(403, "Deck not found or access denied")
+    return {"ok": True}
+
 @api.post("/decks")
 def save_community_deck(payload: dict):
     # payload: { username, deck_name, deck_cards: [{card_name, count}] }
@@ -428,12 +438,25 @@ class ActionReq(BaseModel):
 
 
 def save_match(match_id, state):
-    active_slot = str(state["activePlayer"])
+    active_slot = str(state.get("activePlayer", 1))
     active_name = state["players"][active_slot]["username"]
     with DB() as cur:
+        cur.execute("SELECT status, player1, player2 FROM matches WHERE id=%s", (match_id,))
+        old = cur.fetchone()
+        if old and old["status"] != "ENDED" and state.get("phase") == "ENDED":
+            w = state.get("winner")
+            if w == 1:
+                cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (old["player1"],))
+                if not state.get("isAI"):
+                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (old["player2"],))
+            elif w == 2:
+                if not state.get("isAI"):
+                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (old["player2"],))
+                cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (old["player1"],))
+
         cur.execute(
             "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s WHERE id=%s",
-            (Json(state), state["phase"], state["turn"], active_name, match_id),
+            (Json(state), state.get("phase"), state.get("turn"), active_name, match_id),
         )
 
 
@@ -736,6 +759,92 @@ def verify(token: str):
             raise HTTPException(400, "Invalid or expired token")
     return {"ok": True, "message": "Account verified!"}
 
+class AvatarReq(BaseModel):
+    avatar_url: str
+
+@api.put("/auth/me/avatar")
+def update_avatar(req: AvatarReq, request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        cur.execute("UPDATE users SET avatar=%s WHERE id=%s", (req.avatar_url, user["id"]))
+    return {"ok": True, "avatar": req.avatar_url}
+
+# ----- SOCIAL & META FEATURES -----
+
+@api.get("/leaderboard")
+def get_leaderboard():
+    with DB() as cur:
+        cur.execute("SELECT nickname, mmr, wins, losses, faction, avatar FROM users ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100")
+        return cur.fetchall()
+
+@api.get("/auth/me/matches")
+def get_my_matches(request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        cur.execute("SELECT id, player1, player2, player1_deck, player2_deck, status, created_at, state->>'winner' as winner, state->>'turn' as turn FROM matches WHERE (player1=%s OR player2=%s) AND status='ENDED' ORDER BY id DESC LIMIT 20", (user['nickname'], user['nickname']))
+        return cur.fetchall()
+
+@api.get("/auth/me/quests")
+def get_my_quests(request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        # Auto-generate daily quests if none active
+        cur.execute("SELECT * FROM user_quests WHERE user_id=%s AND created_at >= NOW() - INTERVAL '1 day'", (user['id'],))
+        quests = cur.fetchall()
+        if not quests:
+            import random
+            q_types = [
+                ("Win 3 games", 3, "1 Booster Pack"),
+                ("Play 10 Rites", 10, "50 Glimmer"),
+                ("Deal 50 damage to enemy Nexus", 50, "100 Glimmer")
+            ]
+            for desc, tgt, rw in random.sample(q_types, 2):
+                cur.execute("INSERT INTO user_quests (user_id, description, target_value, reward) VALUES (%s, %s, %s, %s) RETURNING *", (user['id'], desc, tgt, rw))
+                quests.append(cur.fetchone())
+        return quests
+
+@api.get("/auth/me/friends")
+def get_friends(request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        cur.execute('''
+            SELECT f.id, f.status, u.nickname, u.avatar, u.mmr,
+                   CASE WHEN f.user_id = %s THEN 'outgoing' ELSE 'incoming' END as direction,
+                   (SELECT id FROM matches m WHERE (m.player1 = u.nickname OR m.player2 = u.nickname) AND m.status = 'PLAYING' ORDER BY m.id DESC LIMIT 1) as current_match_id,
+                   (SELECT CASE WHEN player1 = u.nickname THEN 1 ELSE 2 END FROM matches m WHERE (m.player1 = u.nickname OR m.player2 = u.nickname) AND m.status = 'PLAYING' ORDER BY m.id DESC LIMIT 1) as current_match_slot,
+                   (SELECT room_code FROM matches m WHERE (m.player1 = u.nickname OR m.player2 = u.nickname) AND m.status = 'PLAYING' ORDER BY m.id DESC LIMIT 1) as current_room_code
+            FROM friendships f
+            JOIN users u ON (f.user_id = u.id OR f.friend_id = u.id)
+            WHERE (f.user_id = %s OR f.friend_id = %s) AND u.id != %s
+        ''', (user['id'], user['id'], user['id'], user['id']))
+        return cur.fetchall()
+
+class FriendReq(BaseModel):
+    nickname: str
+
+@api.post("/auth/me/friends/request")
+def request_friend(req: FriendReq, request: Request):
+    user = get_current_user(request)
+    if user['nickname'].lower() == req.nickname.lower():
+        raise HTTPException(400, "Cannot add yourself.")
+    with DB() as cur:
+        cur.execute("SELECT id FROM users WHERE nickname ILIKE %s", (req.nickname,))
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(404, "User not found")
+        try:
+            cur.execute("INSERT INTO friendships (user_id, friend_id, status) VALUES (%s, %s, 'pending')", (user['id'], target['id']))
+        except Exception:
+            pass # already exists
+    return {"ok": True}
+
+@api.post("/auth/me/friends/{fid}/accept")
+def accept_friend(fid: int, request: Request):
+    user = get_current_user(request)
+    with DB() as cur:
+        cur.execute("UPDATE friendships SET status='accepted' WHERE id=%s AND friend_id=%s", (fid, user['id']))
+    return {"ok": True}
+
 @api.get("/admin/stats")
 def admin_stats():
     with DB() as cur:
@@ -928,12 +1037,12 @@ async def update_admin_product(product_id: int, request: Request):
         cur.execute('''
             UPDATE shop_products 
             SET name = %s, description = %s, price = %s, stock = %s, 
-                is_preorder = %s, eta = %s, weight_kg = %s, image_url = %s
+                is_preorder = %s, eta = %s, weight_kg = %s, image_url = %s, cost_price = %s
             WHERE id = %s
         ''', (
             data.get('name'), data.get('description'), data.get('price'), data.get('stock'),
             data.get('is_preorder'), data.get('eta'), data.get('weight_kg'), data.get('image_url'),
-            product_id
+            data.get('cost_price', 0), product_id
         ))
         return {"success": True}
 
@@ -986,6 +1095,30 @@ def shop_checkout(req: CheckoutReq, request: Request):
             shipping_address_collection={
                 "allowed_countries": ["US", "CA", "GB", "SE", "DE", "FR", "AU", "NZ", "IT", "ES", "NL", "FI", "DK", "NO"]
             },
+            shipping_options=[
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 900, "currency": "usd"},
+                        "display_name": "Standard Shipping (PostNord)",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 3},
+                            "maximum": {"unit": "business_day", "value": 7},
+                        },
+                    },
+                },
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 1900, "currency": "usd"},
+                        "display_name": "Express / International",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 1},
+                            "maximum": {"unit": "business_day", "value": 3},
+                        },
+                    },
+                }
+            ],
             success_url=request.headers.get("origin", "http://localhost:3000") + "/shop?success=true",
             cancel_url=request.headers.get("origin", "http://localhost:3000") + "/shop?canceled=true",
         )
@@ -1040,11 +1173,14 @@ async def stripe_webhook(request: Request):
             addr = shipping.get('address', {})
             country = addr.get('country', '')
             address_str = f"{addr.get('line1', '')}, {addr.get('line2', '')}, {addr.get('city', '')}, {addr.get('state', '')}, {addr.get('postal_code', '')}, {country}"
+        total_details = session.get('total_details', {})
+        shipping_cost = (total_details.get('amount_shipping') or 0) / 100.0
+        tax_amount = (total_details.get('amount_tax') or 0) / 100.0
             
         with DB() as cur:
             cur.execute(
-                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s WHERE stripe_session_id=%s RETURNING id",
-                (first_name, last_name, address_str.strip(", "), country, session_id)
+                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s, shipping_cost=%s, tax_amount=%s WHERE stripe_session_id=%s RETURNING id",
+                (first_name, last_name, address_str.strip(", "), country, shipping_cost, tax_amount, session_id)
             )
             updated = cur.fetchone()
             if updated and customer_email:

@@ -53,9 +53,9 @@ export const FACTIONS = {
 
 export const RARITY = {
   Common: { color: "#B0BEC5", glow: "0 0 8px rgba(176,190,197,0.4)" },
-  Uncommon: { color: "#4CAF50", glow: "0 0 12px rgba(76,175,80,0.55)" },
-  Rare: { color: "#2196F3", glow: "0 0 16px rgba(33,150,243,0.7)" },
-  Mythic: { color: "#FF9800", glow: "0 0 22px rgba(255,152,0,0.9)" },
+  Uncommon: { color: "#2196F3", glow: "0 0 12px rgba(33,150,243,0.55)" },
+  Rare: { color: "#FFD700", glow: "0 0 16px rgba(255,215,0,0.7)" },
+  Epic: { color: "#9B30FF", glow: "0 0 22px rgba(155,48,255,0.9)" },
   "Founders Foil": { color: "#E040FB", glow: "0 0 26px rgba(224,64,251,0.85)" },
 };
 
@@ -63,8 +63,8 @@ export const RARITY_ICONS = {
   Common: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383884/glimmerfall/rarity_icons/common.svg",
   Uncommon: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383885/glimmerfall/rarity_icons/uncommon.svg",
   Rare: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383889/glimmerfall/rarity_icons/rare.svg",
-  Mythic: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg",
-  "Founders Foil": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg",
+  Epic: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/epic.svg",
+  "Founders Foil": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/epic.svg",
 };
 
 export const rarityIcon = (r) => RARITY_ICONS[r] || RARITY_ICONS.Common;
