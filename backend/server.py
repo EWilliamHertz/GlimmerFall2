@@ -760,13 +760,13 @@ def admin_telemetry(request: Request):
             SELECT COALESCE(deck_name, 'Unknown Deck') as deck, SUM(wins) as wins, SUM(total_games) as total_games
             FROM (
                 SELECT player1_deck as deck_name, 
-                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 0 THEN 1 ELSE 0 END) as wins,
+                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 1 THEN 1 ELSE 0 END) as wins,
                        COUNT(id) as total_games
                 FROM matches WHERE status='ENDED' AND player1_deck IS NOT NULL
                 GROUP BY player1_deck
                 UNION ALL
                 SELECT player2_deck as deck_name, 
-                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 1 THEN 1 ELSE 0 END) as wins,
+                       SUM(CASE WHEN CAST(state->>'winner' AS INTEGER) = 2 THEN 1 ELSE 0 END) as wins,
                        COUNT(id) as total_games
                 FROM matches WHERE status='ENDED' AND player2_deck IS NOT NULL
                 GROUP BY player2_deck
@@ -789,9 +789,9 @@ def admin_telemetry(request: Request):
         referrals = [dict(r) for r in cur.fetchall()]
         
         # 3. First vs Second
-        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='FINISHED' AND CAST(state->>'winner' AS INTEGER) = 0")
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='ENDED' AND CAST(state->>'winner' AS INTEGER) = 1")
         p1_wins = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='FINISHED' AND CAST(state->>'winner' AS INTEGER) = 1")
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='ENDED' AND CAST(state->>'winner' AS INTEGER) = 2")
         p2_wins = cur.fetchone()["c"]
         
         total_p = p1_wins + p2_wins

@@ -190,6 +190,30 @@ def deal_damage_entity(entity, amount):
     entity["curHealth"] = (entity["curHealth"] or 0) - amount
 
 
+
+def apply_enters_trigger(state, slot, new_entity):
+    for e in state["players"][slot]["battlefield"]:
+        if e["instanceId"] == new_entity["instanceId"]:
+            continue
+        low = (e.get("description") or "").lower()
+        if "whenever another" in low and "enters" in low:
+            # check faction match
+            m = re.search(r"whenever another\s+([a-z]+)\s+entity\s+enters", low)
+            if m:
+                req_faction = m.group(1).title()
+                if new_entity.get("faction") != req_faction:
+                    continue
+            
+            # extract the effect (everything after the comma)
+            effect_part = low.split("enters,")[-1].strip() if "enters," in low else low
+            
+            # currently only handles "heal your nexus X"
+            hm = re.search(r"heal your nexus\s+(\d+)", effect_part)
+            if hm:
+                amt = int(hm.group(1))
+                state["players"][slot]["hp"] += amt
+                log(state, f"{e['name']}'s passive triggered: healed Nexus {amt}")
+
 def create_tokens(state, slot, desc):
     """Handle 'create [N] X/Y ... token[s] [with KW]'."""
     msgs = []
@@ -201,9 +225,17 @@ def create_tokens(state, slot, desc):
         if m.group(5):
             kws = [k.strip(".").strip().title() for k in m.group(5).split(",") if k.strip(".").strip().title() in GRANT_KEYWORDS]
         fac = state["players"][slot]["hand"] and state["players"][slot] or None
-        faction = "Aether"
+        faction = "Unknown"
+        for f in ["Solari", "Terra", "Aether", "Mecha", "Graveglass", "Umbra"]:
+            if f in tname:
+                faction = f
+                break
+        if faction == "Unknown":
+            faction = "Aether"
         for _ in range(n):
-            state["players"][slot]["battlefield"].append(make_token(tname, faction, p, h, kws))
+            new_token = make_token(tname, faction, p, h, kws)
+            state["players"][slot]["battlefield"].append(new_token)
+            apply_enters_trigger(state, slot, new_token)
         msgs.append(f"created {n} {p}/{h} {tname} token(s)")
     return msgs
 
@@ -376,7 +408,7 @@ def resolve_effect(state, slot, card, payload, auto=False):
     hm = _re.search(r"heal your nexus\s+(\d+)", low)
     if hm:
         amt = int(hm.group(1))
-        state["players"][slot]["hp"] = min(NEXUS_HP, state["players"][slot]["hp"] + amt)
+        state["players"][slot]["hp"] += amt
         frags.append(f"healed Nexus {amt}")
 
     # ---- draw ----
@@ -684,6 +716,7 @@ def do_play_card(state, slot, payload):
         card["exhausted"] = False  # no summoning sickness
         pl["battlefield"].append(card)
         log(state, f"{pl['username']} deployed {card['name']}.")
+        apply_enters_trigger(state, slot, card)
         low = (card.get("description") or "").lower()
         if "when deployed" in low or "when this entity is deployed" in low:
             frags = resolve_effect(state, slot, card, payload, auto=True)
