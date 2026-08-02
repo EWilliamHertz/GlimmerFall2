@@ -87,9 +87,18 @@ export default function Community() {
     <div className="max-w-6xl mx-auto px-5 py-24 space-y-16">
       <div className="text-center">
         <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">Community & Social</h1>
-        <p className="text-white/60 font-head max-w-2xl mx-auto text-lg">
+        <p className="text-white/60 font-head max-w-2xl mx-auto text-lg mb-8">
           Connect with other Summoners, track your progress, and help shape the future of GlimmerFall during the Alpha stage.
         </p>
+        <a 
+          href="https://discord.gg/VYBjkJCzHw" 
+          target="_blank" 
+          rel="noreferrer"
+          className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-display font-bold text-lg transition-all shadow-lg shadow-[#5865F2]/20 hover:scale-105"
+        >
+          <MessageSquare className="w-6 h-6" />
+          Join the Official Discord
+        </a>
       </div>
 
       {/* Alpha Polls */}
