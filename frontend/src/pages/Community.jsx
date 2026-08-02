@@ -182,54 +182,6 @@ export default function Community() {
         )}
       </section>
 
-      {/* Upcoming Features Grid */}
-      <section>
-        <h2 className="font-display text-3xl font-bold mb-8 text-center">Upcoming Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          <div className="glass rounded-2xl p-6 hover:border-white/20 transition-colors">
-            <Users className="w-8 h-8 text-[#F2A900] mb-4" />
-            <h3 className="font-head font-bold text-xl mb-2">User Accounts & Profiles</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Create an account, choose an avatar based on your favorite card art, and track your match history, win rates, and highest ranks.
-            </p>
-          </div>
-
-          <div className="glass rounded-2xl p-6 hover:border-white/20 transition-colors">
-            <Trophy className="w-8 h-8 text-[#22E07B] mb-4" />
-            <h3 className="font-head font-bold text-xl mb-2">Quests & Rewards</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Complete Daily and Weekly missions (e.g., "Play 20 Rites," "Win 3 games as Terra") to earn rewards and encourage regular play.
-            </p>
-          </div>
-
-          <div className="glass rounded-2xl p-6 hover:border-white/20 transition-colors">
-            <Swords className="w-8 h-8 text-[#FF5252] mb-4" />
-            <h3 className="font-head font-bold text-xl mb-2">Friends & Direct Challenges</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Add friends to your Social tab. See who's online and send them direct match invites without needing a room code.
-            </p>
-          </div>
-
-          <div className="glass rounded-2xl p-6 hover:border-white/20 transition-colors">
-            <Video className="w-8 h-8 text-[#9B30FF] mb-4" />
-            <h3 className="font-head font-bold text-xl mb-2">Match Replays</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Save your past matches to review your strategies, learn from your misplays, or share epic comebacks with the community.
-            </p>
-          </div>
-
-          <div className="glass rounded-2xl p-6 hover:border-white/20 transition-colors">
-            <MessageSquare className="w-8 h-8 text-[#00BFFF] mb-4" />
-            <h3 className="font-head font-bold text-xl mb-2">Spectator Mode</h3>
-            <p className="text-white/60 text-sm leading-relaxed">
-              Watch your friends' matches live! Spectator mode will feature a slight broadcast delay to prevent stream-sniping and ensure competitive integrity.
-            </p>
-          </div>
-
-        </div>
-      </section>
-
 
 
       {/* Forge Modal */}
