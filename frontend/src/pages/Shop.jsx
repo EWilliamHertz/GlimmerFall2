@@ -120,7 +120,7 @@ export default function Shop() {
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-12 relative animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex justify-between items-center mb-8 sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl py-4 -mx-5 px-5 border-b border-white/10 rounded-b-xl shadow-2xl shadow-black/50">
+      <div className="flex justify-between items-center mb-8 sticky top-[72px] z-[90] bg-[#0a0a0c]/90 backdrop-blur-2xl py-4 -mx-5 px-5 border-b border-white/10 rounded-b-xl shadow-2xl shadow-black/50">
         <div>
           <h1 className="text-4xl font-display font-bold text-white mb-2 tracking-wide">
             GLIMMERFALL <span className="text-[#F2A900]">STORE</span>

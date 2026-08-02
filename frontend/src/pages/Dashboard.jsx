@@ -215,8 +215,8 @@ function PlayerDashboard({ user, updateUser }) {
                   <div key={q.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h4 className="font-bold text-white uppercase tracking-wider text-sm">{q.quest_type.replace(/_/g, ' ')}</h4>
-                        <p className="text-sm text-white/50 font-head mt-1">Reward: <span className="text-[#00BFFF] font-bold">{q.reward_amount} {q.reward_type}</span></p>
+                        <h4 className="font-bold text-white uppercase tracking-wider text-sm">{q.description}</h4>
+                        <p className="text-sm text-white/50 font-head mt-1">Reward: <span className="text-[#00BFFF] font-bold">{q.reward}</span></p>
                       </div>
                       {progress >= 100 && <CheckCircle className="w-5 h-5 text-[#22E07B]" />}
                     </div>
@@ -241,24 +241,30 @@ function PlayerDashboard({ user, updateUser }) {
             {matches.length === 0 ? (
               <p className="text-white/50 italic font-head">No recent matches.</p>
             ) : (
-              matches.map(m => (
-                <div key={m.id} className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-4">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-white/90">vs {m.opponent_nickname}</span>
-                    <span className="text-xs text-white/50 font-head flex items-center gap-1 mt-1">
-                      <Clock className="w-3 h-3" /> {new Date(m.created_at).toLocaleDateString()}
-                    </span>
+              matches.map(m => {
+                const isPlayer1 = m.player1 === user.nickname;
+                const opponent = isPlayer1 ? m.player2 : m.player1;
+                const isWin = (m.winner === "1" && isPlayer1) || (m.winner === "2" && !isPlayer1);
+                
+                return (
+                  <div key={m.id} className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-white/90">vs {opponent}</span>
+                      <span className="text-xs text-white/50 font-head flex items-center gap-1 mt-1">
+                        <Clock className="w-3 h-3" /> {new Date(m.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-lg text-sm font-bold ${isWin ? 'bg-[#22E07B]/20 text-[#22E07B]' : 'bg-red-500/20 text-red-400'}`}>
+                        {isWin ? 'VICTORY' : 'DEFEAT'}
+                      </span>
+                      <a href={`/play?replayId=${m.id}`} className="text-[#00BFFF] hover:text-white transition-colors bg-[#00BFFF]/10 hover:bg-[#00BFFF]/30 px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1 border border-[#00BFFF]/30">
+                        <Play className="w-3 h-3" /> Replay
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-lg text-sm font-bold ${m.is_win ? 'bg-[#22E07B]/20 text-[#22E07B]' : 'bg-red-500/20 text-red-400'}`}>
-                      {m.is_win ? 'VICTORY' : 'DEFEAT'}
-                    </span>
-                    <a href={`/play?replayId=${m.id}`} className="text-[#00BFFF] hover:text-white transition-colors bg-[#00BFFF]/10 hover:bg-[#00BFFF]/30 px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1 border border-[#00BFFF]/30">
-                      <Play className="w-3 h-3" /> Replay
-                    </a>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -845,14 +851,16 @@ function AdminPanel({ user }) {
                 </button>
                 <h3 className="text-3xl font-display font-bold text-[#00BFFF] mb-6">Order #{selectedOrder.id}</h3>
                 <div className="space-y-4 font-head">
-                  <div><span className="text-white/50">Customer:</span> {selectedOrder.first_name} {selectedOrder.last_name} ({selectedOrder.user_email})</div>
+                  <div><span className="text-white/50">Customer:</span> {selectedOrder.first_name} {selectedOrder.last_name} ({selectedOrder.user_email || 'No email'})</div>
+                  <div><span className="text-white/50">Phone:</span> {selectedOrder.phone || 'N/A'}</div>
                   <div><span className="text-white/50">Address:</span> {selectedOrder.address}, {selectedOrder.country}</div>
                   <hr className="border-white/10 my-4" />
-                  <div className="flex justify-between"><span className="text-white/50">Total Paid:</span> <span className="font-bold text-[#22E07B]">${selectedOrder.total_amount}</span></div>
-                  <div className="flex justify-between"><span className="text-white/50">Shipping Cost:</span> <span className="text-red-400">-${selectedOrder.shipping_cost}</span></div>
+                  <div className="flex justify-between"><span className="text-white/50">Total Paid (incl. Shipping/Tax):</span> <span className="font-bold text-[#22E07B]">${selectedOrder.total_amount}</span></div>
+                  <div className="flex justify-between"><span className="text-white/50">Shipping Cost:</span> <span className="text-red-400">-${selectedOrder.shipping_cost || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-white/50">Cost of Goods (Buy-in):</span> <span className="text-red-400">-${selectedOrder.total_cogs || 0}</span></div>
                   <div className="flex justify-between pt-2 border-t border-white/10 mt-2">
                     <span className="text-white/80 font-bold">Net Profit:</span> 
-                    <span className="font-bold text-[#F2A900]">${selectedOrder.net_profit}</span>
+                    <span className="font-bold text-[#F2A900]">${(parseFloat(selectedOrder.total_amount || 0) - parseFloat(selectedOrder.shipping_cost || 0) - parseFloat(selectedOrder.total_cogs || 0)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

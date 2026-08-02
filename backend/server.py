@@ -1123,7 +1123,7 @@ def shop_checkout(req: CheckoutReq, request: Request):
         
         products_info = []
         for item in req.items:
-            cur.execute("SELECT id, name, price, image_url, weight_kg FROM shop_products WHERE id=%s", (item.id,))
+            cur.execute("SELECT id, name, price, image_url, weight_kg, buy_in_price FROM shop_products WHERE id=%s", (item.id,))
             prod = cur.fetchone()
             if not prod: continue
             
@@ -1155,6 +1155,9 @@ def shop_checkout(req: CheckoutReq, request: Request):
             shipping_address_collection={
                 "allowed_countries": ["US", "CA", "GB", "SE", "DE", "FR", "AU", "NZ", "IT", "ES", "NL", "FI", "DK", "NO"]
             },
+            phone_number_collection={
+                "enabled": True
+            },
             shipping_options=[
                 {
                     "shipping_rate_data": {
@@ -1185,15 +1188,15 @@ def shop_checkout(req: CheckoutReq, request: Request):
         
         # Save pending order
         cur.execute(
-            "INSERT INTO shop_orders (user_id, stripe_session_id, status, total_weight_kg, total_amount) VALUES (%s, %s, 'PENDING', %s, %s) RETURNING id",
-            (user['id'] if user else None, session.id, total_weight, total_amount)
+            "INSERT INTO shop_orders (user_id, stripe_session_id, status, total_weight_kg, total_amount, total_cogs) VALUES (%s, %s, 'PENDING', %s, %s, %s) RETURNING id",
+            (user['id'] if user else None, session.id, total_weight, total_amount, sum(float(p.get("buy_in_price") or 0.0) * q for p, q in products_info))
         )
         order_id = cur.fetchone()["id"]
         
         for prod, qty in products_info:
             cur.execute(
-                "INSERT INTO shop_order_items (order_id, product_id, quantity, price_at_purchase) VALUES (%s, %s, %s, %s)",
-                (order_id, prod["id"], qty, prod["price"])
+                "INSERT INTO shop_order_items (order_id, product_id, quantity, price_at_purchase, buy_in_price_at_purchase) VALUES (%s, %s, %s, %s, %s)",
+                (order_id, prod["id"], qty, prod["price"], prod.get("buy_in_price") or 0.0)
             )
             
         return {"url": session.url}
@@ -1220,14 +1223,18 @@ async def stripe_webhook(request: Request):
         
         shipping = session.get('shipping_details')
         customer_email = session.get('customer_details', {}).get('email')
+        phone = session.get('customer_details', {}).get('phone')
         
         address_str = ""
         country = ""
         first_name = ""
         last_name = ""
+        shipping_json = json.dumps(shipping) if shipping else None
+        customer_name = ""
         
         if shipping:
-            name_parts = shipping.get('name', '').split(' ', 1)
+            customer_name = shipping.get('name', '')
+            name_parts = customer_name.split(' ', 1)
             first_name = name_parts[0] if name_parts else ""
             last_name = name_parts[1] if len(name_parts) > 1 else ""
             addr = shipping.get('address', {})
@@ -1239,8 +1246,8 @@ async def stripe_webhook(request: Request):
             
         with DB() as cur:
             cur.execute(
-                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s, shipping_cost=%s, tax_amount=%s WHERE stripe_session_id=%s RETURNING id",
-                (first_name, last_name, address_str.strip(", "), country, shipping_cost, tax_amount, session_id)
+                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s, shipping_cost=%s, tax_amount=%s, phone=%s, user_email=%s, customer_name=%s, shipping_address=%s WHERE stripe_session_id=%s RETURNING id",
+                (first_name, last_name, address_str.strip(", "), country, shipping_cost, tax_amount, phone, customer_email, customer_name, shipping_json, session_id)
             )
             updated = cur.fetchone()
             if updated and customer_email:
