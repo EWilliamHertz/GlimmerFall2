@@ -6,7 +6,7 @@ import { CARDBACK, RARITY, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 import { CardModal } from "@/pages/Cards";
 
-const RANK = { Common: 0, Uncommon: 1, Rare: 2, Mythic: 3, "Founders Foil": 4 };
+const RANK = { Common: 0, Uncommon: 1, Rare: 2, Epic: 3, "Founders Foil": 4 };
 
 export default function Booster() {
   const [phase, setPhase] = useState("idle"); // idle | opening | revealing
@@ -138,7 +138,7 @@ export default function Booster() {
 
 const PackCard = ({ card, index, flipped, onFlip, onDetail }) => {
   const rar = RARITY[card.rarity] || RARITY.Common;
-  const special = card.rarity === "Mythic" || card.rarity === "Founders Foil";
+  const special = card.rarity === "Epic" || card.rarity === "Founders Foil";
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, rotateZ: -8 }}

@@ -60,8 +60,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('glimmerfall_token');
   };
 
+  const updateUser = (data) => {
+    if (user) {
+      const u = {...user, ...data};
+      setUser(u);
+      localStorage.setItem('glimmerfall_user', JSON.stringify(u));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, verify, resendVerification, logout }}>
+    <AuthContext.Provider value={{ user, login, register, verify, resendVerification, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -24,8 +24,10 @@ const NAV_GROUPS = [
   },
   {
     label: "Community",
-    to: "/community",
-    id: "community"
+    links: [
+      { to: "/community", label: "Forum", id: "community" },
+      { to: "/leaderboard", label: "Leaderboard", id: "leaderboard" }
+    ]
   },
   {
     label: "Store",

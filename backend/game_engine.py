@@ -985,6 +985,29 @@ ACTION_MAP = {
 }
 
 
+def update_auras(state):
+    # Clear all aura buffs
+    for s in ("1", "2"):
+        for e in state["players"][s]["battlefield"]:
+            aura = e.get("aura_power", 0)
+            if aura:
+                e["power"] = max(0, (e.get("power") or 0) - aura)
+                e["aura_power"] = 0
+            
+    # Apply new aura buffs
+    for s in ("1", "2"):
+        pl = state["players"][s]
+        # Aurora Marshal aura only active during their turn
+        if str(state.get("activePlayer")) != s:
+            continue
+            
+        marshals = [e for e in pl["battlefield"] if e.get("name") == "Aurora Marshal" and (e.get("power") or 0) >= 0]
+        for m in marshals:
+            for e in pl["battlefield"]:
+                if e.get("faction") == "Solari" and e["instanceId"] != m["instanceId"]:
+                    e["aura_power"] = e.get("aura_power", 0) + 1
+                    e["power"] = (e.get("power") or 0) + 1
+
 def apply_action(state, slot, action_type, payload):
     """Validate turn ownership + dispatch. Returns new state."""
     slot = str(slot)
@@ -1033,6 +1056,7 @@ def apply_action(state, slot, action_type, payload):
                 
         cleanup_dead(state)
         check_win(state)
+        update_auras(state)
         return state
 
     if state["phase"] == "ENDED":
@@ -1053,4 +1077,5 @@ def apply_action(state, slot, action_type, payload):
     # If vs AI and the turn passed to the AI, let it play immediately.
     if state.get("isAI") and state["phase"] != "ENDED" and str(state["activePlayer"]) == "2":
         ai_take_turn(state)
+    update_auras(state)
     return state

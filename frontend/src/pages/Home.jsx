@@ -13,7 +13,7 @@ const FEATURES = [
   { to: "/play", icon: Swords, title: "Player Arena", desc: "Battle live opponents or the GlimmerBot AI on a full drag-and-drop board.", color: "#F2A900" },
   { to: "/cards", icon: Library, title: "Card Database", desc: "Search and filter the complete 100-card Oracle across four factions.", color: "#00BFFF" },
   { to: "/decks", icon: Hammer, title: "Deck Builder", desc: "Forge single-faction decks, track your mana curve and save your lists.", color: "#22E07B" },
-  { to: "/booster", icon: Package, title: "Booster Simulator", desc: "Crack packs and chase holographic Mythics and Founders Foils.", color: "#9B30FF" },
+  { to: "/booster", icon: Package, title: "Booster Simulator", desc: "Crack packs and chase holographic Epics and Founders Foils.", color: "#9B30FF" },
   { to: "/rules", icon: BookOpen, title: "Rulebook", desc: "Learn the tenets, keywords and faction lore of GlimmerFall.", color: "#F2A900" },
 ];
 
@@ -28,7 +28,7 @@ export default function Home() {
   const showcase = React.useMemo(() => {
     const pick = [];
     ["Solari", "Umbri", "Terra", "Aether"].forEach((fac) => {
-      let options = cards.filter((x) => x.faction === fac && (x.rarity === "Mythic" || x.rarity === "Rare"));
+      let options = cards.filter((x) => x.faction === fac && (x.rarity === "Epic" || x.rarity === "Rare"));
       if (options.length === 0) options = cards.filter((x) => x.faction === fac);
       
       if (options.length > 0) {

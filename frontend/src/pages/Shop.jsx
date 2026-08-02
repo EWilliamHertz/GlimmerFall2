@@ -59,7 +59,7 @@ export default function Shop() {
     if (name.includes("Awakening")) {
       return {
         theme: "The First Edition Set featuring cards from all four primary factions.",
-        desc: "Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops. Build entirely new decks or enhance your starter decks with legendary mythics.",
+        desc: "Secure your physical collector's box. Each booster box contains 30 booster packs, with 10 cards per pack including guaranteed rare or higher drops. Build entirely new decks or enhance your starter decks with legendary epics.",
         type: "30-Pack Booster Box"
       };
     }

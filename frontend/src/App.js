@@ -13,6 +13,7 @@ import PrintPage from "@/pages/PrintPage";
 import Dashboard from "@/pages/Dashboard";
 import Stores from "@/pages/Stores";
 import Community from "@/pages/Community";
+import Leaderboard from "@/pages/Leaderboard";
 import Codex from "@/pages/Codex";
 import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
@@ -38,6 +39,7 @@ function Shell() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/codex" element={<Codex />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
           <Route path="/dashboard" element={<Dashboard />} />

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote } from 'lucide-react';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal } from 'lucide-react';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 export default function Dashboard() {
-  const { user, logout, verify, resendVerification } = useAuth();
+  const { user, logout, verify, resendVerification, updateUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(user?.isAdmin ? 'admin' : 'player');
 
@@ -73,23 +73,95 @@ export default function Dashboard() {
           <AdminPanel user={user} />
         </div>
       ) : (
-        <PlayerDashboard user={user} />
+        <PlayerDashboard user={user} updateUser={updateUser} />
       )}
     </div>
   );
 }
 
-function PlayerDashboard({ user }) {
+function PlayerDashboard({ user, updateUser }) {
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [avatars, setAvatars] = useState([]);
+  const [savingAvatar, setSavingAvatar] = useState(false);
+
+  const [quests, setQuests] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [friendInput, setFriendInput] = useState("");
+
+  useEffect(() => {
+    api.get("/auth/me/quests").then(res => setQuests(res.data)).catch(console.error);
+    api.get("/auth/me/matches").then(res => setMatches(res.data)).catch(console.error);
+    api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
+  }, []);
+
+  const handleSendFriendRequest = async (e) => {
+    e.preventDefault();
+    if (!friendInput.trim()) return;
+    try {
+      await api.post("/auth/me/friends/request", { nickname: friendInput.trim() });
+      setFriendInput("");
+      api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
+    } catch(err) {
+      alert("Failed to send friend request: " + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const handleAcceptFriend = async (id) => {
+    try {
+      await api.post(`/auth/me/friends/${id}/accept`);
+      api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
+    } catch(err) {
+      alert("Failed to accept friend: " + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  useEffect(() => {
+    if (showAvatarModal && avatars.length === 0) {
+      api.get("/cards").then(res => {
+        const withImages = res.data.filter(c => c.image_url);
+        // Take a unique set of images (up to 24)
+        const unique = [];
+        const seen = new Set();
+        for(const c of withImages) {
+            if(!seen.has(c.image_url)) {
+                seen.add(c.image_url);
+                unique.push(c);
+            }
+            if(unique.length >= 24) break;
+        }
+        setAvatars(unique);
+      });
+    }
+  }, [showAvatarModal]);
+
+  const selectAvatar = async (url) => {
+    setSavingAvatar(true);
+    try {
+      await api.put("/auth/me/avatar", { avatar_url: url });
+      updateUser({ avatar: url });
+      setShowAvatarModal(false);
+    } catch(e) {
+      console.error(e);
+    }
+    setSavingAvatar(false);
+  };
+
   const winRate = (user.wins + user.losses) > 0 ? Math.round((user.wins / (user.wins + user.losses)) * 100) : 0;
 
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-6 bg-black/40 p-6 rounded-3xl border border-white/10">
-        <img 
-          src={user.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.nickname}` : user.avatar} 
-          alt="Avatar" 
-          className="w-24 h-24 rounded-full border-4 border-[#F2A900] shadow-lg" 
-        />
+        <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+          <img 
+            src={user.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.nickname}` : user.avatar} 
+            alt="Avatar" 
+            className="w-24 h-24 rounded-full border-4 border-[#F2A900] shadow-lg object-cover transition-transform group-hover:scale-105" 
+          />
+          <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-xs font-bold text-[#F2A900] uppercase tracking-wider">Change</span>
+          </div>
+        </div>
         <div>
           <h2 className="text-2xl font-bold font-display text-white">{user.nickname}</h2>
           <p className="text-white/60 font-head text-sm mt-1">
@@ -127,6 +199,183 @@ function PlayerDashboard({ user }) {
           <p className="text-white/60 mt-1">Friends Invited</p>
         </div>
       </div>
+
+      <div className="grid md:grid-cols-2 gap-8 mt-8">
+        <div className="glass-strong p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col">
+          <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-6 text-[#F2A900]">
+            <Target className="w-6 h-6" /> Daily Quests
+          </h3>
+          <div className="space-y-4 flex-1">
+            {quests.length === 0 ? (
+              <p className="text-white/50 italic font-head">No active quests.</p>
+            ) : (
+              quests.map(q => {
+                const progress = Math.min((q.current_value / q.target_value) * 100, 100);
+                return (
+                  <div key={q.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="font-bold text-white uppercase tracking-wider text-sm">{q.quest_type.replace(/_/g, ' ')}</h4>
+                        <p className="text-sm text-white/50 font-head mt-1">Reward: <span className="text-[#00BFFF] font-bold">{q.reward_amount} {q.reward_type}</span></p>
+                      </div>
+                      {progress >= 100 && <CheckCircle className="w-5 h-5 text-[#22E07B]" />}
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-2.5 mb-1 mt-3">
+                      <div className="bg-[#F2A900] h-2.5 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(242,169,0,0.5)]" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <div className="text-right text-xs text-white/50 font-head mt-2">
+                      {q.current_value} / {q.target_value}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="glass-strong p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col">
+          <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-6 text-[#00BFFF]">
+            <History className="w-6 h-6" /> Match History
+          </h3>
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
+            {matches.length === 0 ? (
+              <p className="text-white/50 italic font-head">No recent matches.</p>
+            ) : (
+              matches.map(m => (
+                <div key={m.id} className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-4">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-white/90">vs {m.opponent_nickname}</span>
+                    <span className="text-xs text-white/50 font-head flex items-center gap-1 mt-1">
+                      <Clock className="w-3 h-3" /> {new Date(m.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-lg text-sm font-bold ${m.is_win ? 'bg-[#22E07B]/20 text-[#22E07B]' : 'bg-red-500/20 text-red-400'}`}>
+                      {m.is_win ? 'VICTORY' : 'DEFEAT'}
+                    </span>
+                    <a href={`/play?replayId=${m.id}`} className="text-[#00BFFF] hover:text-white transition-colors bg-[#00BFFF]/10 hover:bg-[#00BFFF]/30 px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1 border border-[#00BFFF]/30">
+                      <Play className="w-3 h-3" /> Replay
+                    </a>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="glass-strong p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col md:col-span-2">
+          <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-6 text-[#9B30FF]">
+            <Users className="w-6 h-6" /> Friends List
+          </h3>
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="flex-1 space-y-6">
+              <div>
+                <h4 className="font-head text-sm uppercase tracking-widest text-white/50 font-bold mb-3 flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" /> Add Friend
+                </h4>
+                <form onSubmit={handleSendFriendRequest} className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Enter nickname..." 
+                    value={friendInput}
+                    onChange={(e) => setFriendInput(e.target.value)}
+                    className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white font-head outline-none focus:border-[#9B30FF]/50 transition-colors"
+                  />
+                  <button type="submit" className="bg-[#9B30FF] hover:bg-[#8022d9] text-white px-4 py-2 rounded-xl font-bold transition-colors">
+                    Send
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <h4 className="font-head text-sm uppercase tracking-widest text-white/50 font-bold mb-3">Pending Requests</h4>
+                <div className="space-y-2">
+                  {friends.filter(f => f.status === 'pending').length === 0 ? (
+                    <p className="text-white/50 italic text-sm font-head">No pending requests.</p>
+                  ) : (
+                    friends.filter(f => f.status === 'pending').map(f => (
+                      <div key={f.id} className="flex items-center justify-between bg-black/40 border border-[#9B30FF]/30 rounded-xl p-3">
+                        <div>
+                          <span className="font-bold text-white/90">{f.nickname}</span>
+                          <p className="text-xs text-white/50 mt-0.5">{f.direction === 'incoming' ? 'Incoming request' : 'Request sent'}</p>
+                        </div>
+                        {f.direction === 'incoming' && (
+                          <button 
+                            onClick={() => handleAcceptFriend(f.id)}
+                            className="bg-[#22E07B]/20 text-[#22E07B] hover:bg-[#22E07B]/30 p-2 rounded-lg transition-colors"
+                            title="Accept Request"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <h4 className="font-head text-sm uppercase tracking-widest text-white/50 font-bold mb-3 flex items-center gap-2">
+                <Users className="w-4 h-4" /> My Friends
+              </h4>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {friends.filter(f => f.status === 'accepted').length === 0 ? (
+                  <p className="text-white/50 italic text-sm font-head">You have no friends yet.</p>
+                ) : (
+                  friends.filter(f => f.status === 'accepted').map(f => (
+                    <div key={f.id} className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-3">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/20">
+                        <Users className="w-5 h-5 text-white/50" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="font-bold text-white/90 text-lg block">{f.nickname}</span>
+                        {f.current_match_id && <span className="text-xs text-[#22E07B] animate-pulse">In a match</span>}
+                      </div>
+                      {f.current_match_id && (
+                        <a href={`/play?spectateId=${f.current_match_id}&slot=${f.current_match_slot}&roomCode=${f.current_room_code}`} className="bg-[#9B30FF]/20 text-[#9B30FF] hover:bg-[#9B30FF]/40 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 border border-[#9B30FF]/30">
+                          <Eye className="w-4 h-4" /> Spectate
+                        </a>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0B0C10] border border-white/10 rounded-3xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl shadow-black">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40">
+              <h2 className="font-display text-2xl font-bold text-[#F2A900]">Choose your Avatar</h2>
+              <button onClick={() => setShowAvatarModal(false)} className="p-2 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {avatars.length === 0 ? (
+                <div className="text-center py-10 text-white/40 animate-pulse font-head">Loading avatars...</div>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
+                  {avatars.map(c => (
+                    <img 
+                      key={c.name}
+                      src={c.image_url}
+                      alt={c.name}
+                      title={c.name}
+                      onClick={() => !savingAvatar && selectAvatar(c.image_url)}
+                      className={`w-full aspect-square object-cover rounded-full border-2 cursor-pointer transition-all hover:scale-110 ${user.avatar === c.image_url ? 'border-[#F2A900] shadow-[0_0_15px_rgba(242,169,0,0.5)]' : 'border-white/10 hover:border-white/40'}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -404,6 +653,7 @@ function AdminPanel({ user }) {
                     <tr className="border-b border-white/10 text-white/50 text-sm font-head">
                       <th className="pb-3 font-medium">Product</th>
                       <th className="pb-3 font-medium">Price</th>
+                      <th className="pb-3 font-medium">Cost / Profit</th>
                       <th className="pb-3 font-medium">Stock</th>
                       <th className="pb-3 font-medium">Status</th>
                       <th className="pb-3 font-medium">Weight</th>
@@ -415,6 +665,11 @@ function AdminPanel({ user }) {
                       <tr key={p.id} className="border-b border-white/5">
                         <td className="py-4 font-bold">{p.name}</td>
                         <td className="py-4">${p.price}</td>
+                        <td className="py-4">
+                          <div className="text-sm text-red-400">Cost: ${p.cost_price || 0}</div>
+                          <div className="text-sm text-yellow-400">Tax(25%): ${(p.price * 0.20).toFixed(2)}</div>
+                          <div className="text-sm text-green-400 font-bold">Net: ${(p.price - (p.cost_price || 0) - (p.price * 0.20)).toFixed(2)}</div>
+                        </td>
                         <td className="py-4">
                           {p.stock > 0 ? (
                             <span className="text-[#22E07B]">{p.stock} in stock</span>
@@ -481,6 +736,10 @@ function AdminPanel({ user }) {
                       <div>
                         <label className="block text-white/50 text-sm mb-1">Price ($)</label>
                         <input type="number" step="0.01" required value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 text-sm mb-1">Cost / Buy-in ($)</label>
+                        <input type="number" step="0.01" required value={editingProduct.cost_price || 0} onChange={e => setEditingProduct({...editingProduct, cost_price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white" />
                       </div>
                       <div>
                         <label className="block text-white/50 text-sm mb-1">Stock</label>
