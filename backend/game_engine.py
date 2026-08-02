@@ -1079,6 +1079,32 @@ def apply_action(state, slot, action_type, payload):
 
     if state["phase"] == "ENDED":
         raise ActionError("The match has ended.")
+        
+    if action_type == "ROLL_DICE":
+        if state.get("phase") != "DICE_ROLL":
+            raise ActionError("Not in dice roll phase.")
+        if state["diceRolls"].get(slot) is not None:
+            raise ActionError("You already rolled.")
+            
+        import random
+        roll = random.randint(1, 6)
+        state["diceRolls"][slot] = roll
+        log(state, f"{state['players'][slot]['username']} rolled a {roll}.")
+        
+        # Check if both rolled
+        r1, r2 = state["diceRolls"]["1"], state["diceRolls"]["2"]
+        if r1 is not None and r2 is not None:
+            if r1 == r2:
+                log(state, "It's a tie! Re-rolling...")
+                state["diceRolls"] = {"1": None, "2": None}
+            else:
+                winner = "1" if r1 > r2 else "2"
+                state["activePlayer"] = int(winner)
+                state["phase"] = "PLAYING"
+                log(state, f"{state['players'][int(winner)]['username']} goes first!")
+                log(state, f"{state['players'][int(winner)]['username']}'s turn 1.")
+        return state
+
     if action_type not in ACTION_MAP:
         raise ActionError(f"Unknown action {action_type}.")
 
