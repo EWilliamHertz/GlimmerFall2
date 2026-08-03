@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -688,6 +689,7 @@ class RegisterReq(BaseModel):
     email: str
     password: str
     faction: Optional[str] = None
+    referrer_code: Optional[str] = None
 
 class LoginReq(BaseModel):
     email: str
@@ -724,17 +726,47 @@ def register(req: RegisterReq, request: Request):
     nickname = req.email.split('@')[0]
     token = str(uuid.uuid4())
     is_admin = req.email.lower().endswith('@hatake.eu')
-    
+
+    # generate unique referral_code for the new user
+    import re as _re_reg
+    base = _re_reg.sub(r"[^a-zA-Z0-9]", "", nickname)[:8].lower() or "user"
+
     with DB() as cur:
         try:
+            # find unused code
+            new_code = None
+            for suffix in range(0, 999):
+                cand = base if suffix == 0 else f"{base}{suffix}"
+                cand = cand[:16]
+                cur.execute("SELECT 1 FROM users WHERE referral_code=%s", (cand,))
+                if not cur.fetchone():
+                    new_code = cand
+                    break
             cur.execute("""
-                INSERT INTO users (email, password_hash, nickname, faction, is_admin, verification_token)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, nickname
-            """, (req.email, hashed, nickname, req.faction, is_admin, token))
+                INSERT INTO users (email, password_hash, nickname, faction, is_admin, verification_token, referral_code)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, nickname
+            """, (req.email, hashed, nickname, req.faction, is_admin, token, new_code))
             u = cur.fetchone()
         except psycopg2.IntegrityError:
             raise HTTPException(400, "Email already exists")
-    
+
+        # If a referrer_code was supplied, insert a pending referral (matured on verify)
+        if req.referrer_code:
+            cur.execute(
+                "SELECT id, is_verified FROM users WHERE referral_code=%s",
+                (req.referrer_code.strip().lower(),),
+            )
+            ref = cur.fetchone()
+            if ref and ref["is_verified"] and ref["id"] != u["id"]:
+                try:
+                    cur.execute(
+                        "INSERT INTO referrals (referrer_id, referee_id, status) "
+                        "VALUES (%s, %s, 'pending') ON CONFLICT (referee_id) DO NOTHING",
+                        (ref["id"], u["id"]),
+                    )
+                except Exception as e:
+                    logger.warning(f"referral insert failed: {e}")
+
     try:
         origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
@@ -745,7 +777,7 @@ def register(req: RegisterReq, request: Request):
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")
-        
+
     return {"ok": True, "message": "Registered! Please check your email to verify."}
 
 class ResendVerifyReq(BaseModel):
@@ -808,6 +840,8 @@ def login(req: LoginReq):
             "wins": u["wins"],
             "losses": u["losses"],
             "referrals": u["referrals"],
+            "referral_code": u.get("referral_code"),
+            "glimmer_balance": u.get("glimmer_balance") or 0,
             "bookings": u["bookings"],
             "matchmaking": {"mmr": u["mmr"], "rank": u["rank"]}
         }
@@ -836,6 +870,8 @@ def get_me(request: Request):
         "wins": db_u["wins"] or 0,
         "losses": db_u["losses"] or 0,
         "referrals": db_u["referrals"] or 0,
+        "referral_code": db_u.get("referral_code"),
+        "glimmer_balance": db_u.get("glimmer_balance") or 0,
         "bookings": db_u["bookings"] or 0,
         "matchmaking": {"mmr": db_u["mmr"] or 1200, "rank": db_u["rank"] or "Unranked"}
     }
@@ -862,9 +898,68 @@ def get_user_profile(nickname: str):
 
 def verify(token: str):
     with DB() as cur:
-        cur.execute("UPDATE users SET is_verified=TRUE, verification_token=NULL WHERE verification_token=%s RETURNING id", (token,))
-        if not cur.fetchone():
+        cur.execute("UPDATE users SET is_verified=TRUE, verification_token=NULL WHERE verification_token=%s RETURNING id, nickname, email", (token,))
+        u = cur.fetchone()
+        if not u:
             raise HTTPException(400, "Invalid or expired token")
+
+        # Signup bonus for the newly verified user
+        try:
+            grant_glimmer(cur, u["id"], 50, "signup_bonus", memo="Welcome to GlimmerFall")
+        except HTTPException:
+            pass
+
+        # Mature any pending referral where this user is the referee
+        cur.execute(
+            "SELECT id, referrer_id, reward_amount FROM referrals "
+            "WHERE referee_id=%s AND status='pending' FOR UPDATE",
+            (u["id"],),
+        )
+        ref = cur.fetchone()
+        if ref:
+            try:
+                grant_glimmer(
+                    cur, ref["referrer_id"], ref["reward_amount"],
+                    "referral", ref_id=str(u["id"]),
+                    memo=f"Referred {u['nickname']}"
+                )
+                # Bonus to referee for verifying via referral
+                grant_glimmer(
+                    cur, u["id"], 50, "referral_bonus",
+                    ref_id=str(ref["referrer_id"]),
+                    memo="Bonus for joining via referral"
+                )
+                cur.execute(
+                    "UPDATE referrals SET status='rewarded', verified_at=NOW() WHERE id=%s",
+                    (ref["id"],),
+                )
+                cur.execute(
+                    "UPDATE users SET referrals = COALESCE(referrals,0) + 1 WHERE id=%s",
+                    (ref["referrer_id"],),
+                )
+                # notify referrer via email
+                cur.execute("SELECT email, nickname FROM users WHERE id=%s", (ref["referrer_id"],))
+                referrer = cur.fetchone()
+                if referrer:
+                    try:
+                        resend.Emails.send({
+                            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
+                            "to": [referrer["email"]],
+                            "subject": "Your friend joined GlimmerFall! +100 Glimmer",
+                            "html": f"""
+                            <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background:#0B0C10; color:#fff; padding:40px; border-radius:12px; border:1px solid #1F2937;">
+                              <h1 style="color:#F2A900; text-align:center;">+100 Glimmer earned</h1>
+                              <p>Greetings <strong>{referrer['nickname']}</strong>,</p>
+                              <p>Your friend <strong>{u['nickname']}</strong> just verified their GlimmerFall account. As a thank-you for spreading the Resonance, <strong>100 Glimmer</strong> has been added to your balance.</p>
+                              <p style="opacity:.6; font-size:12px;">Keep sharing your referral link to earn more.</p>
+                            </div>
+                            """
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed referral email: {e}")
+            except Exception as e:
+                logger.warning(f"Referral maturation failed: {e}")
+
     return {"ok": True, "message": "Account verified!"}
 
 class AvatarReq(BaseModel):
@@ -1446,6 +1541,469 @@ async def stripe_webhook(request: Request):
 
     return {"status": "success"}
 
+
+# ============================================================================
+# GLIMMER CURRENCY + REFERRALS + QUEST CLAIMS + PERSONAL DECKS
+# ============================================================================
+
+def grant_glimmer(cur, user_id: int, amount: int, source: str,
+                  ref_id: str = None, memo: str = None) -> int:
+    """Atomic credit/debit. Returns new balance. Raises 400 on insufficient."""
+    if amount < 0:
+        cur.execute("SELECT glimmer_balance FROM users WHERE id=%s FOR UPDATE", (user_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, "User not found")
+        if (row["glimmer_balance"] or 0) + amount < 0:
+            raise HTTPException(400, "Insufficient Glimmer")
+    cur.execute(
+        "INSERT INTO glimmer_transactions (user_id, amount, source, ref_id, memo) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        (user_id, amount, source, ref_id, memo),
+    )
+    cur.execute(
+        "UPDATE users SET glimmer_balance = COALESCE(glimmer_balance, 0) + %s "
+        "WHERE id=%s RETURNING glimmer_balance",
+        (amount, user_id),
+    )
+    return cur.fetchone()["glimmer_balance"]
+
+
+@api.get("/glimmer/balance")
+def get_glimmer_balance(request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("SELECT glimmer_balance, referral_code FROM users WHERE id=%s", (user["id"],))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404)
+    return {"balance": row["glimmer_balance"] or 0, "referral_code": row["referral_code"]}
+
+
+@api.get("/glimmer/transactions")
+def get_glimmer_transactions(request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute(
+            "SELECT id, amount, source, ref_id, memo, created_at "
+            "FROM glimmer_transactions WHERE user_id=%s "
+            "ORDER BY created_at DESC LIMIT 50",
+            (user["id"],),
+        )
+        rows = cur.fetchall()
+        for r in rows:
+            r["created_at"] = str(r["created_at"])
+        return rows
+
+
+@api.post("/quests/{qid}/claim")
+def claim_quest_reward(qid: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute(
+            "SELECT id, reward_glimmer, is_completed, reward_claimed, description "
+            "FROM user_quests WHERE id=%s AND user_id=%s FOR UPDATE",
+            (qid, user["id"]),
+        )
+        q = cur.fetchone()
+        if not q:
+            raise HTTPException(404, "Quest not found")
+        if not q["is_completed"]:
+            raise HTTPException(400, "Quest is not yet completed")
+        if q["reward_claimed"]:
+            raise HTTPException(400, "Reward already claimed")
+        cur.execute("UPDATE user_quests SET reward_claimed=TRUE WHERE id=%s", (qid,))
+        credited = q["reward_glimmer"] or 0
+        new_balance = user.get("glimmer_balance") or 0
+        if credited > 0:
+            new_balance = grant_glimmer(
+                cur, user["id"], credited, "quest",
+                ref_id=str(qid), memo=q["description"][:250]
+            )
+    return {"ok": True, "credited": credited, "balance": new_balance}
+
+
+# ---------- quest progress bumping (called from game_engine hooks) ----------
+_QUEST_TRIGGERS = [
+    # (regex on description.lower(), event, extra tag)
+    (re.compile(r"\brites?\b"),                     "play_rite",   None),
+    (re.compile(r"\bflash spells?\b"),              "play_flash",  None),
+    (re.compile(r"damage to (enemy |the enemy )?nexus"), "nexus_damage", None),
+    (re.compile(r"solari entit"),                   "play_faction_entity", "solari"),
+    (re.compile(r"umbri entit"),                    "play_faction_entity", "umbri"),
+    (re.compile(r"terra entit"),                    "play_faction_entity", "terra"),
+    (re.compile(r"aether entit"),                   "play_faction_entity", "aether"),
+    (re.compile(r"\bwin \d+ (game|match|matches)"), "win_game",    None),
+    (re.compile(r"destroy \d+ (enemy )?entit"),     "entity_kill", None),
+    (re.compile(r"draw \d+ cards?"),                "draw_card",   None),
+]
+
+
+def _quest_matches(description: str, event: str, meta: dict) -> bool:
+    if not description:
+        return False
+    d = description.lower()
+    for regex, ev, tag in _QUEST_TRIGGERS:
+        if not regex.search(d):
+            continue
+        if ev != event:
+            continue
+        if tag and (meta.get("faction", "").lower() != tag):
+            continue
+        return True
+    return False
+
+
+def bump_quest_progress(nickname: str, event: str, meta: dict = None):
+    """Increment matching user_quests. Called from game_engine hooks.
+    Safe: swallow all exceptions so gameplay is never blocked."""
+    if not nickname or nickname == "GlimmerBot":
+        return
+    meta = meta or {}
+    amount = int(meta.get("amount", 1))
+    try:
+        with DB() as cur:
+            cur.execute("SELECT id FROM users WHERE nickname=%s", (nickname,))
+            u = cur.fetchone()
+            if not u:
+                return
+            cur.execute(
+                "SELECT id, description, target_value, current_value "
+                "FROM user_quests WHERE user_id=%s AND is_completed=FALSE "
+                "AND created_at >= NOW() - INTERVAL '1 day'",
+                (u["id"],),
+            )
+            quests = cur.fetchall()
+            for q in quests:
+                if not _quest_matches(q["description"], event, meta):
+                    continue
+                new_val = min((q["current_value"] or 0) + amount, q["target_value"])
+                done = new_val >= q["target_value"]
+                cur.execute(
+                    "UPDATE user_quests SET current_value=%s, is_completed=%s WHERE id=%s",
+                    (new_val, done, q["id"]),
+                )
+    except Exception as e:
+        logger.warning(f"bump_quest_progress error: {e}")
+
+
+# Wire quest bumper into game engine (avoids circular import).
+ge.set_quest_hook(bump_quest_progress)
+
+
+# ---------- Personal (server-side) decks ----------
+class PersonalDeckReq(BaseModel):
+    deck_name: str
+    deck_cards: list  # [{card_name: str, count: int}]
+
+
+@api.get("/auth/me/decks")
+def list_my_decks(request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("""
+            SELECT d.id, d.deck_name, d.is_public, d.created_at,
+                   (SELECT COUNT(*) FROM deck_likes dl WHERE dl.deck_id = d.id) as likes_count
+            FROM decks d
+            WHERE d.user_id=%s
+            ORDER BY d.created_at DESC
+            LIMIT 60
+        """, (user["id"],))
+        decks = [dict(r) for r in cur.fetchall()]
+        if not decks:
+            return []
+        deck_ids = tuple(d["id"] for d in decks)
+        cur.execute(
+            "SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url, c.id as card_id "
+            "FROM deck_cards dc LEFT JOIN cards c ON dc.card_name = c.name "
+            "WHERE dc.deck_id IN %s",
+            (deck_ids,),
+        )
+        cards = [dict(r) for r in cur.fetchall()]
+        for d in decks:
+            d["created_at"] = str(d["created_at"])
+            d["cards"] = [c for c in cards if c["deck_id"] == d["id"]]
+        return decks
+
+
+@api.post("/auth/me/decks")
+def create_my_deck(req: PersonalDeckReq, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute(
+            "INSERT INTO decks (username, deck_name, user_id, is_public) "
+            "VALUES (%s, %s, %s, FALSE) RETURNING id",
+            (user["nickname"], req.deck_name, user["id"]),
+        )
+        deck_id = cur.fetchone()["id"]
+        for c in req.deck_cards:
+            cur.execute(
+                "INSERT INTO deck_cards (deck_id, card_name, count) VALUES (%s, %s, %s)",
+                (deck_id, c.get("card_name") or c.get("name"), int(c.get("count", 1))),
+            )
+    return {"ok": True, "deck_id": deck_id}
+
+
+@api.put("/auth/me/decks/{deck_id}")
+def update_my_deck(deck_id: int, req: PersonalDeckReq, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("SELECT id FROM decks WHERE id=%s AND user_id=%s", (deck_id, user["id"]))
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+        cur.execute("UPDATE decks SET deck_name=%s WHERE id=%s", (req.deck_name, deck_id))
+        cur.execute("DELETE FROM deck_cards WHERE deck_id=%s", (deck_id,))
+        for c in req.deck_cards:
+            cur.execute(
+                "INSERT INTO deck_cards (deck_id, card_name, count) VALUES (%s, %s, %s)",
+                (deck_id, c.get("card_name") or c.get("name"), int(c.get("count", 1))),
+            )
+    return {"ok": True}
+
+
+@api.delete("/auth/me/decks/{deck_id}")
+def delete_my_deck(deck_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("DELETE FROM deck_cards WHERE deck_id IN (SELECT id FROM decks WHERE id=%s AND user_id=%s)", (deck_id, user["id"]))
+        cur.execute("DELETE FROM decks WHERE id=%s AND user_id=%s", (deck_id, user["id"]))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Deck not found")
+    return {"ok": True}
+
+
+@api.post("/decks/{deck_id}/clone")
+def clone_deck(deck_id: int, request: Request):
+    """Copy a public deck into the caller's private decks."""
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("SELECT deck_name, is_public FROM decks WHERE id=%s", (deck_id,))
+        src = cur.fetchone()
+        if not src:
+            raise HTTPException(404, "Deck not found")
+        if not src["is_public"]:
+            raise HTTPException(403, "Deck is private")
+        cur.execute(
+            "INSERT INTO decks (username, deck_name, user_id, is_public) "
+            "VALUES (%s, %s, %s, FALSE) RETURNING id",
+            (user["nickname"], f"{src['deck_name']} (Copy)", user["id"]),
+        )
+        new_id = cur.fetchone()["id"]
+        cur.execute("SELECT card_name, count FROM deck_cards WHERE deck_id=%s", (deck_id,))
+        for c in cur.fetchall():
+            cur.execute(
+                "INSERT INTO deck_cards (deck_id, card_name, count) VALUES (%s, %s, %s)",
+                (new_id, c["card_name"], c["count"]),
+            )
+    return {"ok": True, "deck_id": new_id}
+
+
+@api.post("/auth/me/decks/{deck_id}/publish")
+def publish_my_deck(deck_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute(
+            "UPDATE decks SET is_public=TRUE WHERE id=%s AND user_id=%s RETURNING id",
+            (deck_id, user["id"]),
+        )
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+    return {"ok": True}
+
+
+@api.post("/auth/me/decks/{deck_id}/unpublish")
+def unpublish_my_deck(deck_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute(
+            "UPDATE decks SET is_public=FALSE WHERE id=%s AND user_id=%s RETURNING id",
+            (deck_id, user["id"]),
+        )
+        if not cur.fetchone():
+            raise HTTPException(404, "Deck not found")
+    return {"ok": True}
+
+
+# ---------- Community deck browser with sort ----------
+@api.get("/decks/community")
+def get_community_decks_sorted(
+    sort: str = Query("upvotes", regex="^(upvotes|newest|trending)$"),
+    faction: Optional[str] = None,
+    request: Request = None,
+):
+    user = get_user_from_request(request) if request else None
+    user_email = user["email"] if user else None
+
+    order_sql = {
+        "upvotes":  "likes_count DESC, d.created_at DESC",
+        "newest":   "d.created_at DESC",
+        "trending": "recent_likes DESC, d.created_at DESC",
+    }[sort]
+
+    with DB() as cur:
+        cur.execute(f"""
+            SELECT d.id, d.username, d.deck_name, d.created_at, d.is_preconstructed,
+                   COALESCE(d.is_public, TRUE) as is_public,
+                   (SELECT COUNT(*) FROM deck_likes dl WHERE dl.deck_id = d.id) as likes_count,
+                   (SELECT COUNT(*) FROM deck_likes dl WHERE dl.deck_id = d.id AND dl.created_at >= NOW() - INTERVAL '7 days') as recent_likes
+            FROM decks d
+            WHERE COALESCE(d.is_public, TRUE) = TRUE
+            ORDER BY {order_sql}
+            LIMIT 80
+        """)
+        decks = [dict(r) for r in cur.fetchall()]
+        if not decks:
+            return []
+        deck_ids = tuple(d["id"] for d in decks)
+        cur.execute(
+            "SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url "
+            "FROM deck_cards dc LEFT JOIN cards c ON dc.card_name = c.name "
+            "WHERE dc.deck_id IN %s",
+            (deck_ids,),
+        )
+        cards = [dict(r) for r in cur.fetchall()]
+        user_likes = set()
+        if user_email:
+            cur.execute(
+                "SELECT deck_id FROM deck_likes WHERE user_email=%s AND deck_id IN %s",
+                (user_email, deck_ids),
+            )
+            user_likes = {r["deck_id"] for r in cur.fetchall()}
+        result = []
+        for d in decks:
+            d["created_at"] = str(d["created_at"])
+            d["cards"] = [c for c in cards if c["deck_id"] == d["id"]]
+            d["liked_by_me"] = d["id"] in user_likes
+            if faction:
+                # faction filter: at least one card in the deck matches
+                if not any(c.get("faction", "").lower() == faction.lower() for c in d["cards"]):
+                    continue
+            result.append(d)
+        return result
+
+
+# ---------- Referral link fetch for logged-in user ----------
+@api.get("/auth/me/referral")
+def get_my_referral(request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("SELECT referral_code, referrals FROM users WHERE id=%s", (user["id"],))
+        u = cur.fetchone()
+        cur.execute(
+            "SELECT COUNT(*) as c, COALESCE(SUM(reward_amount),0) as g "
+            "FROM referrals WHERE referrer_id=%s AND status='rewarded'",
+            (user["id"],),
+        )
+        stats = cur.fetchone()
+    return {
+        "referral_code": u["referral_code"] if u else None,
+        "referrals": (u["referrals"] if u else 0) or 0,
+        "verified_referrals": stats["c"] if stats else 0,
+        "glimmer_from_referrals": stats["g"] if stats else 0,
+    }
+
+
+# ---------- Moved from tail: routes must be BEFORE include_router ----------
+
+@api.get("/matchmaking/queue_size")
+def get_queue_size():
+    with DB() as cur:
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='WAITING' AND player2 IS NULL AND is_ranked = TRUE")
+        row = cur.fetchone()
+        return {"queue_size": row["c"] if row else 0}
+
+
+class OrderUpdateReq(BaseModel):
+    status: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
+
+
+@api.put("/admin/shop/orders/{order_id}")
+def update_admin_shop_order(order_id: int, req: OrderUpdateReq, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("""
+            UPDATE shop_orders
+            SET status=COALESCE(%s, status), first_name=COALESCE(%s, first_name),
+                last_name=COALESCE(%s, last_name), address=COALESCE(%s, address),
+                country=COALESCE(%s, country)
+            WHERE id=%s
+        """, (req.status, req.first_name, req.last_name, req.address, req.country, order_id))
+    return {"status": "success"}
+
+
+@api.delete("/admin/shop/orders/{order_id}")
+def delete_admin_shop_order(order_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("DELETE FROM shop_order_items WHERE order_id=%s", (order_id,))
+        cur.execute("DELETE FROM shop_orders WHERE id=%s", (order_id,))
+    return {"status": "success"}
+
+
+@api.post("/admin/users/{target_id}/reset-password")
+def admin_reset_user_password_v2(target_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(403)
+    import string, random
+    new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+    hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    with DB() as cur:
+        cur.execute("SELECT email, nickname FROM users WHERE id=%s", (target_id,))
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(404, "User not found")
+        cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hashed, target_id))
+    html = f"""
+    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0B0C10; color: #FFFFFF; padding: 40px; border-radius: 12px;">
+      <h1 style="color: #00BFFF; text-align: center;">Password Reset</h1>
+      <p>Hello {target['nickname']},</p>
+      <p>Your new temporary password is:</p>
+      <h2 style="text-align: center; color: #F2A900; background-color: #1a1a1a; padding: 10px; border-radius: 8px;">{new_password}</h2>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
+            "to": [target['email']],
+            "subject": "Your GlimmerFall Password Has Been Reset",
+            "html": html
+        })
+    except Exception as e:
+        logger.error(f"Failed to send reset email: {e}")
+    return {"status": "success", "message": "Password reset email sent."}
+
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -1460,77 +2018,3 @@ app.add_middleware(
 def _shutdown():
     DB_POOL.closeall()
 
-@api.get("/matchmaking/queue_size")
-def get_queue_size():
-    with DB() as cur:
-        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='WAITING' AND player2 IS NULL AND is_ranked = TRUE")
-        row = cur.fetchone()
-        return {"queue_size": row["c"] if row else 0}
-
-class OrderUpdateReq(BaseModel):
-    status: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    address: Optional[str] = None
-    country: Optional[str] = None
-
-@api.put("/admin/shop/orders/{order_id}")
-def update_admin_shop_order(order_id: int, req: OrderUpdateReq, request: Request):
-    user = get_user_from_request(request)
-    if not user or not user.get("is_admin"): raise HTTPException(403)
-    with DB() as cur:
-        cur.execute("""
-            UPDATE shop_orders 
-            SET status=COALESCE(%s, status), first_name=COALESCE(%s, first_name), 
-                last_name=COALESCE(%s, last_name), address=COALESCE(%s, address), 
-                country=COALESCE(%s, country)
-            WHERE id=%s
-        """, (req.status, req.first_name, req.last_name, req.address, req.country, order_id))
-    return {"status": "success"}
-
-@api.delete("/admin/shop/orders/{order_id}")
-def delete_admin_shop_order(order_id: int, request: Request):
-    user = get_user_from_request(request)
-    if not user or not user.get("is_admin"): raise HTTPException(403)
-    with DB() as cur:
-        # Delete related shop_order_items first, if any exist. Wait, does shop_order_items exist?
-        cur.execute("DELETE FROM shop_order_items WHERE order_id=%s", (order_id,))
-        cur.execute("DELETE FROM shop_orders WHERE id=%s", (order_id,))
-    return {"status": "success"}
-
-@api.post("/admin/users/{target_id}/reset-password")
-def admin_reset_user_password(target_id: int, request: Request):
-    user = get_user_from_request(request)
-    if not user or not user.get("is_admin"): raise HTTPException(403)
-    
-    import string, random
-    new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-    hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
-    with DB() as cur:
-        cur.execute("SELECT email, nickname FROM users WHERE id=%s", (target_id,))
-        target = cur.fetchone()
-        if not target: raise HTTPException(404, "User not found")
-        
-        cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hashed, target_id))
-        
-    html = f"""
-    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0B0C10; color: #FFFFFF; padding: 40px; border-radius: 12px; border: 1px solid #1F2937;">
-      <h1 style="color: #00BFFF; text-align: center;">Password Reset</h1>
-      <p>Hello {target['nickname']},</p>
-      <p>An administrator has reset your password for GlimmerFall. Your new temporary password is:</p>
-      <h2 style="text-align: center; color: #F2A900; background-color: #1a1a1a; padding: 10px; border-radius: 8px;">{new_password}</h2>
-      <p>Please log in and change your password immediately.</p>
-    </div>
-    """
-    try:
-        resend.Emails.send({
-            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
-            "to": [target['email']],
-            "subject": "Your GlimmerFall Password Has Been Reset",
-            "html": html
-        })
-    except Exception as e:
-        logger.error(f"Failed to send reset email: {e}")
-        
-    return {"status": "success", "message": "Password reset email sent."}

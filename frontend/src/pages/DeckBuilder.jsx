@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Trash2, Heart, Users, BookOpen, Download, ArrowLeft, Zap, Sword, MessageSquare, Send } from "lucide-react";
+import { Search, Plus, Trash2, Heart, Users, BookOpen, Download, ArrowLeft, Zap, Sword, MessageSquare, Send, Award, Clock, TrendingUp, Upload } from "lucide-react";
 import { api } from "@/lib/api";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import DeckEditor from "./DeckEditor";
 import CardTemplate from "@/components/CardTemplate";
 import { useAuth } from "@/lib/auth";
 
-const STORE_KEY = "glimmerfall_decks";
+const LEGACY_STORE_KEY = "glimmerfall_decks"; // for one-time migration
 
 export default function DeckBuilder() {
-  const [view, setView] = useState("hub"); // 'hub', 'editor'
-  const [activeTab, setActiveTab] = useState("community"); // 'community', 'my-decks'
+  const [view, setView] = useState("hub");
+  const [activeTab, setActiveTab] = useState("community");
   const [allDecks, setAllDecks] = useState([]);
   const [myDecks, setMyDecks] = useState([]);
   const [cards, setCards] = useState([]);
@@ -19,24 +19,100 @@ export default function DeckBuilder() {
   const [editorInitialDeck, setEditorInitialDeck] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  
+  const [sort, setSort] = useState("upvotes"); // upvotes | newest | trending
+
   const { user } = useAuth();
+
+  // Refresh community decks according to sort
+  const refreshCommunity = useCallback(() => {
+    api
+      .get(`/decks/community?sort=${sort}`)
+      .then((r) => setAllDecks(r.data))
+      .catch(() => {});
+  }, [sort]);
+
+  // Refresh caller's server-side personal decks
+  const refreshMyDecks = useCallback(async () => {
+    if (!user) {
+      // Anonymous: fall back to legacy localStorage so print/proxy still works.
+      try {
+        const raw = localStorage.getItem(LEGACY_STORE_KEY);
+        setMyDecks(raw ? JSON.parse(raw) : []);
+      } catch {
+        setMyDecks([]);
+      }
+      return;
+    }
+    try {
+      const r = await api.get("/auth/me/decks");
+      // Normalize to old shape ({id, name, cards:[{id,name,count}]})
+      const decks = (r.data || []).map((d) => ({
+        id: d.id,
+        name: d.deck_name,
+        is_public: d.is_public,
+        server: true,
+        cards: (d.cards || []).map((c) => ({
+          id: c.card_id || c.card_name,
+          name: c.card_name,
+          count: c.count,
+        })),
+      }));
+      setMyDecks(decks);
+    } catch (e) {
+      setMyDecks([]);
+    }
+  }, [user]);
+
+  // One-time migration: if the user just logged in and has localStorage decks,
+  // upload them to the server, then wipe localStorage so it never re-syncs.
+  const migrateLocalDecks = useCallback(async () => {
+    if (!user) return;
+    let raw;
+    try {
+      raw = localStorage.getItem(LEGACY_STORE_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || arr.length === 0) {
+        localStorage.removeItem(LEGACY_STORE_KEY);
+        return;
+      }
+      toast.info(`Migrating ${arr.length} local deck${arr.length === 1 ? "" : "s"} to your account…`);
+      let migrated = 0;
+      for (const d of arr) {
+        try {
+          await api.post("/auth/me/decks", {
+            deck_name: d.name || "Untitled",
+            deck_cards: (d.cards || []).map((c) => ({
+              card_name: c.name || c.id,
+              count: c.count,
+            })),
+          });
+          migrated++;
+        } catch (e) {}
+      }
+      if (migrated > 0) {
+        toast.success(`Migrated ${migrated} deck${migrated === 1 ? "" : "s"} to your account`);
+      }
+      localStorage.removeItem(LEGACY_STORE_KEY);
+      refreshMyDecks();
+    } catch (e) {}
+  }, [user, refreshMyDecks]);
 
   useEffect(() => {
     if (view !== "hub") return;
-    
     api.get("/decks").then((r) => setAllDecks(r.data)).catch(() => {});
     api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
-    
-    try {
-      setMyDecks(JSON.parse(localStorage.getItem(STORE_KEY) || "[]"));
-    } catch {
-      setMyDecks([]);
-    }
+    refreshMyDecks();
+    migrateLocalDecks();
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("tab") === "precon") setActiveTab("precon");
-  }, [view]);
+  }, [view, refreshMyDecks, migrateLocalDecks]);
+
+  useEffect(() => {
+    if (view !== "hub") return;
+    if (activeTab === "community") refreshCommunity();
+  }, [activeTab, sort, view, refreshCommunity]);
 
   useEffect(() => {
     if (viewDeck?.id) {
@@ -72,34 +148,55 @@ export default function DeckBuilder() {
     }
   };
 
-  const importDeck = (deck) => {
-    // deck cards from community might just have card_name, so resolve to id
-    const resolvedCards = [];
-    (deck.cards || []).forEach(c => {
-      const found = cards.find(fullCard => fullCard.name === (c.card_name || c.name));
-      if (found) {
-        resolvedCards.push({ id: found.id, name: found.name, count: c.count });
-      } else if (c.id) {
-        resolvedCards.push(c); // fallback if already resolved
-      }
-    });
-
-    const entry = {
-      id: Date.now(),
-      name: `${deck.username} - ${deck.deck_name || deck.name}`,
-      cards: resolvedCards
-    };
-
-    const next = [entry, ...myDecks].slice(0, 20);
-    setMyDecks(next);
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    toast.success(`Imported "${entry.name}" to My Decks!`);
+  const importDeck = async (deck) => {
+    // Community deck -> clone to caller's private deck list (server-side).
+    if (!user) {
+      // Anonymous fallback: keep the old localStorage import.
+      const resolvedCards = [];
+      (deck.cards || []).forEach(c => {
+        const found = cards.find(fullCard => fullCard.name === (c.card_name || c.name));
+        if (found) {
+          resolvedCards.push({ id: found.id, name: found.name, count: c.count });
+        } else if (c.id) {
+          resolvedCards.push(c);
+        }
+      });
+      const entry = {
+        id: Date.now(),
+        name: `${deck.username} - ${deck.deck_name || deck.name}`,
+        cards: resolvedCards,
+      };
+      const next = [entry, ...myDecks].slice(0, 20);
+      setMyDecks(next);
+      localStorage.setItem(LEGACY_STORE_KEY, JSON.stringify(next));
+      toast.success(`Imported "${entry.name}" to My Decks (login to sync to your account).`);
+      return;
+    }
+    try {
+      await api.post(`/decks/${deck.id}/clone`);
+      toast.success(`Cloned "${deck.deck_name || deck.name}" to My Decks!`);
+      refreshMyDecks();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to clone deck.");
+    }
   };
 
-  const deleteDeck = (id) => {
-    const next = myDecks.filter(d => d.id !== id);
+  const deleteDeck = async (id) => {
+    // Server-backed personal decks
+    if (user) {
+      try {
+        await api.delete(`/auth/me/decks/${id}`);
+        setMyDecks((prev) => prev.filter((d) => d.id !== id));
+        toast.success("Deck deleted.");
+      } catch (err) {
+        toast.error(err.response?.data?.detail || "Failed to delete deck.");
+      }
+      return;
+    }
+    // Anonymous localStorage fallback
+    const next = myDecks.filter((d) => d.id !== id);
     setMyDecks(next);
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    localStorage.setItem(LEGACY_STORE_KEY, JSON.stringify(next));
     toast.success("Deck deleted.");
   };
 
@@ -200,6 +297,30 @@ export default function DeckBuilder() {
       )}
 
       {activeTab === "community" && (
+        <>
+        <div className="flex justify-end mb-6 gap-2">
+          <button
+            onClick={() => setSort("upvotes")}
+            data-testid="community-sort-upvotes"
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-head text-sm transition-all ${sort === "upvotes" ? "bg-[#F2A900] text-black" : "glass text-white/60 hover:text-white"}`}
+          >
+            <Award className="w-4 h-4" /> Most Upvoted
+          </button>
+          <button
+            onClick={() => setSort("trending")}
+            data-testid="community-sort-trending"
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-head text-sm transition-all ${sort === "trending" ? "bg-[#F2A900] text-black" : "glass text-white/60 hover:text-white"}`}
+          >
+            <TrendingUp className="w-4 h-4" /> Trending 7d
+          </button>
+          <button
+            onClick={() => setSort("newest")}
+            data-testid="community-sort-newest"
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-head text-sm transition-all ${sort === "newest" ? "bg-[#F2A900] text-black" : "glass text-white/60 hover:text-white"}`}
+          >
+            <Clock className="w-4 h-4" /> Newest
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {allDecks.filter(d => !d.is_preconstructed).map(deck => (
             <div key={deck.id} className="glass-strong rounded-2xl p-6 relative group overflow-hidden border border-white/10 hover:border-[#F2A900]/50 transition-colors">
@@ -238,6 +359,7 @@ export default function DeckBuilder() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {activeTab === "my-decks" && (
@@ -255,10 +377,19 @@ export default function DeckBuilder() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {myDecks.map(deck => (
               <div key={deck.id} className="glass rounded-2xl p-6 relative group border border-white/5 hover:border-[#00BFFF]/50 transition-colors">
-                <h3 className="font-display text-xl font-bold text-white mb-1 truncate" title={deck.name}>{deck.name}</h3>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-display text-xl font-bold text-white truncate" title={deck.name}>{deck.name}</h3>
+                  {deck.server && (
+                    deck.is_public ? (
+                      <span title="Published to Community" className="text-[10px] font-head font-bold uppercase tracking-widest text-[#F2A900] bg-[#F2A900]/15 border border-[#F2A900]/30 px-2 py-0.5 rounded-full shrink-0">Public</span>
+                    ) : (
+                      <span title="Private (only you)" className="text-[10px] font-head font-bold uppercase tracking-widest text-white/40 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full shrink-0">Private</span>
+                    )
+                  )}
+                </div>
                 <p className="font-head text-sm text-white/40 mb-6">{deck.cards.reduce((acc, c) => acc + c.count, 0)} Cards</p>
-                
-                <div className="flex gap-2">
+
+                <div className="flex gap-2 flex-wrap">
                   <button onClick={() => {
                     const resolved = { ...deck, cards: deck.cards.map(c => ({ card_name: c.name || c.id, count: c.count })) };
                     setViewDeck(resolved);
@@ -268,6 +399,38 @@ export default function DeckBuilder() {
                   <button onClick={() => { setEditorInitialDeck(deck); setView("editor"); }} className="flex-1 py-2 rounded-xl bg-[#F2A900]/20 text-[#F2A900] hover:bg-[#F2A900]/40 font-head text-sm transition-colors flex items-center justify-center gap-2">
                     Edit
                   </button>
+                  {deck.server && user && (
+                    deck.is_public ? (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/auth/me/decks/${deck.id}/unpublish`);
+                            toast.success("Deck unpublished.");
+                            refreshMyDecks();
+                          } catch (e) { toast.error("Unpublish failed"); }
+                        }}
+                        title="Unpublish from Community"
+                        className="px-3 py-2 rounded-xl bg-red-500/15 text-red-300 hover:bg-red-500/30 font-head text-xs transition-colors"
+                      >
+                        <Upload className="w-4 h-4 rotate-180" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/auth/me/decks/${deck.id}/publish`);
+                            toast.success("Deck published to Community!");
+                            refreshMyDecks();
+                            refreshCommunity();
+                          } catch (e) { toast.error("Publish failed"); }
+                        }}
+                        title="Publish to Community"
+                        className="px-3 py-2 rounded-xl bg-[#00BFFF]/20 text-[#00BFFF] hover:bg-[#00BFFF]/40 font-head text-xs transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </button>
+                    )
+                  )}
                   <button onClick={() => deleteDeck(deck.id)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/10">
                     <Trash2 className="w-4 h-4" />
                   </button>

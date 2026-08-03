@@ -10,7 +10,7 @@ import CardTemplate from "@/components/CardTemplate";
 
 const DECK_MAX = 40;
 const COPY_MAX = 3;
-const STORE_KEY = "glimmerfall_decks";
+const LEGACY_STORE_KEY = "glimmerfall_decks";
 const PRINT_DECK_KEY = "gf_print_deck";
 
 const CardTooltip = ({ card, children, side="right" }) => {
@@ -54,20 +54,34 @@ export default function DeckEditor({ initialDeck, onExit }) {
   useEffect(() => {
     api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
     api.get("/starter-decks").then((r) => setStarters(r.data)).catch(() => {});
-    try {
-      setSaved(JSON.parse(localStorage.getItem(STORE_KEY) || "[]"));
-    } catch {
-      setSaved([]);
+    if (user) {
+      // Server-backed decks
+      api.get("/auth/me/decks").then((r) => {
+        setSaved((r.data || []).map(d => ({
+          id: d.id,
+          name: d.deck_name,
+          server: true,
+          is_public: d.is_public,
+          cards: (d.cards || []).map(c => ({ id: c.card_id || c.card_name, name: c.card_name, count: c.count })),
+        })));
+      }).catch(() => setSaved([]));
+    } else {
+      // Anonymous: legacy localStorage
+      try {
+        setSaved(JSON.parse(localStorage.getItem(LEGACY_STORE_KEY) || "[]"));
+      } catch {
+        setSaved([]);
+      }
     }
-  }, []);
+  }, [user]);
     
   useEffect(() => {
     // Auto-load initial deck if provided
     if (initialDeck && initialDeck.cards && cards.length > 0 && !hasLoadedInitial) {
       const nd = {};
       initialDeck.cards.forEach((e) => {
-        // e.id is usually the card ID from localStorage
-        const card = cards.find((c) => c.id === e.id || c.name === e.name);
+        // e.id may be a card ID (localStorage) or the card_name (server decks)
+        const card = cards.find((c) => c.id === e.id || c.name === e.name || c.name === e.id);
         if (card) nd[card.id] = { card, count: e.count };
       });
       setDeck(nd);
@@ -164,8 +178,38 @@ export default function DeckEditor({ initialDeck, onExit }) {
     }
   };
 
-  const saveDeck = () => {
+  const saveDeck = async () => {
     if (total === 0) return toast.error("Add some cards first.");
+    // Server-backed save when authed. Otherwise localStorage fallback.
+    if (user) {
+      const payload = {
+        deck_name: deckName || "Untitled",
+        deck_cards: Object.values(deck).map(({ card, count }) => ({ card_name: card.name, count })),
+      };
+      try {
+        if (initialDeck && initialDeck.server && initialDeck.id) {
+          // Update existing personal deck
+          await api.put(`/auth/me/decks/${initialDeck.id}`, payload);
+          toast.success(`Updated "${payload.deck_name}".`);
+        } else {
+          await api.post("/auth/me/decks", payload);
+          toast.success(`Saved "${payload.deck_name}" (${total} cards).`);
+        }
+        // reload
+        const r = await api.get("/auth/me/decks");
+        setSaved((r.data || []).map(d => ({
+          id: d.id,
+          name: d.deck_name,
+          server: true,
+          is_public: d.is_public,
+          cards: (d.cards || []).map(c => ({ id: c.card_id || c.card_name, name: c.card_name, count: c.count })),
+        })));
+      } catch (e) {
+        toast.error(e.response?.data?.detail || "Failed to save deck.");
+      }
+      return;
+    }
+    // Anonymous fallback
     const entry = {
       id: Date.now(),
       name: deckName || "Untitled",
@@ -173,14 +217,24 @@ export default function DeckEditor({ initialDeck, onExit }) {
     };
     const next = [entry, ...saved].slice(0, 20);
     setSaved(next);
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    toast.success(`Saved "${entry.name}" (${total} cards).`);
+    localStorage.setItem(LEGACY_STORE_KEY, JSON.stringify(next));
+    toast.success(`Saved "${entry.name}" locally (login to sync).`);
   };
 
-  const deleteSavedDeck = (id) => {
+  const deleteSavedDeck = async (id) => {
+    if (user) {
+      try {
+        await api.delete(`/auth/me/decks/${id}`);
+        setSaved((prev) => prev.filter((d) => d.id !== id));
+        toast.success("Deck deleted.");
+      } catch (e) {
+        toast.error(e.response?.data?.detail || "Failed to delete.");
+      }
+      return;
+    }
     const next = saved.filter(d => d.id !== id);
     setSaved(next);
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    localStorage.setItem(LEGACY_STORE_KEY, JSON.stringify(next));
     toast.success("Deck deleted.");
   };
 
@@ -210,7 +264,7 @@ export default function DeckEditor({ initialDeck, onExit }) {
   const loadDeck = (entry) => {
     const nd = {};
     entry.cards.forEach((e) => {
-      const card = cards.find((c) => c.id === e.id);
+      const card = cards.find((c) => c.id === e.id || c.name === e.name || c.name === e.id);
       if (card) nd[card.id] = { card, count: e.count };
     });
     setDeck(nd);

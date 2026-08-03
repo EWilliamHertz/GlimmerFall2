@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye } from 'lucide-react';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -88,12 +89,41 @@ function PlayerDashboard({ user, updateUser }) {
   const [matches, setMatches] = useState([]);
   const [friends, setFriends] = useState([]);
   const [friendInput, setFriendInput] = useState("");
+  const [referralInfo, setReferralInfo] = useState(null);
 
   useEffect(() => {
     api.get("/auth/me/quests").then(res => setQuests(res.data)).catch(console.error);
     api.get("/auth/me/matches").then(res => setMatches(res.data)).catch(console.error);
     api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
+    api.get("/auth/me/referral").then(res => setReferralInfo(res.data)).catch(() => {});
   }, []);
+
+  const claimQuest = async (qid) => {
+    try {
+      const res = await api.post(`/quests/${qid}/claim`);
+      toast.success(`Claimed +${res.data.credited} Glimmer!`);
+      // refresh quests
+      const r = await api.get("/auth/me/quests");
+      setQuests(r.data);
+      if (updateUser) updateUser({ glimmer_balance: res.data.balance });
+      // ping navbar widget to refresh
+      window.dispatchEvent(new CustomEvent("gf-glimmer-changed"));
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to claim");
+    }
+  };
+
+  const copyReferralLink = async () => {
+    if (!referralInfo?.referral_code && !user?.referral_code) return;
+    const code = referralInfo?.referral_code || user?.referral_code;
+    const url = `${window.location.origin}/?ref=${encodeURIComponent(code)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Referral link copied!");
+    } catch (e) {
+      toast.error("Copy failed - link: " + url);
+    }
+  };
 
   const handleSendFriendRequest = async (e) => {
     e.preventDefault();
@@ -201,6 +231,47 @@ function PlayerDashboard({ user, updateUser }) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 mt-8">
+        <div className="glass-strong p-6 rounded-3xl border border-[#00BFFF]/25 shadow-xl flex flex-col relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-6 opacity-10"><Sparkles className="w-32 h-32 text-[#00BFFF]" /></div>
+          <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-4 text-[#00BFFF] relative z-10">
+            <Sparkles className="w-6 h-6" /> Your Referral Link
+          </h3>
+          <p className="text-white/60 font-head text-sm mb-4 relative z-10 leading-relaxed">
+            Share this link. When a friend registers <span className="text-white">and verifies their email</span>, you earn <span className="text-[#F2A900] font-bold">100 Glimmer</span> and they get <span className="text-[#F2A900] font-bold">50 Glimmer</span>.
+          </p>
+          <div className="flex items-center gap-2 mb-4 relative z-10">
+            <code
+              data-testid="referral-link"
+              className="flex-1 truncate text-xs font-mono text-[#F2A900] bg-black/50 rounded-lg px-3 py-2.5 border border-[#F2A900]/25"
+            >
+              {(referralInfo?.referral_code || user?.referral_code)
+                ? `${window.location.origin}/?ref=${referralInfo?.referral_code || user?.referral_code}`
+                : "Loading..."}
+            </code>
+            <button
+              onClick={copyReferralLink}
+              data-testid="copy-referral-btn"
+              className="px-3 py-2.5 rounded-lg bg-[#F2A900]/20 text-[#F2A900] hover:bg-[#F2A900]/30 font-head text-xs font-bold inline-flex items-center gap-1.5"
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-auto relative z-10">
+            <div className="bg-black/40 rounded-xl p-3 border border-white/5">
+              <div className="text-[10px] text-white/40 font-head uppercase tracking-widest">Verified</div>
+              <div className="font-num text-2xl font-bold text-white">{referralInfo?.verified_referrals ?? 0}</div>
+            </div>
+            <div className="bg-black/40 rounded-xl p-3 border border-white/5">
+              <div className="text-[10px] text-white/40 font-head uppercase tracking-widest">Total Invited</div>
+              <div className="font-num text-2xl font-bold text-white">{referralInfo?.referrals ?? user?.referrals ?? 0}</div>
+            </div>
+            <div className="bg-black/40 rounded-xl p-3 border border-white/5">
+              <div className="text-[10px] text-white/40 font-head uppercase tracking-widest">Glimmer</div>
+              <div className="font-num text-2xl font-bold text-[#7FDBFF]">{referralInfo?.glimmer_from_referrals ?? 0}</div>
+            </div>
+          </div>
+        </div>
+
         <div className="glass-strong p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col">
           <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-6 text-[#F2A900]">
             <Target className="w-6 h-6" /> Daily Quests
@@ -211,14 +282,27 @@ function PlayerDashboard({ user, updateUser }) {
             ) : (
               quests.map(q => {
                 const progress = Math.min((q.current_value / q.target_value) * 100, 100);
+                const canClaim = q.is_completed && !q.reward_claimed && (q.reward_glimmer || 0) > 0;
                 return (
                   <div key={q.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-white uppercase tracking-wider text-sm">{q.description}</h4>
                         <p className="text-sm text-white/50 font-head mt-1">Reward: <span className="text-[#00BFFF] font-bold">{q.reward}</span></p>
                       </div>
-                      {progress >= 100 && <CheckCircle className="w-5 h-5 text-[#22E07B]" />}
+                      {q.reward_claimed ? (
+                        <span className="text-[10px] font-head uppercase tracking-widest text-white/40 shrink-0">Claimed</span>
+                      ) : canClaim ? (
+                        <button
+                          onClick={() => claimQuest(q.id)}
+                          data-testid={`claim-quest-${q.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F2A900] text-black text-xs font-head font-bold hover:bg-[#ffc21f] shadow-[0_0_15px_rgba(242,169,0,0.4)] shrink-0"
+                        >
+                          <Sparkles className="w-3 h-3" /> Claim +{q.reward_glimmer}
+                        </button>
+                      ) : progress >= 100 ? (
+                        <CheckCircle className="w-5 h-5 text-[#22E07B] shrink-0" />
+                      ) : null}
                     </div>
                     <div className="w-full bg-white/10 rounded-full h-2.5 mb-1 mt-3">
                       <div className="bg-[#F2A900] h-2.5 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(242,169,0,0.5)]" style={{ width: `${progress}%` }}></div>

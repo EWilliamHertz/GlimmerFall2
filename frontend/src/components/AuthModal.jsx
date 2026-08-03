@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose }) {
   const { login, register } = useAuth();
@@ -8,7 +8,21 @@ export default function AuthModal({ isOpen, onClose }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [faction, setFaction] = useState('solari');
-  
+  const [referrerCode, setReferrerCode] = useState('');
+
+  // Prefill referrer code from ?ref= URL param when the modal opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const ref = p.get('ref');
+      if (ref) {
+        setReferrerCode(ref.toLowerCase().trim());
+        setIsLogin(false); // switch to register when a ref link brought them
+      }
+    } catch (e) {}
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -16,7 +30,7 @@ export default function AuthModal({ isOpen, onClose }) {
     if (isLogin) {
       await login(email, password);
     } else {
-      await register(email, password, faction);
+      await register(email, password, faction, referrerCode || null);
     }
     onClose();
   };
@@ -87,6 +101,27 @@ export default function AuthModal({ isOpen, onClose }) {
                   <option value="terra">Terra (Earth)</option>
                   <option value="aether">Aether (Magic)</option>
                 </select>
+              </div>
+            )}
+
+            {!isLogin && (
+              <div>
+                <label className="block text-xs font-head text-white/60 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-[#F2A900]" /> Referral Code <span className="opacity-40 normal-case">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={referrerCode}
+                  onChange={(e) => setReferrerCode(e.target.value.toLowerCase().trim())}
+                  placeholder="Enter a friend's code to earn Glimmer"
+                  data-testid="auth-referrer-code"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 outline-none focus:border-[#F2A900] focus:ring-1 focus:ring-[#F2A900] transition-all font-mono lowercase"
+                />
+                {referrerCode && (
+                  <p className="text-[11px] text-[#F2A900]/80 mt-1.5 font-head">
+                    You'll earn <span className="font-bold">+50 Glimmer</span> when you verify your email.
+                  </p>
+                )}
               </div>
             )}
 

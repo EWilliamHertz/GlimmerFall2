@@ -37,9 +37,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, faction) => {
+  const register = async (email, password, faction, referrerCode = null) => {
     try {
-      const res = await api.post("/auth/register", { email, password, faction });
+      const payload = { email, password, faction };
+      if (referrerCode) payload.referrer_code = referrerCode;
+      const res = await api.post("/auth/register", payload);
       toast.success(res.data.message);
     } catch (e) {
       toast.error(e.response?.data?.detail || "Registration failed");
