@@ -11,6 +11,7 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
 
   const handleCheckout = async () => {
     try {
@@ -72,7 +73,11 @@ export default function Shop() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("success")) {
+    if (params.get("success") && params.get("session_id")) {
+      api.get(`/shop/orders/session/${params.get("session_id")}`)
+        .then(res => setReceiptData(res.data))
+        .catch(e => toast.error("Payment successful, but failed to load receipt details."));
+    } else if (params.get("success")) {
       toast.success("Payment successful! Your order will be processed.");
     }
     if (params.get("canceled")) {
@@ -182,6 +187,74 @@ export default function Shop() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Receipt Modal */}
+      <Dialog open={!!receiptData} onOpenChange={(v) => !v && setReceiptData(null)}>
+        <DialogContent className="glass-strong border-white/20 bg-black/95 max-w-2xl p-0 overflow-hidden">
+          {receiptData && (
+            <div>
+              <div className="bg-[#00BFFF]/20 border-b border-[#00BFFF]/30 p-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-[#00BFFF]/20 flex items-center justify-center mx-auto mb-4 text-[#00BFFF]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+                <DialogTitle className="font-display text-3xl font-bold text-white mb-2">Payment Successful!</DialogTitle>
+                <p className="text-[#00BFFF] font-head">Order #{receiptData.id} • Confirmed</p>
+              </div>
+              
+              <div className="p-8 font-head text-white/90">
+                <div className="mb-8">
+                  <h4 className="text-white/50 text-sm font-bold uppercase tracking-wider mb-2">Order Summary</h4>
+                  <div className="space-y-2 bg-black/40 rounded-xl p-4 border border-white/10">
+                    {receiptData.items?.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                        <div>
+                          <div className="font-bold text-white">{item.product_name}</div>
+                          <div className="text-white/50 text-sm">Qty: {item.quantity}</div>
+                        </div>
+                        <div className="font-mono text-[#F2A900]">${parseFloat(item.price_at_purchase).toFixed(2)}</div>
+                      </div>
+                    ))}
+                    <div className="pt-2 flex justify-between items-center text-sm">
+                      <span className="text-white/50">Shipping</span>
+                      <span className="font-mono">${parseFloat(receiptData.shipping_cost || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="pt-2 flex justify-between items-center text-lg font-bold border-t border-white/10 mt-2">
+                      <span>Total Paid</span>
+                      <span className="font-mono text-[#22E07B]">${parseFloat(receiptData.total_amount || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-8 mb-6">
+                  <div>
+                    <h4 className="text-white/50 text-sm font-bold uppercase tracking-wider mb-2">Shipping To</h4>
+                    <p className="text-white bg-black/40 rounded-xl p-4 border border-white/10 h-full">
+                      <span className="font-bold block text-[#00BFFF] mb-1">{receiptData.first_name} {receiptData.last_name}</span>
+                      {receiptData.address}<br/>
+                      {receiptData.country}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-white/50 text-sm font-bold uppercase tracking-wider mb-2">Estimated Delivery</h4>
+                    <div className="bg-black/40 rounded-xl p-4 border border-white/10 h-full flex flex-col justify-center items-center text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F2A900] mb-2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                      <span className="font-bold text-lg">{receiptData.delivery_eta || "3-7 Days"}</span>
+                      <span className="text-white/50 text-sm">After Dispatch</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center mt-8">
+                  <p className="text-white/40 text-sm mb-4">A copy of this receipt has been sent to {receiptData.user_email}.</p>
+                  <Button onClick={() => setReceiptData(null)} className="w-full bg-white text-black hover:bg-white/90 font-bold py-3 rounded-xl transition-all">
+                    Continue Browsing
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {selectedProduct && (
         <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>

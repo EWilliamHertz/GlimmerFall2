@@ -93,6 +93,7 @@ def new_player(username, deck):
 def new_match_state(p1_name, deck1, p2_name, deck2, is_ai=False):
     # If playing against AI, we just skip the dice roll to keep it simple, or auto-roll it.
     # Let's set phase to DICE_ROLL.
+    import time
     state = {
         "players": {"1": new_player(p1_name, deck1), "2": new_player(p2_name, deck2)},
         "turn": 1,
@@ -102,6 +103,7 @@ def new_match_state(p1_name, deck1, p2_name, deck2, is_ai=False):
         "winner": None,
         "isAI": is_ai,
         "log": [f"Match begins! {p1_name} vs {p2_name}."],
+        "turnStartedAt": int(time.time() * 1000)
     }
     
     if is_ai:
@@ -648,6 +650,8 @@ class ActionError(Exception):
 
 
 def start_turn(state, slot):
+    import time
+    state["turnStartedAt"] = int(time.time() * 1000)
     pl = state["players"][slot]
     pl["energy"] = pl["maxEnergy"]
     pl["hasDrawnThisTurn"] = False
@@ -1125,6 +1129,8 @@ def apply_action(state, slot, action_type, payload):
                 winner = "1" if r1 > r2 else "2"
                 state["activePlayer"] = int(winner)
                 state["phase"] = "PLAYING"
+                import time
+                state["turnStartedAt"] = int(time.time() * 1000)
                 log(state, f"{state['players'][winner]['username']} goes first!")
                 log(state, f"{state['players'][winner]['username']}'s turn 1.")
         return state
