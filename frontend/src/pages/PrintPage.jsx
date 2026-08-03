@@ -50,7 +50,7 @@ export default function PrintPage({ isPlaytest = false }) {
     starters.forEach((sd) => s.push({ id: "starter-" + sd.id, label: sd.deck_name, desc: sd.description, kind: "starter", ref: sd, count: (sd.cards || []).reduce((a, c) => a + (c.count || 1), 0) }));
     savedDecks.forEach((d) => s.push({ id: "saved-" + d.id, label: d.name, desc: "Your saved custom deck.", kind: "saved", ref: d, count: d.cards.reduce((a, c) => a + (c.count || 1), 0) }));
     return s;
-  }, [master, starters, savedDecks, builderDeck]);
+  }, [master, starters, savedDecks, builderDeck, isPlaytest]);
 
   const selected = sources.find((s) => s.id === selId) || sources[0];
 
