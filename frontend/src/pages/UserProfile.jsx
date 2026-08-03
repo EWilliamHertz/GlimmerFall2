@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
-import { Activity, Crosshair, Users, Trophy } from "lucide-react";
+import { Activity, Crosshair, Users, Trophy, Medal } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function UserProfile() {
@@ -67,6 +67,20 @@ export default function UserProfile() {
           <p className="text-white/60 mt-1">MMR: {profile.matchmaking?.mmr || 1200}</p>
         </div>
       </div>
+
+      {(profile.badges || []).length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-display text-xl font-bold mb-4 text-white/80">Achievements</h3>
+          <div className="flex flex-wrap gap-3">
+            {profile.badges.map((badge, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-gradient-to-br from-[#9B30FF]/20 to-[#F2A900]/20 border border-white/10 px-4 py-2 rounded-full font-head text-sm font-bold text-white/90 shadow-lg shadow-black/50">
+                <Medal className="w-4 h-4 text-[#F2A900]" />
+                {badge}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -106,7 +106,7 @@ function Lobby({ onStart }) {
     fetchQueue();
     const int = setInterval(fetchQueue, 5000);
     return () => clearInterval(int);
-  }, []);
+  }, [user]);
 
   const go = async (mode) => {
     if (!username.trim()) return toast.error("Enter a summoner name.");

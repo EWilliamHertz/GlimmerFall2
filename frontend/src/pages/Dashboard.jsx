@@ -230,6 +230,20 @@ function PlayerDashboard({ user, updateUser }) {
         </div>
       </div>
 
+      {(user.badges || []).length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-display text-xl font-bold mb-4 text-white/80">Achievements</h3>
+          <div className="flex flex-wrap gap-3">
+            {user.badges.map((badge, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-gradient-to-br from-[#9B30FF]/20 to-[#F2A900]/20 border border-white/10 px-4 py-2 rounded-full font-head text-sm font-bold text-white/90 shadow-lg shadow-black/50">
+                <Medal className="w-4 h-4 text-[#F2A900]" />
+                {badge}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-8 mt-8">
         <div className="glass-strong p-6 rounded-3xl border border-[#00BFFF]/25 shadow-xl flex flex-col relative overflow-hidden">
           <div className="absolute top-0 right-0 p-6 opacity-10"><Sparkles className="w-32 h-32 text-[#00BFFF]" /></div>
@@ -1045,7 +1059,8 @@ function AdminPanel({ user }) {
                   <th className="pb-3">Username</th>
                   <th className="pb-3">Email</th>
                   <th className="pb-3">Role</th>
-                  {isOwner && <th className="pb-3">Actions</th>}
+                  <th className="pb-3">Status</th>
+                  <th className="pb-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1061,35 +1076,58 @@ function AdminPanel({ user }) {
                         <span className="text-white/50 text-sm">Player</span>
                       )}
                     </td>
-                    {isOwner && (
-                      <td className="py-4">
-                        <div className="flex gap-2">
-                          {(u.email !== "swagyser9@gmail.com") && (
-                            <button 
-                              onClick={() => handleToggleAdmin(u.id)}
-                              className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${u.is_admin ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-                            >
-                              {u.is_admin ? "Revoke Admin" : "Make Admin"}
-                            </button>
-                          )}
-                          <button
-                            onClick={async () => {
-                              if(confirm(`Are you sure you want to reset the password for ${u.username}?`)) {
-                                try {
-                                  await api.post(`/admin/users/${u.id}/reset-password`);
-                                  alert("Password reset email sent!");
-                                } catch(err) {
-                                  alert("Failed to reset password.");
-                                }
+                    <td className="py-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${u.status === 'active' ? 'bg-green-500/20 text-green-400' : u.status === 'suspended' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {(u.status || 'active').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex gap-2">
+                        {isOwner && (u.email !== "swagyser9@gmail.com") && (
+                          <button 
+                            onClick={() => handleToggleAdmin(u.id)}
+                            className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${u.is_admin ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                          >
+                            {u.is_admin ? "Revoke Admin" : "Make Admin"}
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if(confirm(`Are you sure you want to reset the password for ${u.username}?`)) {
+                              try {
+                                await api.post(`/admin/users/${u.id}/reset-password`);
+                                toast.success("Password reset email sent!");
+                              } catch(e) {
+                                toast.error("Failed to reset password.");
+                              }
+                            }
+                          }}
+                          className="bg-white/10 text-white/70 hover:bg-white/20 px-3 py-1 rounded-md text-xs font-bold transition-colors"
+                        >
+                          Reset Pass
+                        </button>
+                        
+                        {(u.email !== "swagyser9@gmail.com" && !u.is_admin) && (
+                          <select 
+                            value={u.status || 'active'} 
+                            onChange={async (e) => {
+                              try {
+                                await api.put(`/admin/users/${u.id}/status`, { status: e.target.value });
+                                toast.success("User status updated!");
+                                fetchData();
+                              } catch (err) {
+                                toast.error("Failed to update status");
                               }
                             }}
-                            className="px-3 py-1 rounded-md text-xs font-bold transition-colors bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
+                            className="bg-black/40 border border-white/10 rounded-md p-1 text-xs text-white outline-none"
                           >
-                            Reset Password
-                          </button>
-                        </div>
-                      </td>
-                    )}
+                            <option value="active">Active</option>
+                            <option value="suspended">Suspended</option>
+                            <option value="banned">Banned</option>
+                          </select>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
