@@ -122,7 +122,7 @@ export const CardTemplate = ({
         <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to top, ${f.color}33 0%, transparent 55%)` }} />
 
         {/* RARE — subtle holo strip that tracks mouse */}
-        {isRare && (
+        {isRare && tilt && (
           <motion.div
             className="pointer-events-none absolute inset-0"
             style={{
@@ -138,7 +138,7 @@ export const CardTemplate = ({
         )}
 
         {/* EPIC — animated rainbow foil shimmer that tracks mouse */}
-        {isEpic && (
+        {isEpic && tilt && (
           <>
             <motion.div
               className="pointer-events-none absolute inset-0"
