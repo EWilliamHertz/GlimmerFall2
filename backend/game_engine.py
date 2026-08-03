@@ -1133,6 +1133,12 @@ def apply_action(state, slot, action_type, payload):
                 state["turnStartedAt"] = int(time.time() * 1000)
                 log(state, f"{state['players'][winner]['username']} goes first!")
                 log(state, f"{state['players'][winner]['username']}'s turn 1.")
+                
+                # If vs AI and AI won the dice roll, let it take its first turn immediately.
+                if state.get("isAI") and str(winner) == "2":
+                    ai_take_turn(state)
+                update_auras(state)
+                
         return state
 
     if action_type not in ACTION_MAP:

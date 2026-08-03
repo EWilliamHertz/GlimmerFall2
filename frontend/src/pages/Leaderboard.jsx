@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { Trophy, Swords, Medal, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Leaderboard() {
   const [players, setPlayers] = useState([]);
@@ -76,14 +77,14 @@ export default function Leaderboard() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-4">
+                        <Link to={`/profile/${player.nickname}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
                           <img 
                             src={player.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.nickname}` : player.avatar} 
                             alt={player.nickname} 
                             className={`w-12 h-12 rounded-full object-cover border-2 ${index === 0 ? 'border-[#F2A900] shadow-[0_0_10px_rgba(242,169,0,0.5)]' : 'border-white/20'}`}
                           />
                           <span className="font-bold text-lg">{player.nickname}</span>
-                        </div>
+                        </Link>
                       </td>
                       <td className="py-4 px-4 text-white/70">
                         {player.faction || "Unaligned"}

@@ -10,6 +10,20 @@ export const AuthProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  React.useEffect(() => {
+    if (user && localStorage.getItem('glimmerfall_token')) {
+      api.get("/auth/me").then(res => {
+        setUser(res.data);
+        localStorage.setItem('glimmerfall_user', JSON.stringify(res.data));
+      }).catch(e => {
+        // Token expired or invalid
+        if (e.response?.status === 401) {
+          logout();
+        }
+      });
+    }
+  }, []);
+
   const login = async (email, password) => {
     try {
       const res = await api.post("/auth/login", { email, password });
