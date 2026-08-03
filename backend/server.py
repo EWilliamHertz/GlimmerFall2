@@ -625,20 +625,41 @@ def redact_state(state, viewer_slot):
 
 @api.get("/match")
 def get_match(id: int = Query(...), slot: int = Query(1)):
+    import time
+    from game_engine import apply_action
+    
     with DB() as cur:
         cur.execute("SELECT * FROM matches WHERE id=%s", (id,))
         m = cur.fetchone()
-    if not m:
-        raise HTTPException(404, "Match not found")
-    state = m["state"]
+        
+        if not m:
+            raise HTTPException(404, "Match not found")
+        
+        state = m["state"]
+        
+        # Enforce turn timer for ranked matches
+        if m["is_ranked"] and state.get("phase") == "PLAYING" and state.get("turnStartedAt"):
+            elapsed_ms = int(time.time() * 1000) - state["turnStartedAt"]
+            if elapsed_ms > 90000: # 90 seconds rope
+                try:
+                    active = str(state.get("activePlayer", 1))
+                    state = apply_action(state, active, "END_TURN", {})
+                    cur.execute(
+                        "UPDATE matches SET current_turn=%s, active_player=%s, state=%s WHERE id=%s",
+                        (state["turn"], state["activePlayer"], json.dumps(state), id)
+                    )
+                except Exception as e:
+                    pass
+
     return {
         "matchId": m["id"],
         "roomCode": m["room_code"],
         "status": m["status"],
-        "turn": m["current_turn"],
+        "turn": state.get("turn", m["current_turn"]),
         "activePlayer": state.get("activePlayer"),
         "player1": m["player1"],
         "player2": m["player2"],
+        "is_ranked": m["is_ranked"],
         "state": redact_state(state, slot),
     }
 
@@ -1078,7 +1099,16 @@ def admin_get_shop_orders(request: Request):
         raise HTTPException(403, "Access denied")
     with DB() as cur:
         cur.execute("SELECT * FROM shop_orders ORDER BY created_at DESC")
-        return cur.fetchall()
+        orders = cur.fetchall()
+        for o in orders:
+            cur.execute("""
+                SELECT i.*, p.name as product_name 
+                FROM shop_order_items i
+                LEFT JOIN shop_products p ON i.product_id = p.id
+                WHERE i.order_id = %s
+            """, (o["id"],))
+            o["items"] = cur.fetchall()
+        return orders
 
 
 @api.get("/shop/products")
@@ -1202,24 +1232,45 @@ def shop_checkout(req: CheckoutReq, request: Request):
                     },
                 }
             ],
-            success_url=request.headers.get("origin", "http://localhost:3000") + "/shop?success=true",
+            success_url=request.headers.get("origin", "http://localhost:3000") + "/shop?success=true&session_id={CHECKOUT_SESSION_ID}",
             cancel_url=request.headers.get("origin", "http://localhost:3000") + "/shop?canceled=true",
         )
         
         # Save pending order
         cur.execute(
             "INSERT INTO shop_orders (user_id, stripe_session_id, status, total_weight_kg, total_amount, total_cogs) VALUES (%s, %s, 'PENDING', %s, %s, %s) RETURNING id",
-            (user['id'] if user else None, session.id, total_weight, total_amount, sum(float(p.get("buy_in_price") or 0.0) * q for p, q in products_info))
+            (user['id'] if user else None, session.id, total_weight, total_amount, sum(float(p.get("cost_price") or p.get("buy_in_price") or 0.0) * q for p, q in products_info))
         )
         order_id = cur.fetchone()["id"]
         
         for prod, qty in products_info:
             cur.execute(
                 "INSERT INTO shop_order_items (order_id, product_id, quantity, price_at_purchase, buy_in_price_at_purchase) VALUES (%s, %s, %s, %s, %s)",
-                (order_id, prod["id"], qty, prod["price"], prod.get("buy_in_price") or 0.0)
+                (order_id, prod["id"], qty, prod["price"], prod.get("cost_price") or prod.get("buy_in_price") or 0.0)
             )
             
         return {"url": session.url}
+
+@api.get("/shop/orders/session/{session_id}")
+def get_order_by_session(session_id: str):
+    with DB() as cur:
+        cur.execute("SELECT * FROM shop_orders WHERE stripe_session_id = %s", (session_id,))
+        order = cur.fetchone()
+        if not order:
+            raise HTTPException(404, "Order not found")
+        
+        cur.execute("""
+            SELECT i.*, p.name as product_name 
+            FROM shop_order_items i
+            LEFT JOIN shop_products p ON i.product_id = p.id
+            WHERE i.order_id = %s
+        """, (order["id"],))
+        order["items"] = cur.fetchall()
+        
+        # Add a rough ETA string based on current data
+        # If it's a pre-order, the ETA is the product's ETA. Otherwise, 3-7 days.
+        order["delivery_eta"] = "3-7 business days"
+        return order
 
 @api.post("/shop/webhook")
 async def stripe_webhook(request: Request):
@@ -1279,13 +1330,69 @@ async def stripe_webhook(request: Request):
             updated = cur.fetchone()
             if updated and customer_email:
                 order_id = updated["id"]
+                
+                # Fetch items for the email
+                cur.execute("""
+                    SELECT i.*, p.name as product_name 
+                    FROM shop_order_items i
+                    LEFT JOIN shop_products p ON i.product_id = p.id
+                    WHERE i.order_id = %s
+                """, (order_id,))
+                items = cur.fetchall()
+                
+                items_html = ""
+                for item in items:
+                    items_html += f'''
+                    <tr>
+                        <td style="padding: 12px; border-bottom: 1px solid #333; color: #fff;">{item.get('product_name', 'Unknown Product')}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #333; color: #aaa; text-align: center;">x{item.get('quantity', 1)}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #333; color: #22E07B; text-align: right;">${item.get('price_at_purchase', 0)}</td>
+                    </tr>
+                    '''
+                
                 # Send receipt via Resend
-                receipt_html = f"<h2>Thank you for your GlimmerFall order!</h2><p>Your Order ID is <b>#{order_id}</b>.</p><p>We will ship your items to:<br>{first_name} {last_name}<br>{address_str.strip(', ')}</p><p>You will receive another email when your order ships.</p>"
+                receipt_html = f'''
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0d0d0d; color: #ffffff; padding: 40px 20px; max-width: 600px; margin: 0 auto; border-radius: 8px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #F2A900; margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 2px;">GlimmerFall</h1>
+                        <p style="color: #00BFFF; font-size: 14px; margin-top: 5px;">The Multiverse TCG</p>
+                    </div>
+                    
+                    <p style="font-size: 16px; line-height: 1.5; color: #e0e0e0;">
+                        Greetings <strong>{first_name} {last_name}</strong>,<br><br>
+                        The Void acknowledges your tribute. Your order <strong>#{order_id}</strong> has been secured and is being prepared by our scribes. Whether you wield the blinding light of the Solari, the raw elemental wrath of Gaia, the necrotic persistence of the Graveglass, or the chronomancy of the Fractured Continuum, your journey is about to ascend.
+                    </p>
+                    
+                    <div style="background-color: #1a1a1a; border-radius: 8px; padding: 20px; margin-top: 30px;">
+                        <h3 style="color: #F2A900; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;">Order Summary</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            {items_html}
+                        </table>
+                        <div style="margin-top: 20px; text-align: right;">
+                            <p style="color: #aaa; margin: 5px 0;">Shipping: ${shipping_cost}</p>
+                            <p style="color: #F2A900; font-size: 18px; font-weight: bold; margin: 5px 0;">Total Paid: ${total_amount}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="background-color: #1a1a1a; border-radius: 8px; padding: 20px; margin-top: 20px;">
+                        <h3 style="color: #00BFFF; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 10px;">Shipping Destination</h3>
+                        <p style="color: #ccc; line-height: 1.5; margin-bottom: 0;">
+                            {address_str.strip(", ")}<br>{country}
+                        </p>
+                    </div>
+                    
+                    <p style="text-align: center; color: #666; font-size: 12px; margin-top: 40px;">
+                        May the Glimmer guide your path.<br>
+                        © 2026 GlimmerFall TCG
+                    </p>
+                </div>
+                '''
+                
                 try:
                     resend.Emails.send({
                         "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
                         "to": [customer_email],
-                        "subject": f"Receipt for GlimmerFall Order #{order_id}",
+                        "subject": f"Your GlimmerFall Order #{order_id} is Confirmed",
                         "html": receipt_html
                     })
                 except Exception as e:
@@ -1344,3 +1451,40 @@ def delete_admin_shop_order(order_id: int, request: Request):
         cur.execute("DELETE FROM shop_order_items WHERE order_id=%s", (order_id,))
         cur.execute("DELETE FROM shop_orders WHERE id=%s", (order_id,))
     return {"status": "success"}
+
+@api.post("/admin/users/{target_id}/reset-password")
+def admin_reset_user_password(target_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    
+    import string, random
+    new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+    hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    with DB() as cur:
+        cur.execute("SELECT email, nickname FROM users WHERE id=%s", (target_id,))
+        target = cur.fetchone()
+        if not target: raise HTTPException(404, "User not found")
+        
+        cur.execute("UPDATE users SET password_hash=%s WHERE id=%s", (hashed, target_id))
+        
+    html = f"""
+    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0B0C10; color: #FFFFFF; padding: 40px; border-radius: 12px; border: 1px solid #1F2937;">
+      <h1 style="color: #00BFFF; text-align: center;">Password Reset</h1>
+      <p>Hello {target['nickname']},</p>
+      <p>An administrator has reset your password for GlimmerFall. Your new temporary password is:</p>
+      <h2 style="text-align: center; color: #F2A900; background-color: #1a1a1a; padding: 10px; border-radius: 8px;">{new_password}</h2>
+      <p>Please log in and change your password immediately.</p>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
+            "to": [target['email']],
+            "subject": "Your GlimmerFall Password Has Been Reset",
+            "html": html
+        })
+    except Exception as e:
+        logger.error(f"Failed to send reset email: {e}")
+        
+    return {"status": "success", "message": "Password reset email sent."}

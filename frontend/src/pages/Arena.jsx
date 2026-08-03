@@ -423,6 +423,39 @@ function DropZone({ id, className, children, active, label }) {
 /* ------------------------------------------------------------------ */
 /* GAME BOARD                                                         */
 /* ------------------------------------------------------------------ */
+function TurnTimer({ turnStartedAt, isRanked, phase }) {
+  const [timeLeft, setTimeLeft] = useState(90000);
+
+  useEffect(() => {
+    if (!isRanked || phase !== "PLAYING" || !turnStartedAt) return;
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - turnStartedAt;
+      setTimeLeft(Math.max(0, 90000 - elapsed));
+    }, 100);
+    return () => clearInterval(interval);
+  }, [turnStartedAt, isRanked, phase]);
+
+  if (!isRanked || phase !== "PLAYING" || !turnStartedAt) return null;
+
+  const pct = (timeLeft / 90000) * 100;
+  const isDanger = timeLeft < 15000;
+
+  return (
+    <div className="w-full max-w-xl mx-auto h-1.5 bg-black/40 rounded-full relative mt-2 overflow-hidden shadow-sm">
+      <div 
+        className={`absolute top-0 bottom-0 left-0 transition-all duration-100 ease-linear ${isDanger ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'bg-[#F2A900] shadow-[0_0_8px_rgba(242,169,0,0.6)]'}`} 
+        style={{ width: `${pct}%` }}
+      />
+      {pct > 0 && (
+        <div 
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_8px_4px_rgba(255,255,255,0.8)] pointer-events-none z-10 animate-pulse"
+          style={{ left: `calc(${pct}% - 6px)` }}
+        />
+      )}
+    </div>
+  );
+}
+
 function GameBoard({ session, match, refresh, onExit }) {
   const slot = String(session.slot);
   const oppSlot = slot === "1" ? "2" : "1";
@@ -690,12 +723,15 @@ function GameBoard({ session, match, refresh, onExit }) {
         </div>
 
         {/* center status */}
-        <div className="flex items-center justify-center gap-4 py-1">
-          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
-          <span className={`font-head text-sm px-4 py-1.5 rounded-full ${isMyTurn ? "bg-[#F2A900] text-black font-semibold" : "glass text-white/60"}`} data-testid="turn-indicator">
-            {ended ? "Match Over" : isMyTurn ? "Your Turn" : `${opp.username}'s Turn`} · Turn {state.turn}
-          </span>
-          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
+        <div className="flex flex-col items-center justify-center gap-1 py-1">
+          <div className="flex items-center justify-center gap-4 w-full">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
+            <span className={`font-head text-sm px-4 py-1.5 rounded-full ${isMyTurn ? "bg-[#F2A900] text-black font-semibold" : "glass text-white/60"}`} data-testid="turn-indicator">
+              {ended ? "Match Over" : isMyTurn ? "Your Turn" : `${opp.username}'s Turn`} · Turn {state.turn}
+            </span>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
+          </div>
+          <TurnTimer turnStartedAt={state.turnStartedAt} isRanked={match.is_ranked} phase={state.phase} />
         </div>
 
         {/* player battlefield */}

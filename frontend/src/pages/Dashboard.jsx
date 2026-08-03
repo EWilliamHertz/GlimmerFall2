@@ -855,6 +855,24 @@ function AdminPanel({ user }) {
                   <div><span className="text-white/50">Customer:</span> {selectedOrder.first_name} {selectedOrder.last_name} ({selectedOrder.user_email || 'No email'})</div>
                   <div><span className="text-white/50">Phone:</span> {selectedOrder.phone || 'N/A'}</div>
                   <div><span className="text-white/50">Address:</span> {selectedOrder.address}, {selectedOrder.country}</div>
+                  
+                  {selectedOrder.items && selectedOrder.items.length > 0 && (
+                    <>
+                      <hr className="border-white/10 my-4" />
+                      <div className="text-white/50 mb-2">Purchased Items:</div>
+                      <div className="space-y-2">
+                        {selectedOrder.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                            <div>
+                              <span className="font-bold">{item.product_name || 'Unknown Product'}</span>
+                              <span className="text-white/50 ml-2">x{item.quantity}</span>
+                            </div>
+                            <span className="text-[#22E07B]">${(parseFloat(item.price_at_purchase) * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <hr className="border-white/10 my-4" />
                   <div className="flex justify-between"><span className="text-white/50">Total Paid (incl. Shipping/Tax):</span> <span className="font-bold text-[#22E07B]">${selectedOrder.total_amount}</span></div>
                   <div className="flex justify-between"><span className="text-white/50">Shipping Cost:</span> <span className="text-red-400">-${selectedOrder.shipping_cost || 0}</span></div>
@@ -961,14 +979,31 @@ function AdminPanel({ user }) {
                     </td>
                     {isOwner && (
                       <td className="py-4">
-                        {(u.email !== "swagyser9@gmail.com") && (
-                          <button 
-                            onClick={() => handleToggleAdmin(u.id)}
-                            className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${u.is_admin ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                        <div className="flex gap-2">
+                          {(u.email !== "swagyser9@gmail.com") && (
+                            <button 
+                              onClick={() => handleToggleAdmin(u.id)}
+                              className={`px-3 py-1 rounded-md text-xs font-bold transition-colors ${u.is_admin ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+                            >
+                              {u.is_admin ? "Revoke Admin" : "Make Admin"}
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if(confirm(`Are you sure you want to reset the password for ${u.username}?`)) {
+                                try {
+                                  await api.post(`/admin/users/${u.id}/reset-password`);
+                                  alert("Password reset email sent!");
+                                } catch(err) {
+                                  alert("Failed to reset password.");
+                                }
+                              }
+                            }}
+                            className="px-3 py-1 rounded-md text-xs font-bold transition-colors bg-blue-500/20 text-blue-400 hover:bg-blue-500/40"
                           >
-                            {u.is_admin ? "Revoke Admin" : "Make Admin"}
+                            Reset Password
                           </button>
-                        )}
+                        </div>
                       </td>
                     )}
                   </tr>
