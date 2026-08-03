@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Users, Trophy, Vote, Swords, Video, MessageSquare, Hammer, ChevronUp, PlusCircle, X } from "lucide-react";
+import { Users, Trophy, Vote, Swords, Video, MessageSquare, Hammer, ChevronUp, PlusCircle, X, Palette } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import CardTemplate from "@/components/CardTemplate";
@@ -99,6 +99,16 @@ export default function Community() {
           <MessageSquare className="w-6 h-6" />
           Join the Official Discord
         </a>
+      </div>
+
+      {/* Artist Announcement Banner */}
+      <div className="bg-[#00BFFF]/10 border border-[#00BFFF]/30 rounded-2xl p-6 text-center shadow-lg shadow-[#00BFFF]/5">
+        <h3 className="text-[#00BFFF] font-display font-bold text-xl mb-2 flex items-center justify-center gap-2">
+          <Palette className="w-6 h-6" /> Calling All Artists!
+        </h3>
+        <p className="text-white/80 font-head">
+          We are currently receiving inquiries regarding artists designing and painting cards for the upcoming expansion. If you are interested, please reach out to us!
+        </p>
       </div>
 
       {/* Alpha Polls */}
