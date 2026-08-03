@@ -12,6 +12,7 @@ export default function Community() {
   const [decks, setDecks] = useState([]);
   const [loadingDecks, setLoadingDecks] = useState(true);
   const [polls, setPolls] = useState([]);
+  const [eligibleContestants, setEligibleContestants] = useState([]);
 
   // The Forge state
   const [customCards, setCustomCards] = useState([]);
@@ -35,6 +36,7 @@ export default function Community() {
       setLoadingDecks(false);
     });
     api.get("/polls").then(r => setPolls(r.data)).catch(console.error);
+    api.get("/giveaway/eligible").then(r => setEligibleContestants(r.data)).catch(console.error);
   }, []);
 
   const handleVotePoll = async (pollId, optionId) => {
@@ -110,6 +112,90 @@ export default function Community() {
           We are currently receiving inquiries regarding artists designing and painting cards for the upcoming expansion. If you are interested, please reach out to us!
         </p>
       </div>
+
+      {/* Summer Giveaway Section */}
+      <section className="bg-gradient-to-br from-[#9B30FF]/20 to-black border border-[#9B30FF]/30 rounded-3xl p-8 relative overflow-hidden shadow-2xl shadow-[#9B30FF]/10">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <Trophy className="w-64 h-64 text-[#9B30FF]" />
+        </div>
+        <div className="relative z-10">
+          <div className="inline-block bg-[#9B30FF] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest mb-4">
+            Ends September 3rd, 2026
+          </div>
+          <h2 className="font-display text-4xl font-bold mb-4 text-[#F2A900] flex items-center gap-3">
+            <Trophy className="w-10 h-10" /> GlimmerFall Grand Giveaway
+          </h2>
+          <p className="text-white/80 font-head text-lg mb-8 max-w-2xl">
+            We are giving away massive physical card prizes to celebrate the launch of GlimmerFall! Complete the requirements below to automatically enter the draw.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div>
+              <h3 className="font-display text-2xl font-bold mb-4 text-white">How to Enter</h3>
+              <ul className="space-y-4 mb-8 font-head">
+                <li className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#00BFFF]/20 text-[#00BFFF] flex items-center justify-center shrink-0 font-bold">1</div>
+                  <div>
+                    <strong className="block text-[#00BFFF]">Play 3 Matches Against the AI</strong>
+                    <span className="text-white/60 text-sm">Test your deck against our bot in the Arena.</span>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#22E07B]/20 text-[#22E07B] flex items-center justify-center shrink-0 font-bold">2</div>
+                  <div>
+                    <strong className="block text-[#22E07B]">Refer 1 Friend</strong>
+                    <span className="text-white/60 text-sm">Share your referral link from your Profile. Your friend must verify their email.</span>
+                  </div>
+                </li>
+              </ul>
+
+              <h3 className="font-display text-2xl font-bold mb-4 text-white">The Prizes</h3>
+              <div className="space-y-3 font-head">
+                <div className="glass p-4 rounded-xl border-l-4 border-[#F2A900]">
+                  <strong className="text-[#F2A900] block text-lg">1st Place</strong>
+                  <span className="text-white/80">1x Booster Box + 2x Starter Decks</span>
+                </div>
+                <div className="glass p-4 rounded-xl border-l-4 border-[#C0C0C0]">
+                  <strong className="text-[#C0C0C0] block text-lg">2nd Place</strong>
+                  <span className="text-white/80">2x Starter Decks (of your choice)</span>
+                </div>
+                <div className="glass p-4 rounded-xl border-l-4 border-[#CD7F32]">
+                  <strong className="text-[#CD7F32] block text-lg">3rd Place</strong>
+                  <span className="text-white/80">1x Starter Deck</span>
+                </div>
+                <p className="text-white/40 text-xs italic mt-2">* Physical prizes will ship out as soon as stock has arrived.</p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-display text-2xl font-bold mb-4 text-[#9B30FF] flex items-center gap-2">
+                <Users className="w-6 h-6" /> Eligible Contestants ({eligibleContestants.length})
+              </h3>
+              <div className="glass rounded-2xl p-4 h-[400px] overflow-y-auto custom-scrollbar">
+                {eligibleContestants.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-white/40 font-head text-center">
+                    <Trophy className="w-12 h-12 mb-3 opacity-20" />
+                    <p>No one has met the requirements yet.<br/>Be the first to secure your spot!</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {eligibleContestants.map((c, i) => (
+                      <div key={i} className="flex items-center gap-3 bg-black/40 p-3 rounded-xl border border-white/5">
+                        <img 
+                          src={c.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.nickname}` : c.avatar} 
+                          alt={c.nickname} 
+                          className="w-10 h-10 rounded-full object-cover border border-white/20"
+                        />
+                        <span className="font-head font-bold text-white/90 truncate">{c.nickname}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Alpha Polls */}
       {polls.length > 0 && (
