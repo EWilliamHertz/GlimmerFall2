@@ -1241,33 +1241,40 @@ async def stripe_webhook(request: Request):
         session = event['data']['object']
         session_id = session.get('id')
         
-        shipping = session.get('shipping_details')
-        customer_email = session.get('customer_details', {}).get('email')
-        phone = session.get('customer_details', {}).get('phone')
+        shipping = session.get('shipping_details') or {}
+        customer_details = session.get('customer_details') or {}
+        customer_email = customer_details.get('email')
+        phone = customer_details.get('phone') or shipping.get('phone')
         
-        address_str = ""
-        country = ""
-        first_name = ""
-        last_name = ""
-        shipping_json = json.dumps(shipping) if shipping else None
-        customer_name = ""
+        # Address fallback to customer_details if shipping_details is empty
+        addr_dict = shipping.get('address') or customer_details.get('address') or {}
+        country = addr_dict.get('country', '')
         
-        if shipping:
-            customer_name = shipping.get('name', '')
-            name_parts = customer_name.split(' ', 1)
-            first_name = name_parts[0] if name_parts else ""
-            last_name = name_parts[1] if len(name_parts) > 1 else ""
-            addr = shipping.get('address', {})
-            country = addr.get('country', '')
-            address_str = f"{addr.get('line1', '')}, {addr.get('line2', '')}, {addr.get('city', '')}, {addr.get('state', '')}, {addr.get('postal_code', '')}, {country}"
-        total_details = session.get('total_details', {})
+        address_parts = [
+            addr_dict.get('line1'),
+            addr_dict.get('line2'),
+            addr_dict.get('city'),
+            addr_dict.get('state'),
+            addr_dict.get('postal_code')
+        ]
+        address_str = ", ".join([p for p in address_parts if p])
+        
+        customer_name = shipping.get('name') or customer_details.get('name') or ""
+        name_parts = customer_name.split(' ', 1)
+        first_name = name_parts[0] if name_parts else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+        
+        shipping_json = json.dumps(addr_dict)
+        
+        total_details = session.get('total_details') or {}
         shipping_cost = (total_details.get('amount_shipping') or 0) / 100.0
         tax_amount = (total_details.get('amount_tax') or 0) / 100.0
+        total_amount = (session.get('amount_total') or 0) / 100.0
             
         with DB() as cur:
             cur.execute(
-                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s, shipping_cost=%s, tax_amount=%s, phone=%s, user_email=%s, customer_name=%s, shipping_address=%s WHERE stripe_session_id=%s RETURNING id",
-                (first_name, last_name, address_str.strip(", "), country, shipping_cost, tax_amount, phone, customer_email, customer_name, shipping_json, session_id)
+                "UPDATE shop_orders SET status='PAID', first_name=%s, last_name=%s, address=%s, country=%s, shipping_cost=%s, tax_amount=%s, phone=%s, user_email=%s, customer_name=%s, shipping_address=%s, total_amount=%s WHERE stripe_session_id=%s RETURNING id",
+                (first_name, last_name, address_str.strip(", "), country, shipping_cost, tax_amount, phone, customer_email, customer_name, shipping_json, total_amount, session_id)
             )
             updated = cur.fetchone()
             if updated and customer_email:
