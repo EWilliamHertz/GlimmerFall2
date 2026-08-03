@@ -20,6 +20,7 @@ import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/h
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
+import ProjectileLayer, { fireAttackProjectile } from "@/components/ProjectileLayer";
 import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
@@ -496,9 +497,39 @@ function GameBoard({ session, match, refresh, onExit }) {
         return;
       }
       setBusy(true);
+
+      // Fire attack projectile BEFORE we roundtrip to server so it feels responsive.
+      // Compute damage from current client state; visuals only (server is source of truth).
+      try {
+        if (action === "ATTACK_ENTITY" || action === "ATTACK_NEXUS") {
+          const myBf = state.players[slot]?.battlefield || [];
+          const attacker = myBf.find((e) => e.instanceId === payload.attackerId);
+          const dmg = attacker?.power ?? 0;
+          const faction = attacker?.faction || "Solari";
+          const sourceTestId = `my-entity-${payload.attackerId}`;
+          if (action === "ATTACK_ENTITY") {
+            fireAttackProjectile({
+              sourceTestId,
+              targetTestId: `enemy-entity-${payload.targetId}`,
+              faction,
+              damage: dmg,
+              kind: "entity",
+            });
+          } else {
+            fireAttackProjectile({
+              sourceTestId,
+              targetTestId: "enemy-nexus",
+              faction,
+              damage: dmg,
+              kind: "nexus",
+            });
+          }
+        }
+      } catch (e) {}
+
       try {
         const r = await api.post("/action", { matchId: session.matchId, slot: session.slot, action, payload });
-        
+
         // play sounds based on action
         if (action === "DRAW_CARD") playSound("draw", muted);
         if (action === "PLAY_CARD") playSound("play", muted);
@@ -506,7 +537,7 @@ function GameBoard({ session, match, refresh, onExit }) {
         if (action === "ATTACK_NEXUS") playSound("nexus_hit", muted);
         if (action === "CAST_SPELL") playSound("spell", muted);
         if (action === "END_TURN") playSound("pass", muted);
-        
+
         refresh(r.data.state);
       } catch (e) {
         toast.error(e.response?.data?.detail || "Illegal move.");
@@ -514,7 +545,7 @@ function GameBoard({ session, match, refresh, onExit }) {
         setBusy(false);
       }
     },
-    [session, refresh, muted]
+    [session, refresh, muted, state, slot]
   );
 
   const handleMakeChoice = (payload) => {
@@ -609,6 +640,141 @@ function GameBoard({ session, match, refresh, onExit }) {
   const primaryFaction = me.hand?.[0]?.faction || me.resonanceRow?.[0]?.faction || "solari";
   const ambientTrack = `/audio/ambient_${primaryFaction.toLowerCase().split(',')[0]}.mp3`;
 
+  // Detect opponent attacks by diffing previous state -> current state
+  const prevStateRef = useRef(null);
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    prevStateRef.current = state;
+    if (!prev || session.isReplay) return;
+    try {
+      const prevOpp = prev.players?.[oppSlot];
+      const prevMe = prev.players?.[slot];
+      if (!prevOpp || !prevMe) return;
+
+      // Opponent attacked our Nexus -> HP drop
+      if (prevMe.hp != null && me.hp != null && me.hp < prevMe.hp) {
+        // Find likely attacker (opp entity that became exhausted this transition)
+        const prevBf = prevOpp.battlefield || [];
+        const curBf = opp.battlefield || [];
+        let attacker = curBf.find((e) => {
+          const before = prevBf.find((p) => p.instanceId === e.instanceId);
+          return before && !before.exhausted && e.exhausted;
+        });
+        if (!attacker) attacker = curBf.find((e) => e.exhausted) || curBf[0];
+        if (attacker) {
+          fireAttackProjectile({
+            sourceTestId: `enemy-entity-${attacker.instanceId}`,
+            targetTestId: "my-nexus",
+            faction: attacker.faction || "Umbri",
+            damage: prevMe.hp - me.hp,
+            kind: "nexus",
+          });
+          playSound("nexus_hit", muted);
+        }
+      }
+
+      // Opponent attacked one of our entities -> entity health drop or entity removed
+      const prevMyBf = prevMe.battlefield || [];
+      const curMyBf = me.battlefield || [];
+      for (const before of prevMyBf) {
+        const after = curMyBf.find((e) => e.instanceId === before.instanceId);
+        const damaged = after && before.curHealth != null && after.curHealth != null && after.curHealth < before.curHealth;
+        const killed = !after; // entity removed entirely (may be from spell too, best effort)
+        if (damaged || killed) {
+          const dmg = damaged ? before.curHealth - after.curHealth : (before.curHealth ?? before.health ?? 1);
+          // Try to find opp attacker that became exhausted
+          const prevOppBf = prevOpp.battlefield || [];
+          const curOppBf = opp.battlefield || [];
+          const attacker = curOppBf.find((e) => {
+            const b = prevOppBf.find((p) => p.instanceId === e.instanceId);
+            return b && !b.exhausted && e.exhausted;
+          });
+          if (attacker && damaged) {
+            fireAttackProjectile({
+              sourceTestId: `enemy-entity-${attacker.instanceId}`,
+              targetTestId: `my-entity-${before.instanceId}`,
+              faction: attacker.faction || "Umbri",
+              damage: dmg,
+              kind: "entity",
+            });
+            playSound("attack", muted);
+          }
+          break; // one strike per transition to avoid stacking
+        }
+      }
+    } catch (e) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  // Adaptive Audio: shift playbackRate/volume when either Nexus is in danger (<10 HP).
+  const isDanger = !ended && ((me.hp ?? 25) <= 10 || (opp.hp ?? 25) <= 10);
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const targetRate = isDanger ? 1.15 : 1.0;
+    const targetVol = muted ? 0 : isDanger ? 0.22 : 0.15;
+    const startRate = audio.playbackRate;
+    const startVol = audio.volume;
+    const t0 = performance.now();
+    const dur = 900;
+    let raf = 0;
+    const tick = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      audio.playbackRate = startRate + (targetRate - startRate) * k;
+      audio.volume = Math.max(0, Math.min(1, startVol + (targetVol - startVol) * k));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isDanger, muted]);
+
+  // Web Audio API heartbeat when Nexus is in danger
+  useEffect(() => {
+    if (!isDanger || muted) return;
+    let ac;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ac = new AC();
+    } catch (e) {
+      return;
+    }
+    let cancelled = false;
+    const thump = (delayMs = 0, freq = 55, peak = 0.35) => {
+      setTimeout(() => {
+        if (cancelled || ac.state === "closed") return;
+        try {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.type = "sine";
+          const now = ac.currentTime;
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.55), now + 0.16);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(peak, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.connect(gain).connect(ac.destination);
+          osc.start(now);
+          osc.stop(now + 0.32);
+        } catch (e) {}
+      }, delayMs);
+    };
+    const beat = () => {
+      if (cancelled) return;
+      thump(0, 60, 0.38);
+      thump(220, 50, 0.28);
+    };
+    const iv = setInterval(beat, 1200);
+    beat();
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      try {
+        ac.close();
+      } catch (e) {}
+    };
+  }, [isDanger, muted]);
+
   const wasEndedRef = useRef(false);
   useEffect(() => {
     if (ended && !wasEndedRef.current) playSound(String(state.winner) === slot ? "victory" : "defeat", muted);
@@ -618,6 +784,11 @@ function GameBoard({ session, match, refresh, onExit }) {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <audio ref={audioRef} src={ambientTrack} autoPlay loop />
+      <ProjectileLayer />
+      {isDanger && (
+        <div className="pointer-events-none fixed inset-0 z-[45]" style={{ boxShadow: "inset 0 0 120px 20px rgba(255,20,40,0.35)", animation: "gf-danger-pulse 1.2s ease-in-out infinite" }} />
+      )}
+      <style>{`@keyframes gf-danger-pulse { 0%, 100% { opacity: 0.55 } 50% { opacity: 1 } }`}</style>
       <button type="button" onClick={() => setMuted(v => !v)} aria-label={muted ? "Unmute audio" : "Mute audio"} className="fixed top-20 right-4 z-40 glass rounded-lg px-3 py-2 text-xs font-head text-white/80 hover:text-white">{muted ? "🔇 Sound off" : "🔊 Sound on"}</button>
       {state.phase === "DICE_ROLL" && <DiceRollModal state={state} slot={slot} act={act} />}
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">

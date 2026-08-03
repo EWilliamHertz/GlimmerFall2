@@ -23,6 +23,15 @@ const kwList = (card) => {
   return String(k).split(",").map((s) => s.trim()).filter(Boolean);
 };
 
+// Rarity-scaled tilt: subtle for common cards, dramatic for Epic
+const TILT_BY_RARITY = {
+  Common: 11,
+  Uncommon: 11,
+  Rare: 15,
+  Epic: 20,
+  "Founders Foil": 20,
+};
+
 export const CardTemplate = ({
   card,
   size = "md",
@@ -44,8 +53,13 @@ export const CardTemplate = ({
   const ref = useRef(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [11, -11]), { stiffness: 220, damping: 16 });
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-11, 11]), { stiffness: 220, damping: 16 });
+  const tiltDeg = TILT_BY_RARITY[card?.rarity] || 11;
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [tiltDeg, -tiltDeg]), { stiffness: 220, damping: 16 });
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-tiltDeg, tiltDeg]), { stiffness: 220, damping: 16 });
+  // Mouse-tracked positions for holo strip (Rare) and foil shimmer (Epic)
+  const foilX = useTransform(mx, [-0.5, 0.5], ["-30%", "130%"]);
+  const foilY = useTransform(my, [-0.5, 0.5], ["-30%", "130%"]);
+  const stripX = useTransform(mx, [-0.5, 0.5], ["-40%", "140%"]);
   const [hover, setHover] = useState(false);
 
   const f = factionCfg(card?.faction);
@@ -68,7 +82,8 @@ export const CardTemplate = ({
   const reset = () => { mx.set(0); my.set(0); setHover(false); };
 
   const img = hidden ? CARDBACK : card?.image_url && card.image_url !== "None" ? card.image_url : CARDBACK;
-  const isHolo = !hidden && (card?.rarity === "Epic" || card?.rarity === "Founders Foil");
+  const isRare = !hidden && card?.rarity === "Rare";
+  const isEpic = !hidden && (card?.rarity === "Epic" || card?.rarity === "Founders Foil");
 
   if (hidden) {
     return (
@@ -106,8 +121,68 @@ export const CardTemplate = ({
         {/* faction background tint */}
         <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to top, ${f.color}33 0%, transparent 55%)` }} />
 
-        {isHolo && (
-          <div className="pointer-events-none absolute inset-0" style={{ mixBlendMode: "color-dodge", opacity: hover ? 0.55 : 0.28, transition: "opacity .3s", background: "linear-gradient(115deg, transparent 18%, rgba(179,229,252,.6) 38%, rgba(255,235,59,.5) 50%, rgba(224,64,251,.6) 62%, transparent 82%)" }} />
+        {/* RARE — subtle holo strip that tracks mouse */}
+        {isRare && (
+          <motion.div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              mixBlendMode: "color-dodge",
+              opacity: hover ? 0.5 : 0.22,
+              transition: "opacity .3s",
+              background: `linear-gradient(115deg, transparent 42%, rgba(255,235,150,0.55) 49%, rgba(255,255,255,0.85) 52%, rgba(150,235,255,0.55) 55%, transparent 62%)`,
+              backgroundSize: "220% 220%",
+              backgroundPositionX: stripX,
+              backgroundPositionY: stripX,
+            }}
+          />
+        )}
+
+        {/* EPIC — animated rainbow foil shimmer that tracks mouse */}
+        {isEpic && (
+          <>
+            <motion.div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                mixBlendMode: "color-dodge",
+                opacity: hover ? 0.75 : 0.35,
+                transition: "opacity .3s",
+                background:
+                  "conic-gradient(from 0deg, #ff3ea5, #ffd53e, #3eff8f, #3ebfff, #a63eff, #ff3ea5)",
+                backgroundSize: "260% 260%",
+                backgroundPositionX: foilX,
+                backgroundPositionY: foilY,
+                filter: "blur(6px) saturate(1.4)",
+              }}
+            />
+            <motion.div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                mixBlendMode: "overlay",
+                opacity: hover ? 0.85 : 0.5,
+                transition: "opacity .3s",
+                background:
+                  "linear-gradient(115deg, transparent 18%, rgba(179,229,252,.7) 36%, rgba(255,235,59,.6) 50%, rgba(224,64,251,.7) 64%, transparent 82%)",
+                backgroundSize: "180% 180%",
+                backgroundPositionX: stripX,
+                backgroundPositionY: stripX,
+              }}
+            />
+            {/* Idle sparkle for legendary/epic cards - subtle sheen even without hover */}
+            {hover && (
+              <motion.div
+                className="pointer-events-none absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.6, 0], backgroundPositionX: ["0%", "150%"] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
+                style={{
+                  mixBlendMode: "screen",
+                  background:
+                    "linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.85) 50%, transparent 60%)",
+                  backgroundSize: "220% 100%",
+                }}
+              />
+            )}
+          </>
         )}
 
         {/* bottom info panel */}
