@@ -15,6 +15,35 @@ MAX_ENERGY = 12
 AI_NAME = "GlimmerBot"
 
 
+# Quest progress hook. server.py assigns this to bump_quest_progress after
+# import so we avoid a circular import. Signature: (nickname, event, meta).
+def _noop_quest_hook(nickname, event, meta=None):
+    pass
+
+
+_quest_hook = _noop_quest_hook
+
+
+def set_quest_hook(fn):
+    """Called by server.py at import time to inject the real bumper."""
+    global _quest_hook
+    _quest_hook = fn or _noop_quest_hook
+
+
+def _q(state, slot, event, meta=None):
+    """Safe quest progress bump. Skips AI opponent (GlimmerBot)."""
+    try:
+        pl = state["players"].get(str(slot))
+        if not pl:
+            return
+        # Only real (non-AI) players earn quest progress
+        if pl.get("username") == AI_NAME:
+            return
+        _quest_hook(pl["username"], event, meta or {})
+    except Exception:
+        pass
+
+
 def _uid(prefix="i"):
     return f"{prefix}_{uuid.uuid4().hex[:9]}"
 
@@ -589,10 +618,12 @@ def check_win(state):
         state["phase"] = "ENDED"
         state["winner"] = 1
         log(state, f"{p1['username']} wins the match!")
+        _q(state, "1", "win_game", {"amount": 1})
     elif p1["hp"] <= 0:
         state["phase"] = "ENDED"
         state["winner"] = 2
         log(state, f"{p2['username']} wins the match!")
+        _q(state, "2", "win_game", {"amount": 1})
 
 
 def apply_death_trigger(state, slot, entity):
@@ -745,6 +776,7 @@ def do_play_card(state, slot, payload):
         card["exhausted"] = False  # no summoning sickness
         pl["battlefield"].append(card)
         log(state, f"{pl['username']} deployed {card['name']}.")
+        _q(state, slot, "play_faction_entity", {"amount": 1, "faction": card.get("faction") or ""})
         apply_enters_trigger(state, slot, card)
         low = (card.get("description") or "").lower()
         if "when deployed" in low or "when this entity is deployed" in low:
@@ -811,6 +843,10 @@ def do_cast_spell(state, slot, payload):
         log(state, f"{pl['username']} cast {card['name']}. ({card['description']})")
 
     pl["void"].append(card)
+    if card["cardType"] == "Rite":
+        _q(state, slot, "play_rite", {"amount": 1})
+    elif card["cardType"] == "Flash":
+        _q(state, slot, "play_flash", {"amount": 1})
     cleanup_dead(state)
     check_win(state)
 
@@ -897,6 +933,8 @@ def do_attack_nexus(state, slot, payload):
     if "Stealth" in atk["keywords"]:
         atk["keywords"].remove("Stealth")
     log(state, f"{atk['name']} struck {dp['username']}'s Nexus for {dmg}.")
+    if dmg > 0:
+        _q(state, slot, "nexus_damage", {"amount": dmg})
 
     trigger_nexus_damage(state, slot, atk, dp)
         

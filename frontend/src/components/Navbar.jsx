@@ -4,6 +4,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { LOGO } from "@/lib/factions";
 import { useAuth } from "@/lib/auth";
 import AuthModal from "@/components/AuthModal";
+import GlimmerPurse from "@/components/GlimmerPurse";
 
 const NAV_GROUPS = [
   {
@@ -108,13 +109,16 @@ export const Navbar = () => {
 
         {/* CTA */}
         {user ? (
-          <Link
-            to="/dashboard"
-            data-testid="nav-dashboard"
-            className="hidden md:block px-4 py-1.5 rounded-full font-head text-sm font-semibold text-black bg-[#00BFFF] hover:bg-[#20caff] transition-colors shadow-[0_0_20px_rgba(0,191,255,0.4)]"
-          >
-            Dashboard
-          </Link>
+          <div className="hidden md:flex items-center gap-3">
+            <GlimmerPurse />
+            <Link
+              to="/dashboard"
+              data-testid="nav-dashboard"
+              className="px-4 py-1.5 rounded-full font-head text-sm font-semibold text-black bg-[#00BFFF] hover:bg-[#20caff] transition-colors shadow-[0_0_20px_rgba(0,191,255,0.4)]"
+            >
+              Dashboard
+            </Link>
+          </div>
         ) : (
           <button
             onClick={() => setAuthOpen(true)}

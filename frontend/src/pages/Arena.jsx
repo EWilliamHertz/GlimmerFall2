@@ -78,10 +78,24 @@ function Lobby({ onStart }) {
   const [queueSize, setQueueSize] = useState(0);
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("glimmerfall_decks") || "{}");
-      setPersonalDecks(Object.values(stored));
-    } catch(e){}
+    // Fetch personal decks from server for logged-in users, fall back to
+    // localStorage for anonymous users.
+    if (user) {
+      api.get("/auth/me/decks").then((r) => {
+        const decks = (r.data || []).map((d) => ({
+          id: d.id,
+          name: d.deck_name,
+          cards: (d.cards || []).map((c) => ({ id: c.card_id || c.card_name, name: c.card_name, count: c.count })),
+        }));
+        setPersonalDecks(decks);
+      }).catch(() => setPersonalDecks([]));
+    } else {
+      try {
+        const stored = JSON.parse(localStorage.getItem("glimmerfall_decks") || "[]");
+        // Old format was an object keyed by id; new format is an array.
+        setPersonalDecks(Array.isArray(stored) ? stored : Object.values(stored));
+      } catch (e) { setPersonalDecks([]); }
+    }
 
     const fetchQueue = async () => {
       try {
