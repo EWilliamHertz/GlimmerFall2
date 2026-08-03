@@ -11,16 +11,20 @@ const PER_PAGE = 9;
 const PRINT_DECK_KEY = "gf_print_deck";
 const SAVED_KEY = "glimmerfall_decks";
 
-export default function PrintPage() {
+export default function PrintPage({ isPlaytest = false }) {
   const location = useLocation();
   const [master, setMaster] = useState([]);
   const [starters, setStarters] = useState([]);
   const [savedDecks, setSavedDecks] = useState([]);
   const [builderDeck, setBuilderDeck] = useState(null);
-  const [selId, setSelId] = useState("full");
-  const [mode, setMode] = useState("hobby"); // hobby | pro
+  const [selId, setSelId] = useState(isPlaytest ? "starter-1" : "full");
+  const [mode, setMode] = useState(isPlaytest ? "hobby" : "hobby"); // hobby | pro
   const [backMode, setBackMode] = useState("single"); // single | each | none
   const [gen, setGen] = useState(null); // svg generation progress
+
+  useEffect(() => {
+    if (isPlaytest) setMode("hobby");
+  }, [isPlaytest]);
 
   useEffect(() => {
     api.get("/cards").then((r) => setMaster(r.data));
@@ -38,7 +42,10 @@ export default function PrintPage() {
   const byName = useMemo(() => Object.fromEntries(master.map((c) => [c.name, c])), [master]);
 
   const sources = useMemo(() => {
-    const s = [{ id: "full", label: "Complete Set", desc: "All 100 GlimmerFall cards from The Awakening.", kind: "full", count: master.length }];
+    const s = [];
+    if (!isPlaytest) {
+      s.push({ id: "full", label: "Complete Set", desc: "All 100 GlimmerFall cards from The Awakening.", kind: "full", count: master.length });
+    }
     if (builderDeck) s.push({ id: "builder", label: builderDeck.name + " (Builder)", desc: "The deck currently open in the Deck Builder.", kind: "builder", count: builderDeck.cards.reduce((a, c) => a + (c.count || 1), 0) });
     starters.forEach((sd) => s.push({ id: "starter-" + sd.id, label: sd.deck_name, desc: sd.description, kind: "starter", ref: sd, count: (sd.cards || []).reduce((a, c) => a + (c.count || 1), 0) }));
     savedDecks.forEach((d) => s.push({ id: "saved-" + d.id, label: d.name, desc: "Your saved custom deck.", kind: "saved", ref: d, count: d.cards.reduce((a, c) => a + (c.count || 1), 0) }));
@@ -174,10 +181,12 @@ export default function PrintPage() {
                 <div className="font-head text-sm font-semibold flex items-center gap-2"><Package className="w-4 h-4" /> Hobby Proxy</div>
                 <div className="text-white/50 text-xs mt-0.5">9 cards per A4 page · print to PDF</div>
               </button>
-              <button onClick={() => setMode("pro")} data-testid="print-mode-pro" className={`text-left px-3 py-2.5 rounded-lg border transition-all ${mode === "pro" ? "border-[#00BFFF] bg-[#00BFFF]/10" : "border-white/10"}`}>
-                <div className="font-head text-sm font-semibold flex items-center gap-2"><Layers className="w-4 h-4" /> Professional</div>
-                <div className="text-white/50 text-xs mt-0.5">1 card / page · 63×88mm +3mm bleed · SVG + PDF</div>
-              </button>
+              {!isPlaytest && (
+                <button onClick={() => setMode("pro")} data-testid="print-mode-pro" className={`text-left px-3 py-2.5 rounded-lg border transition-all ${mode === "pro" ? "border-[#00BFFF] bg-[#00BFFF]/10" : "border-white/10"}`}>
+                  <div className="font-head text-sm font-semibold flex items-center gap-2"><Layers className="w-4 h-4" /> Professional</div>
+                  <div className="text-white/50 text-xs mt-0.5">1 card / page · 63×88mm +3mm bleed · SVG + PDF</div>
+                </button>
+              )}
             </div>
           </div>
 
