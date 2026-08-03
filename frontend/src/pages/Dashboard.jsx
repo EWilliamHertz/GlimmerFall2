@@ -675,100 +675,125 @@ function AdminPanel({ user }) {
       </div>
 
       {adminTab === "telemetry" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in zoom-in-95">
+        <div className="space-y-6 animate-in fade-in zoom-in-95">
           {!telemetry ? <div className="text-white/50">Loading telemetry...</div> : (
             <>
-              {/* Deck Win Rates */}
-              <section className="glass rounded-3xl p-6 lg:col-span-2">
-                <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#22E07B]">
-                  <TrendingUp className="w-6 h-6" /> Deck Win Rates
-                </h2>
-                {telemetry.deck_win_rates?.length === 0 ? (
-                  <p className="text-white/50 italic">No matches played yet.</p>
-                ) : (
-                  <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                    <table className="w-full text-left">
-                      <thead className="sticky top-0 bg-black/80 backdrop-blur text-white/50 text-sm">
-                        <tr>
-                          <th className="py-2">Deck Name</th>
-                          <th className="py-2">Total Games</th>
-                          <th className="py-2">Win Rate</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {telemetry.deck_win_rates.map((d, i) => (
-                          <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="py-3 font-bold text-[#F2A900]">{d.deck}</td>
-                            <td className="py-3">{d.totalGames}</td>
-                            <td className="py-3 text-[#22E07B]">{d.winRate}%</td>
+              {/* Vercel-style metrics row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-[#111] border border-white/10 rounded-xl p-5 flex flex-col justify-between">
+                  <span className="text-white/40 text-xs font-mono uppercase tracking-wider mb-2">Total Matches</span>
+                  <span className="text-3xl font-head font-bold text-white tracking-tight">{telemetry.deck_win_rates?.reduce((sum, d) => sum + d.totalGames, 0) || 0}</span>
+                </div>
+                <div className="bg-[#111] border border-white/10 rounded-xl p-5 flex flex-col justify-between">
+                  <span className="text-white/40 text-xs font-mono uppercase tracking-wider mb-2">First Player WR</span>
+                  <span className="text-3xl font-head font-bold text-[#F2A900] tracking-tight">{telemetry.first_vs_second.first}%</span>
+                </div>
+                <div className="bg-[#111] border border-white/10 rounded-xl p-5 flex flex-col justify-between">
+                  <span className="text-white/40 text-xs font-mono uppercase tracking-wider mb-2">Second Player WR</span>
+                  <span className="text-3xl font-head font-bold text-[#00BFFF] tracking-tight">{telemetry.first_vs_second.second}%</span>
+                </div>
+                <div className="bg-[#111] border border-white/10 rounded-xl p-5 flex flex-col justify-between">
+                  <span className="text-white/40 text-xs font-mono uppercase tracking-wider mb-2">Total Referrals</span>
+                  <span className="text-3xl font-head font-bold text-[#9B30FF] tracking-tight">{telemetry.referrals?.reduce((sum, r) => sum + r.count, 0) || 0}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Deck Win Rates */}
+                <section className="bg-[#111] border border-white/10 rounded-xl p-6 lg:col-span-2">
+                  <h2 className="text-sm font-mono text-white/50 uppercase tracking-wider mb-6 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" /> Deck Win Rates
+                  </h2>
+                  {telemetry.deck_win_rates?.length === 0 ? (
+                    <p className="text-white/40 text-sm">No matches played yet.</p>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                      <table className="w-full text-left">
+                        <thead className="sticky top-0 bg-[#111] text-white/40 text-xs font-mono uppercase tracking-wider">
+                          <tr>
+                            <th className="py-3 font-normal">Deck Name</th>
+                            <th className="py-3 font-normal text-right">Total Games</th>
+                            <th className="py-3 font-normal text-right">Win Rate</th>
+                            <th className="py-3 font-normal w-1/3 pl-4">Performance</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-
-              {/* Referral Sources */}
-              <section className="glass rounded-3xl p-6">
-                <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#9B30FF]">
-                  <LinkIcon className="w-6 h-6" /> Referral Sources
-                </h2>
-                <div className="space-y-3">
-                  {telemetry.referrals?.map((r, i) => (
-                    <div key={i} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
-                      <span className="font-bold text-white/80">{r.source}</span>
-                      <span className="bg-[#9B30FF]/20 text-[#9B30FF] px-2 py-1 rounded-md text-sm font-bold">{r.count} users</span>
+                        </thead>
+                        <tbody className="text-sm font-head">
+                          {telemetry.deck_win_rates.map((d, i) => (
+                            <tr key={i} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-3 font-medium text-white/90">{d.deck}</td>
+                              <td className="py-3 text-white/60 text-right">{d.totalGames}</td>
+                              <td className="py-3 text-white/90 text-right">{d.winRate}%</td>
+                              <td className="py-3 pl-4">
+                                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-red-500 via-[#F2A900] to-[#22E07B]" style={{ width: `${d.winRate}%` }}></div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ))}
-                  {telemetry.referrals?.length === 0 && <p className="text-white/50 italic">No referral data.</p>}
-                </div>
-              </section>
+                  )}
+                </section>
 
-              {/* Top User Referrals */}
-              <section className="glass rounded-3xl p-6">
-                <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#9B30FF]">
-                  <LinkIcon className="w-6 h-6" /> Top User Referral Links
-                </h2>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                  {telemetry.top_referrers?.map((r, i) => (
-                    <div key={i} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
-                      <div className="flex items-center gap-3">
-                        <span className="text-white/30 font-bold w-4">{i + 1}.</span>
-                        <span className="font-bold text-white/90">{r.referrer}</span>
-                      </div>
-                      <span className="bg-[#9B30FF]/20 text-[#9B30FF] px-2 py-1 rounded-md text-sm font-bold">{r.count} users</span>
-                    </div>
-                  ))}
-                  {(!telemetry.top_referrers || telemetry.top_referrers.length === 0) && <p className="text-white/50 italic">No user referrals yet.</p>}
-                </div>
-              </section>
-
-              {/* First vs Second */}
-              <section className="glass rounded-3xl p-6">
-                <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#F2A900]">
-                  First vs Second Advantage
-                </h2>
-                <div className="h-64 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={PIE_DATA} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                        <Cell fill="#00BFFF" />
-                        <Cell fill="#FF5252" />
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: "#06070c", borderColor: "rgba(255,255,255,0.1)", borderRadius: "12px", fontFamily: "Inter" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute flex flex-col items-center gap-2 pointer-events-none">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#00BFFF]" /><span className="text-sm font-head text-white/70">Go First ({telemetry.first_vs_second.first}%)</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#FF5252]" /><span className="text-sm font-head text-white/70">Go Second ({telemetry.first_vs_second.second}%)</span></div>
+                {/* Referral Sources */}
+                <section className="bg-[#111] border border-white/10 rounded-xl p-6">
+                  <h2 className="text-sm font-mono text-white/50 uppercase tracking-wider mb-6 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" /> External Sources
+                  </h2>
+                  <div className="space-y-4">
+                    {telemetry.referrals?.map((r, i) => {
+                      const totalRefs = telemetry.referrals?.reduce((sum, ref) => sum + ref.count, 0) || 1;
+                      const pct = Math.round((r.count / totalRefs) * 100);
+                      return (
+                        <div key={i} className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-center text-sm font-head">
+                            <span className="text-white/80">{r.source}</span>
+                            <span className="text-white/50">{r.count} ({pct}%)</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-white/30" style={{ width: `${pct}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {telemetry.referrals?.length === 0 && <p className="text-white/40 text-sm">No referral data.</p>}
                   </div>
-                </div>
-              </section>
+                </section>
+
+                {/* Top User Referrals */}
+                <section className="bg-[#111] border border-white/10 rounded-xl p-6">
+                  <h2 className="text-sm font-mono text-white/50 uppercase tracking-wider mb-6 flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Top Referrers
+                  </h2>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                    {telemetry.top_referrers?.map((r, i) => {
+                      const maxRefs = Math.max(...(telemetry.top_referrers?.map(x => x.count) || [1]));
+                      const pct = Math.round((r.count / maxRefs) * 100);
+                      return (
+                        <div key={i} className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-center text-sm font-head">
+                            <div className="flex items-center gap-3">
+                              <span className="text-white/30 font-mono w-4">{i + 1}.</span>
+                              <span className="text-white/80">{r.referrer}</span>
+                            </div>
+                            <span className="text-white/50">{r.count}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden ml-7" style={{ width: 'calc(100% - 1.75rem)' }}>
+                            <div className="h-full bg-[#9B30FF]/60" style={{ width: `${pct}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(!telemetry.top_referrers || telemetry.top_referrers.length === 0) && <p className="text-white/40 text-sm">No user referrals yet.</p>}
+                  </div>
+                </section>
+              </div>
             </>
           )}
         </div>
       )}
+
 
       {adminTab === "shop" && (
         <div className="space-y-8 animate-in fade-in zoom-in-95">

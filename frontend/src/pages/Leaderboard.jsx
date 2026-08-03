@@ -52,13 +52,22 @@ export default function Leaderboard() {
                   <th className="py-4 px-4 font-medium">Player</th>
                   <th className="py-4 px-4 font-medium">Faction</th>
                   <th className="py-4 px-4 font-medium text-right">MMR</th>
-                  <th className="py-4 px-4 font-medium text-right">Win/Loss</th>
+                  <th className="py-4 px-4 font-medium text-right">PvP W/L</th>
+                  <th className="py-4 px-4 font-medium text-right text-white/50">AI W/L</th>
                 </tr>
               </thead>
               <tbody className="font-head">
                 {players.map((player, index) => {
-                  const winRate = (player.wins + player.losses) > 0 
-                    ? Math.round((player.wins / (player.wins + player.losses)) * 100) 
+                  const pvpWins = player.wins || 0;
+                  const pvpLosses = player.losses || 0;
+                  const aiWins = player.ai_wins || 0;
+                  const aiLosses = player.ai_losses || 0;
+                  
+                  const pvpWinRate = (pvpWins + pvpLosses) > 0 
+                    ? Math.round((pvpWins / (pvpWins + pvpLosses)) * 100) 
+                    : 0;
+                  const aiWinRate = (aiWins + aiLosses) > 0 
+                    ? Math.round((aiWins / (aiWins + aiLosses)) * 100) 
                     : 0;
 
                   return (
@@ -97,8 +106,14 @@ export default function Leaderboard() {
                       </td>
                       <td className="py-4 px-4 text-right">
                         <div className="flex flex-col items-end">
-                          <span className="font-bold">{player.wins}W - {player.losses}L</span>
-                          <span className="text-sm text-[#22E07B]">{winRate}% Win Rate</span>
+                          <span className="font-bold">{pvpWins}W - {pvpLosses}L</span>
+                          <span className="text-sm text-[#22E07B]">{pvpWinRate}% Win Rate</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-right opacity-60">
+                        <div className="flex flex-col items-end">
+                          <span className="font-bold">{aiWins}W - {aiLosses}L</span>
+                          <span className="text-sm text-white/50">{aiWinRate}% Win Rate</span>
                         </div>
                       </td>
                     </tr>
