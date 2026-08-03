@@ -89,8 +89,7 @@ export function buildCardSVG(card, imgHref, rarityHref) {
   <g clip-path="url(#safe)">
     <image xlink:href="${imgHref}" x="60" y="60" width="570" height="820" preserveAspectRatio="xMidYMid slice"/>
     <rect x="60" y="540" width="570" height="340" fill="${f.color}" opacity="0.16"/>
-    <rect x="60" y="670" width="570" height="210" fill="#06070C" opacity="0.75"/>
-    <text x="94" y="730" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}">${esc(card.name)}</text>
+    <text x="94" y="730" font-family="Georgia, serif" font-size="34" font-weight="700" fill="${f.soft}" style="text-shadow: 0 4px 8px rgba(0,0,0,0.8);">${esc(card.name)}</text>
     <g transform="translate(94,746)"><rect width="${24 + typeLabel.length * 12}" height="28" rx="4" fill="${f.color}"/><text x="9" y="21" font-family="Arial" font-size="18" font-weight="700" fill="#000">${esc(typeLabel)}</text></g>
     ${descSvg}
     ${kwSvg}

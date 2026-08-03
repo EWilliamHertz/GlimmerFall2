@@ -186,7 +186,7 @@ export const CardTemplate = ({
         )}
 
         {/* bottom info panel */}
-        <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"}`} style={{ background: "linear-gradient(to top, rgba(6,7,12,0.70) 62%, rgba(6,7,12,0.40) 100%)", backdropFilter: "blur(1px)" }}>
+        <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"}`} style={{ textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
           <div className="flex items-center gap-1">
             <span className={`font-display font-bold leading-tight truncate ${NAME_CLS[size]}`} style={{ color: f.soft }} data-testid={testId ? `${testId}-name` : undefined}>
               {card?.name}
