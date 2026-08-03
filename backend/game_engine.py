@@ -731,6 +731,14 @@ def do_play_card(state, slot, payload):
         pl["maxEnergy"] += 1
         pl["energy"] += 1
         pl["hasResonatedThisTurn"] = True
+        
+        # Forest Warden trigger
+        wardens = [e for e in pl.get("battlefield", []) if e.get("name") == "Forest Warden"]
+        for w in wardens:
+            w["power"] = (w.get("power") or 0) + 1
+        if wardens:
+            log(state, f"Forest Warden grew (+1/+0) due to Glimmer Node creation.")
+            
         log(state, f"{pl['username']} charged a Resonance Node (Energy {pl['energy']}/{pl['maxEnergy']}).")
         return
 
@@ -780,6 +788,15 @@ def do_play_card(state, slot, payload):
         card["exhausted"] = False  # no summoning sickness
         pl["battlefield"].append(card)
         log(state, f"{pl['username']} deployed {card['name']}.")
+        
+        # Luminous Guide trigger
+        if card.get("faction") == "Solari":
+            guides = [e for e in pl["battlefield"] if e["name"] == "Luminous Guide" and e["instanceId"] != card["instanceId"]]
+            if guides:
+                heal = len(guides)
+                pl["hp"] += heal  # max hp is technically NEXUS_HP but can overflow if desired, or we just cap it. Let's not cap for now unless standard NEXUS_HP applies strictly.
+                log(state, f"Luminous Guide healed Nexus {heal} HP because {card['name']} entered.")
+                
         _q(state, slot, "play_faction_entity", {"amount": 1, "faction": card.get("faction") or ""})
         apply_enters_trigger(state, slot, card)
         low = (card.get("description") or "").lower()
@@ -840,6 +857,14 @@ def do_cast_spell(state, slot, payload):
                 ]
             }
             frags.append("Mirrorgate triggered (Scry 1)")
+
+    # Stormweaver effect
+    stormweavers = [e for e in pl.get("battlefield", []) if e.get("name") == "Stormweaver"]
+    if stormweavers:
+        dslot = opp(slot)
+        dmg = len(stormweavers)
+        state["players"][dslot]["hp"] -= dmg
+        frags.append(f"Stormweaver dealt {dmg} damage to enemy Nexus")
 
     if frags:
         log(state, f"{pl['username']} cast {card['name']}: {', '.join(frags)}.")
@@ -912,6 +937,21 @@ def do_attack_entity(state, slot, payload):
         else:
             atk["curHealth"] = (atk["curHealth"] or 0) - tgt_pow
 
+    # Ebon Duelist and Thornweave Matron triggers
+    if atk["name"] == "Ebon Duelist":
+        atk["power"] = (atk["power"] or 0) + 1
+        log(state, f"{atk['name']} struck and gained +1/+0.")
+    if tgt["name"] == "Ebon Duelist":
+        tgt["power"] = (tgt["power"] or 0) + 1
+        log(state, f"{tgt['name']} was struck and gained +1/+0.")
+        
+    if tgt["name"] == "Thornweave Matron":
+        atk["curHealth"] -= 1
+        log(state, f"Thornweave Matron dealt 1 damage to striking {atk['name']}.")
+    if atk["name"] == "Thornweave Matron":
+        tgt["curHealth"] -= 1
+        log(state, f"Thornweave Matron dealt 1 damage to striking {tgt['name']}.")
+
     atk["exhausted"] = True
     if "Stealth" in atk["keywords"]:
         atk["keywords"].remove("Stealth")
@@ -955,6 +995,13 @@ def trigger_nexus_damage(state, slot, atk, dp):
         if "ready one glimmer node" in desc_low:
             pl["energy"] = min(pl["maxEnergy"], pl["energy"] + 1)
             log(state, f"{atk['name']} readied a Glimmer Node (+1 Energy).")
+            
+        if "discards a card" in desc_low or atk.get("name") == "Gloam Reaper":
+            if dp["hand"]:
+                import random
+                discarded = dp["hand"].pop(random.randint(0, len(dp["hand"])-1))
+                dp["void"].append(discarded)
+                log(state, f"{atk['name']} caused {dp['username']} to discard {discarded['name']}.")
         
         if "reveals their hand" in desc_low:
             for c in dp["hand"]:
