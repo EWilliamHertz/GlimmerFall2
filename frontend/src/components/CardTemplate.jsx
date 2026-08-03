@@ -115,7 +115,7 @@ export const CardTemplate = ({
       className={`${width ? "" : SIZES[size]} relative shrink-0 ${width && height ? "" : "aspect-[5/7]"} rounded-xl cursor-pointer select-none transition-shadow duration-300
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
-      <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
+      <div className="absolute inset-0 rounded-xl overflow-hidden print-no-border" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
         <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
 
         {/* faction background tint */}

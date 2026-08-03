@@ -89,18 +89,22 @@ body {
 
 @media print {
   @page { size: A4 portrait; margin: 8mm; }
-  body { background: #fff !important; background-image: none !important; }
+  body { background: #fff !important; background-image: none !important; height: auto !important; min-height: auto !important; overflow: visible !important; }
+  html, #root, .App, .print-root { height: auto !important; min-height: auto !important; overflow: visible !important; display: block !important; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   img { display: block; }
   .no-print, header, footer { display: none !important; }
-  .print-sheets { padding: 0 !important; gap: 0 !important; }
+  .print-no-border { border: none !important; }
+  .print-sheets { padding: 0 !important; gap: 0 !important; display: block !important; }
   .print-page {
     width: 100% !important;
     page-break-after: always;
     break-after: page;
+    page-break-inside: avoid;
     box-shadow: none !important;
     margin: 0 auto !important;
     border-radius: 0 !important;
+    display: block !important;
   }
   .print-page:last-child { page-break-after: auto; }
   .pro-page {
