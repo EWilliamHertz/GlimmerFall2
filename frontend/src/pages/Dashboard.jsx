@@ -398,6 +398,7 @@ function AdminPanel({ user }) {
 
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [newPoll, setNewPoll] = useState({ title: "", description: "", finish_at: "", options: ["", ""] });
@@ -862,6 +863,66 @@ function AdminPanel({ user }) {
                     <span className="text-white/80 font-bold">Net Profit:</span> 
                     <span className="font-bold text-[#F2A900]">${(parseFloat(selectedOrder.total_amount || 0) - parseFloat(selectedOrder.shipping_cost || 0) - parseFloat(selectedOrder.total_cogs || 0)).toFixed(2)}</span>
                   </div>
+                  
+                  {isEditingOrder ? (
+                    <div className="space-y-4 mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
+                      <div>
+                        <label className="block text-xs font-bold text-white/50 mb-1 uppercase tracking-wider">Status</label>
+                        <select 
+                          value={selectedOrder.status}
+                          onChange={(e) => setSelectedOrder({...selectedOrder, status: e.target.value})}
+                          className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none"
+                        >
+                          <option value="PENDING">PENDING</option>
+                          <option value="PAID">PAID</option>
+                          <option value="SHIPPED">SHIPPED</option>
+                          <option value="DELIVERED">DELIVERED</option>
+                          <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-white/50 mb-1 uppercase tracking-wider">First Name</label>
+                          <input type="text" value={selectedOrder.first_name || ''} onChange={(e) => setSelectedOrder({...selectedOrder, first_name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-white/50 mb-1 uppercase tracking-wider">Last Name</label>
+                          <input type="text" value={selectedOrder.last_name || ''} onChange={(e) => setSelectedOrder({...selectedOrder, last_name: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-white/50 mb-1 uppercase tracking-wider">Address</label>
+                        <input type="text" value={selectedOrder.address || ''} onChange={(e) => setSelectedOrder({...selectedOrder, address: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none" />
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <button onClick={async () => {
+                          try {
+                            await api.put(`/admin/shop/orders/${selectedOrder.id}`, selectedOrder);
+                            setIsEditingOrder(false);
+                            fetchData();
+                          } catch(err) {
+                            alert("Failed to update order");
+                          }
+                        }} className="flex-1 bg-[#22E07B] text-black font-bold py-2 rounded-lg hover:brightness-110">Save</button>
+                        <button onClick={() => setIsEditingOrder(false)} className="flex-1 bg-white/10 text-white hover:bg-white/20 py-2 rounded-lg">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mt-6">
+                      <button onClick={() => setIsEditingOrder(true)} className="flex-1 bg-white/10 text-white hover:bg-white/20 font-bold py-2 rounded-lg transition-colors border border-white/10">Edit Order</button>
+                      <button onClick={async () => {
+                        if(confirm("Are you sure you want to permanently delete this order?")) {
+                          try {
+                            await api.delete(`/admin/shop/orders/${selectedOrder.id}`);
+                            setSelectedOrder(null);
+                            fetchData();
+                          } catch(err) {
+                            alert("Failed to delete order");
+                          }
+                        }
+                      }} className="flex-1 bg-red-500/20 text-red-400 hover:bg-red-500/40 font-bold py-2 rounded-lg transition-colors border border-red-500/30">Delete Order</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

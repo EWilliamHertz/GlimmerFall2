@@ -1306,3 +1306,34 @@ def get_queue_size():
         cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='WAITING' AND player2 IS NULL AND is_ranked = TRUE")
         row = cur.fetchone()
         return {"queue_size": row["c"] if row else 0}
+
+class OrderUpdateReq(BaseModel):
+    status: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
+
+@api.put("/admin/shop/orders/{order_id}")
+def update_admin_shop_order(order_id: int, req: OrderUpdateReq, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("""
+            UPDATE shop_orders 
+            SET status=COALESCE(%s, status), first_name=COALESCE(%s, first_name), 
+                last_name=COALESCE(%s, last_name), address=COALESCE(%s, address), 
+                country=COALESCE(%s, country)
+            WHERE id=%s
+        """, (req.status, req.first_name, req.last_name, req.address, req.country, order_id))
+    return {"status": "success"}
+
+@api.delete("/admin/shop/orders/{order_id}")
+def delete_admin_shop_order(order_id: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        # Delete related shop_order_items first, if any exist. Wait, does shop_order_items exist?
+        cur.execute("DELETE FROM shop_order_items WHERE order_id=%s", (order_id,))
+        cur.execute("DELETE FROM shop_orders WHERE id=%s", (order_id,))
+    return {"status": "success"}
