@@ -127,7 +127,7 @@ export const CardTemplate = ({
             className="pointer-events-none absolute inset-0"
             style={{
               mixBlendMode: "color-dodge",
-              opacity: hover ? 0.5 : 0.22,
+              opacity: hover ? 0.5 : 0,
               transition: "opacity .3s",
               background: `linear-gradient(115deg, transparent 42%, rgba(255,235,150,0.55) 49%, rgba(255,255,255,0.85) 52%, rgba(150,235,255,0.55) 55%, transparent 62%)`,
               backgroundSize: "220% 220%",
@@ -144,7 +144,7 @@ export const CardTemplate = ({
               className="pointer-events-none absolute inset-0"
               style={{
                 mixBlendMode: "color-dodge",
-                opacity: hover ? 0.75 : 0.35,
+                opacity: hover ? 0.75 : 0,
                 transition: "opacity .3s",
                 background:
                   "conic-gradient(from 0deg, #ff3ea5, #ffd53e, #3eff8f, #3ebfff, #a63eff, #ff3ea5)",
@@ -158,7 +158,7 @@ export const CardTemplate = ({
               className="pointer-events-none absolute inset-0"
               style={{
                 mixBlendMode: "overlay",
-                opacity: hover ? 0.85 : 0.5,
+                opacity: hover ? 0.85 : 0,
                 transition: "opacity .3s",
                 background:
                   "linear-gradient(115deg, transparent 18%, rgba(179,229,252,.7) 36%, rgba(255,235,59,.6) 50%, rgba(224,64,251,.7) 64%, transparent 82%)",
