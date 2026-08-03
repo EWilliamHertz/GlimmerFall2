@@ -11,7 +11,7 @@ export default function FactionParticles({ faction }) {
       duration: Math.random() * 20 + 10,
       delay: Math.random() * -20,
     }));
-  }, [faction]);
+  }, []);
 
   if (!faction) return null;
 
