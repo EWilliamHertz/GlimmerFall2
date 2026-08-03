@@ -148,6 +148,10 @@ def new_match_state(p1_name, deck1, p2_name, deck2, is_ai=False):
         state["phase"] = "PLAYING"
         state["log"].append(f"{p1_name if winner == 1 else p2_name} goes first!")
         state["log"].append(f"{p1_name if winner == 1 else p2_name}'s turn 1.")
+        
+        start_turn(state, str(winner))
+        if winner == 2:
+            ai_take_turn(state)
 
     return state
 
