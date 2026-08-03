@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { Users, Trophy, Vote, Swords, Video, MessageSquare, Hammer, ChevronUp, PlusCircle, X, Palette } from "lucide-react";
 import { api } from "@/lib/api";
@@ -13,6 +14,16 @@ export default function Community() {
   const [loadingDecks, setLoadingDecks] = useState(true);
   const [polls, setPolls] = useState([]);
   const [eligibleContestants, setEligibleContestants] = useState([]);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#giveaway') {
+      const element = document.getElementById('giveaway');
+      if (element) {
+        setTimeout(() => element.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+    }
+  }, [location]);
 
   // The Forge state
   const [customCards, setCustomCards] = useState([]);
@@ -114,7 +125,7 @@ export default function Community() {
       </div>
 
       {/* Summer Giveaway Section */}
-      <section className="bg-gradient-to-br from-[#9B30FF]/20 to-black border border-[#9B30FF]/30 rounded-3xl p-8 relative overflow-hidden shadow-2xl shadow-[#9B30FF]/10">
+      <section id="giveaway" className="bg-gradient-to-br from-[#9B30FF]/20 to-black border border-[#9B30FF]/30 rounded-3xl p-8 relative overflow-hidden shadow-2xl shadow-[#9B30FF]/10 scroll-mt-24">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <Trophy className="w-64 h-64 text-[#9B30FF]" />
         </div>
