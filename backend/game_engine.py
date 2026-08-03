@@ -79,10 +79,12 @@ def make_instance(card):
 def build_deck(pool, faction=None, card_ids=None):
     """Build a legal 30-card deck (max 3 copies of a card)."""
     import random
+    import secrets
+    rng = secrets.SystemRandom()
     if card_ids:
         card_map = {c["id"]: c for c in pool}
         bag = [card_map[cid] for cid in card_ids if cid in card_map]
-        random.shuffle(bag)
+        rng.shuffle(bag)
         return [make_instance(c) for c in bag]
     if faction:
         factions = [f.strip() for f in faction.split(",")]
@@ -95,7 +97,7 @@ def build_deck(pool, faction=None, card_ids=None):
     for c in cards:
         for _ in range(3):
             bag.append(c)
-    random.shuffle(bag)
+    rng.shuffle(bag)
     deck = [make_instance(c) for c in bag[:DECK_SIZE]]
     return deck
 
