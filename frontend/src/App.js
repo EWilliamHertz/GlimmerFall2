@@ -20,6 +20,7 @@ import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
 import Shop from "@/pages/Shop";
 import { AuthProvider } from "@/lib/auth";
+import { Analytics } from "@vercel/analytics/react";
 
 function Shell() {
   const { pathname } = useLocation();
@@ -63,6 +64,7 @@ function App() {
       <BrowserRouter>
         <Shell />
       </BrowserRouter>
+      <Analytics />
     </AuthProvider>
   );
 }
