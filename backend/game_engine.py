@@ -866,6 +866,24 @@ def do_cast_spell(state, slot, payload):
         state["players"][dslot]["hp"] -= dmg
         frags.append(f"Stormweaver dealt {dmg} damage to enemy Nexus")
 
+    # Comet Array effect
+    comet_arrays = [e for e in pl.get("battlefield", []) if e.get("name") == "Comet Array"]
+    if comet_arrays:
+        import random
+        dslot = opp(slot)
+        dp = state["players"][dslot]
+        for _ in comet_arrays:
+            targets = ["nexus"] + [e["instanceId"] for e in dp["battlefield"] if "Stealth" not in e.get("keywords", [])]
+            target_id = random.choice(targets)
+            if target_id == "nexus":
+                dp["hp"] -= 2
+                frags.append("Comet Array dealt 2 damage to enemy Nexus")
+            else:
+                ti, tgt = find_in(dp["battlefield"], target_id)
+                if tgt:
+                    tgt["curHealth"] = (tgt.get("curHealth") or 0) - 2
+                    frags.append(f"Comet Array dealt 2 damage to {tgt['name']}")
+
     if frags:
         log(state, f"{pl['username']} cast {card['name']}: {', '.join(frags)}.")
     else:

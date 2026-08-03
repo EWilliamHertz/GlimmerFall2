@@ -91,21 +91,37 @@ function PlayerDashboard({ user, updateUser }) {
   const [friendInput, setFriendInput] = useState("");
   const [referralInfo, setReferralInfo] = useState(null);
 
+  const [inventory, setInventory] = useState([]);
+
   useEffect(() => {
-    api.get("/auth/me/quests").then(res => setQuests(res.data)).catch(console.error);
+    api.get("/auth/me/quests").then(res => {
+      setQuests(res.data);
+      res.data.forEach(q => {
+        if (q.is_completed && !q.reward_claimed) {
+          toast(`Quest Completed: ${q.description}`, { icon: '🎯' });
+        }
+      });
+    }).catch(console.error);
     api.get("/auth/me/matches").then(res => setMatches(res.data)).catch(console.error);
     api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
     api.get("/auth/me/referral").then(res => setReferralInfo(res.data)).catch(() => {});
+    api.get("/auth/me/inventory").then(res => setInventory(res.data)).catch(() => {});
   }, []);
 
   const claimQuest = async (qid) => {
     try {
       const res = await api.post(`/quests/${qid}/claim`);
-      toast.success(`Claimed +${res.data.credited} Glimmer!`);
+      let msg = [];
+      if (res.data.credited > 0) msg.push(`+${res.data.credited} Glimmer`);
+      if (res.data.credited_items?.length) msg.push(res.data.credited_items.join(", "));
+      toast.success(`Claimed: ${msg.join(" and ")}!`);
       // refresh quests
       const r = await api.get("/auth/me/quests");
       setQuests(r.data);
       if (updateUser) updateUser({ glimmer_balance: res.data.balance });
+      // refresh inventory
+      const invRes = await api.get("/auth/me/inventory");
+      setInventory(invRes.data);
       // ping navbar widget to refresh
       window.dispatchEvent(new CustomEvent("gf-glimmer-changed"));
     } catch (err) {
@@ -296,7 +312,7 @@ function PlayerDashboard({ user, updateUser }) {
             ) : (
               quests.map(q => {
                 const progress = Math.min((q.current_value / q.target_value) * 100, 100);
-                const canClaim = q.is_completed && !q.reward_claimed && (q.reward_glimmer || 0) > 0;
+                const canClaim = q.is_completed && !q.reward_claimed;
                 return (
                   <div key={q.id} className="bg-black/40 border border-white/10 rounded-xl p-4">
                     <div className="flex justify-between items-start mb-2">
@@ -312,7 +328,7 @@ function PlayerDashboard({ user, updateUser }) {
                           data-testid={`claim-quest-${q.id}`}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F2A900] text-black text-xs font-head font-bold hover:bg-[#ffc21f] shadow-[0_0_15px_rgba(242,169,0,0.4)] shrink-0"
                         >
-                          <Sparkles className="w-3 h-3" /> Claim +{q.reward_glimmer}
+                          <Sparkles className="w-3 h-3" /> Claim Reward
                         </button>
                       ) : progress >= 100 ? (
                         <CheckCircle className="w-5 h-5 text-[#22E07B] shrink-0" />
@@ -329,8 +345,23 @@ function PlayerDashboard({ user, updateUser }) {
               })
             )}
           </div>
+          
+          {inventory.length > 0 && (
+            <div className="mt-8 border-t border-white/10 pt-6">
+              <h4 className="font-display text-xl font-bold flex items-center gap-2 mb-4 text-[#F2A900]">
+                 Inventory
+              </h4>
+              <div className="flex flex-wrap gap-3">
+                {inventory.map((item, idx) => (
+                  <div key={idx} className="bg-black/40 border border-[#F2A900]/30 rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg">
+                    <span className="text-[#F2A900] font-num text-xl font-bold">{item.quantity}x</span>
+                    <span className="text-white font-head font-bold">{item.item_name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-
         <div className="glass-strong p-6 rounded-3xl border border-white/10 shadow-xl flex flex-col">
           <h3 className="font-display text-2xl font-bold flex items-center gap-2 mb-6 text-[#00BFFF]">
             <History className="w-6 h-6" /> Match History
