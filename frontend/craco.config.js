@@ -108,6 +108,14 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  // Allow requests from the Kubernetes preview URL (fixes "Invalid Host header")
+  devServerConfig.allowedHosts = "all";
+  devServerConfig.host = "0.0.0.0";
+  devServerConfig.client = {
+    ...(devServerConfig.client || {}),
+    webSocketURL: "auto://0.0.0.0:0/ws",
+  };
+
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
