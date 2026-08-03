@@ -635,7 +635,7 @@ def redact_state(state, viewer_slot):
         pl = s["players"][slot]
         pl["libraryCount"] = len(pl.get("library", []))
         pl.pop("library", None)
-        if slot != v:
+        if v != "0" and slot != v:
             pl["handCount"] = len(pl.get("hand", []))
             if not pl.get("handRevealed"):
                 pl["hand"] = [c if c.get("revealed") else {"instanceId": c["instanceId"], "hidden": True} for c in pl.get("hand", [])]
@@ -645,7 +645,7 @@ def redact_state(state, viewer_slot):
 
 
 @api.get("/match")
-def get_match(id: int = Query(...), slot: int = Query(1)):
+def get_match(id: int = Query(...), slot: int = Query(1), isSpectator: bool = Query(False)):
     import time
     from game_engine import apply_action
     
@@ -684,9 +684,18 @@ def get_match(id: int = Query(...), slot: int = Query(1)):
         "player1": m["player1"],
         "player2": m["player2"],
         "is_ranked": m["is_ranked"],
-        "state": redact_state(state, slot),
+        "state": redact_state(state, 0 if (m["status"] == "ENDED" or isSpectator) else slot),
     }
 
+@api.get("/featured")
+def get_featured_matches():
+    with DB() as cur:
+        cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND is_ranked=true ORDER BY created_at DESC LIMIT 5")
+        ranked = cur.fetchall()
+        if len(ranked) < 5:
+            cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND is_ranked=false ORDER BY created_at DESC LIMIT %s", (5 - len(ranked),))
+            ranked.extend(cur.fetchall())
+        return [{"id": m["id"], "player1": m["player1"], "player2": m["player2"], "room_code": m["room_code"], "created_at": str(m["created_at"])} for m in ranked]
 
 @api.post("/action")
 def post_action(req: ActionReq):
