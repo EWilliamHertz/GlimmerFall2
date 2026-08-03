@@ -81,6 +81,30 @@ export default function UserProfile() {
           </div>
         </div>
       )}
+
+      {profile.matchHistory && profile.matchHistory.length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-display text-xl font-bold mb-4 text-white/80">Recent Matches</h3>
+          <div className="flex flex-col gap-3">
+            {profile.matchHistory.map((match, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-black/30 border border-white/5 p-4 rounded-xl">
+                <div className="flex items-center gap-4">
+                  <div className={`px-3 py-1 rounded font-bold text-xs uppercase tracking-wider ${match.result === 'Win' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                    {match.result}
+                  </div>
+                  <div>
+                    <span className="text-white/50 text-sm">vs</span>
+                    <span className="ml-2 font-bold font-head text-white/90">{match.opponent}</span>
+                  </div>
+                </div>
+                <div className="text-white/30 text-xs font-head">
+                  {match.date ? new Date(match.date).toLocaleDateString() : 'Unknown Date'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

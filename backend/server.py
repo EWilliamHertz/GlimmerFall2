@@ -906,9 +906,43 @@ def get_user_profile(nickname: str):
     with DB() as cur:
         cur.execute("SELECT id, nickname, faction, avatar, wins, losses, mmr, rank FROM users WHERE nickname ILIKE %s", (nickname,))
         db_u = cur.fetchone()
-    if not db_u:
-        raise HTTPException(404, "User not found")
+        if not db_u:
+            raise HTTPException(404, "User not found")
         
+        # Get recent matches
+        cur.execute("""
+            SELECT m.id, m.created_at, m.status, m.player1, m.player2, m.state
+            FROM matches m
+            WHERE (m.player1 = %s OR m.player2 = %s) AND m.status = 'ENDED'
+            ORDER BY m.created_at DESC
+            LIMIT 10
+        """, (db_u['nickname'], db_u['nickname']))
+        recent_matches = []
+        for m in cur.fetchall():
+            state = m['state'] or {}
+            winner_slot = str(state.get('winner', '0'))
+            
+            p1_name = m['player1']
+            p2_name = m['player2']
+            
+            if winner_slot == '1':
+                winner_name = p1_name
+            elif winner_slot == '2':
+                winner_name = p2_name
+            else:
+                winner_name = "Draw"
+                
+            opponent = p2_name if p1_name == db_u['nickname'] else p1_name
+            is_win = (winner_name == db_u['nickname'])
+            
+            recent_matches.append({
+                "id": m['id'],
+                "date": m['created_at'].isoformat() if m['created_at'] else None,
+                "opponent": opponent,
+                "result": "Win" if is_win else "Loss",
+                "winner": winner_name
+            })
+            
     return {
         "id": db_u["id"],
         "nickname": db_u["nickname"],
@@ -918,9 +952,9 @@ def get_user_profile(nickname: str):
         "losses": db_u.get("losses") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
-        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"}
+        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"},
+        "matchHistory": recent_matches
     }
-
 @api.post("/auth/verify")
 
 def verify(token: str):
@@ -1187,6 +1221,17 @@ def admin_telemetry(request: Request):
         cur.execute("SELECT COALESCE(referral_source, 'Direct/Organic') as source, COUNT(*) as count FROM users GROUP BY source")
         referrals = [dict(r) for r in cur.fetchall()]
         
+        # 2b. Top Referrers (User Referral Links)
+        cur.execute("""
+            SELECT u.nickname as referrer, COUNT(r.id) as count
+            FROM referrals r
+            JOIN users u ON r.referrer_id = u.id
+            GROUP BY u.nickname
+            ORDER BY count DESC
+            LIMIT 50
+        """)
+        top_referrers = [dict(r) for r in cur.fetchall()]
+        
         # 3. First vs Second
         cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='ENDED' AND CAST(state->>'winner' AS INTEGER) = 1")
         p1_wins = cur.fetchone()["c"]
@@ -1200,6 +1245,7 @@ def admin_telemetry(request: Request):
     return {
         "deck_win_rates": deck_win_rates,
         "referrals": referrals,
+        "top_referrers": top_referrers,
         "first_vs_second": {
             "first": first_win,
             "second": second_win
@@ -1843,7 +1889,7 @@ def clone_deck(deck_id: int, request: Request):
         cur.execute(
             "INSERT INTO decks (username, deck_name, user_id, is_public) "
             "VALUES (%s, %s, %s, FALSE) RETURNING id",
-            (user["nickname"], f"{src['deck_name']} (Copy)", user["id"]),
+            (user["nickname"], src['deck_name'], user["id"]),
         )
         new_id = cur.fetchone()["id"]
         cur.execute("SELECT card_name, count FROM deck_cards WHERE deck_id=%s", (deck_id,))
