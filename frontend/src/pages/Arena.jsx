@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Swords, Bot, Users, Shield, Zap, Layers, Sparkles, ScrollText,
-  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye, Share2
+  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye, Share2, Copy, Facebook
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
@@ -480,6 +480,24 @@ function GameBoard({ session, match, refresh, onExit }) {
   const opp = state.players[oppSlot];
   const isMyTurn = String(state.activePlayer) === slot && state.phase === "PLAYING" && !session.isSpectator && !session.isReplay;
   const ended = state.phase === "ENDED";
+
+  const getDominantFaction = () => {
+    if (!me) return "Neutral";
+    const allCards = [...(me.library || []), ...(me.hand || []), ...(me.battlefield || []), ...(me.void || []), ...(me.resonanceRow || [])];
+    const counts = {};
+    allCards.forEach(c => {
+      if (c.faction && c.faction !== 'Neutral' && c.faction !== 'Any') {
+        counts[c.faction] = (counts[c.faction] || 0) + 1;
+      }
+    });
+    let max = 0;
+    let dom = "Neutral";
+    for (const [f, ct] of Object.entries(counts)) {
+      if (ct > max) { max = ct; dom = f; }
+    }
+    return dom;
+  };
+  const dominantFaction = getDominantFaction();
 
   const [selectedAttacker, setSelectedAttacker] = useState(null);
   const [pendingSpell, setPendingSpell] = useState(null);
@@ -1084,18 +1102,40 @@ function GameBoard({ session, match, refresh, onExit }) {
                   <Crown className="w-16 h-16 text-[#F2A900] mx-auto mb-4 drop-shadow-[0_0_20px_rgba(242,169,0,0.8)]" />
                   <h2 className="font-display text-4xl font-bold text-[#F2A900]">Victory</h2>
                   <div className="bg-[#F2A900]/10 border border-[#F2A900]/30 rounded-xl p-3 my-4">
-                    <p className="text-[#F2A900] font-bold text-sm">Faction: {me.faction}</p>
+                    <p className="text-[#F2A900] font-bold text-sm">Dominant Faction: {dominantFaction}</p>
                     <p className="text-white/70 text-xs">A glorious triumph in the Arena!</p>
                   </div>
-                  <button 
-                    onClick={() => {
-                      const text = `I just crushed my opponent in GlimmerFall TCG using the ${me.faction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
-                      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
-                    className="w-full mb-3 px-6 py-2.5 rounded-xl bg-black border border-white/20 text-white font-head font-bold hover:bg-white/10 flex items-center justify-center gap-2"
-                  >
-                    <Share2 className="w-4 h-4" /> Share to X
-                  </button>
+                  <div className="flex gap-2 mb-3">
+                    <button 
+                      onClick={() => {
+                        const text = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
+                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-black border border-white/20 text-white font-head font-bold text-sm hover:bg-white/10 flex items-center justify-center gap-1.5"
+                    >
+                      <Share2 className="w-4 h-4" /> X
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const url = "https://glimmerfalltcg.com";
+                        const quote = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨`;
+                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`, "_blank");
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-[#1877F2] text-white font-head font-bold text-sm hover:bg-[#1877F2]/80 flex items-center justify-center gap-1.5"
+                    >
+                      <Facebook className="w-4 h-4" /> Post
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const text = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
+                        navigator.clipboard.writeText(text);
+                        toast.success("Copied to clipboard!");
+                      }}
+                      className="flex-1 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white font-head font-bold text-sm hover:bg-white/20 flex items-center justify-center gap-1.5"
+                    >
+                      <Copy className="w-4 h-4" /> Copy
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
