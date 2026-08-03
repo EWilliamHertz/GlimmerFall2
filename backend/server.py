@@ -454,11 +454,11 @@ def save_match(match_id, state):
             if old["is_ranked"] and p1_name and p2_name and not state.get("isAI"):
                 cur.execute("SELECT nickname, mmr FROM users WHERE nickname IN (%s, %s)", (p1_name, p2_name))
                 users = cur.fetchall()
-                p1_mmr = 1000
-                p2_mmr = 1000
+                p1_mmr = 1200
+                p2_mmr = 1200
                 for u in users:
-                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1000
-                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1000
+                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1200
+                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1200
                 
                 # Basic Elo calculation (K=32)
                 expected_p1 = 1 / (1 + 10 ** ((p2_mmr - p1_mmr) / 400))
