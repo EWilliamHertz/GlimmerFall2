@@ -13,6 +13,7 @@ const NAV_GROUPS = [
       { to: "/play", label: "Arena", id: "arena" },
       { to: "/decks", label: "Deck Builder", id: "decks" },
       { to: "/booster", label: "Booster", id: "booster" },
+      { to: "/playtest", label: "Print & Playtest", id: "playtest" },
     ]
   },
   {

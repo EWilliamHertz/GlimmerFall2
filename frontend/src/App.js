@@ -44,6 +44,7 @@ function Shell() {
           <Route path="/profile/:nickname" element={<UserProfile />} />
           <Route path="/print" element={<PrintPage />} />
           <Route path="/print-all" element={<PrintPage />} />
+          <Route path="/playtest" element={<PrintPage isPlaytest />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/stores" element={<Stores />} />
           <Route path="/support" element={<Support />} />
