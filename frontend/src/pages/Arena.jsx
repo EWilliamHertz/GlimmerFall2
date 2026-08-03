@@ -24,7 +24,8 @@ import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
 
-const playSound = (type) => {
+const playSound = (type, muted = false) => {
+  if (muted) return;
   try {
     const audio = new Audio(`/audio/${type}.mp3`);
     audio.volume = 0.3;
@@ -437,8 +438,15 @@ function GameBoard({ session, match, refresh, onExit }) {
   const [busy, setBusy] = useState(false);
   const [inspectCard, setInspectCard] = useState(null);
   const [viewingVoid, setViewingVoid] = useState(null);
+  const [muted, setMuted] = useState(() => localStorage.getItem("gf_audio_muted") === "true");
   const navigate = useNavigate();
   const audioRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem("gf_audio_muted", String(muted));
+    if (audioRef.current)
+      audioRef.current.muted = muted;
+  }, [muted]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -459,10 +467,12 @@ function GameBoard({ session, match, refresh, onExit }) {
         const r = await api.post("/action", { matchId: session.matchId, slot: session.slot, action, payload });
         
         // play sounds based on action
-        if (action === "DRAW_CARD") playSound("draw");
-        if (action === "PLAY_CARD") playSound("play");
-        if (action === "ATTACK_ENTITY" || action === "ATTACK_NEXUS") playSound("attack");
-        if (action === "CAST_SPELL") playSound("spell");
+        if (action === "DRAW_CARD") playSound("draw", muted);
+        if (action === "PLAY_CARD") playSound("play", muted);
+        if (action === "ATTACK_ENTITY") playSound("attack", muted);
+        if (action === "ATTACK_NEXUS") playSound("nexus_hit", muted);
+        if (action === "CAST_SPELL") playSound("spell", muted);
+        if (action === "END_TURN") playSound("pass", muted);
         
         refresh(r.data.state);
       } catch (e) {
@@ -471,7 +481,7 @@ function GameBoard({ session, match, refresh, onExit }) {
         setBusy(false);
       }
     },
-    [session, refresh]
+    [session, refresh, muted]
   );
 
   const handleMakeChoice = (payload) => {
@@ -566,9 +576,16 @@ function GameBoard({ session, match, refresh, onExit }) {
   const primaryFaction = me.hand?.[0]?.faction || me.resonanceRow?.[0]?.faction || "solari";
   const ambientTrack = `/audio/ambient_${primaryFaction.toLowerCase().split(',')[0]}.mp3`;
 
+  const wasEndedRef = useRef(false);
+  useEffect(() => {
+    if (ended && !wasEndedRef.current) playSound(String(state.winner) === slot ? "victory" : "defeat", muted);
+    wasEndedRef.current = ended;
+  }, [ended, state.winner, slot, muted]);
+
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <audio ref={audioRef} src={ambientTrack} autoPlay loop />
+      <button type="button" onClick={() => setMuted(v => !v)} aria-label={muted ? "Unmute audio" : "Mute audio"} className="fixed top-20 right-4 z-40 glass rounded-lg px-3 py-2 text-xs font-head text-white/80 hover:text-white">{muted ? "🔇 Sound off" : "🔊 Sound on"}</button>
       {state.phase === "DICE_ROLL" && <DiceRollModal state={state} slot={slot} act={act} />}
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
         {/* top: opponent */}
