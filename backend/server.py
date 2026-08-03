@@ -1077,22 +1077,8 @@ def admin_get_shop_orders(request: Request):
     if not user or not user.get("is_admin"):
         raise HTTPException(403, "Access denied")
     with DB() as cur:
-        cur.execute("""
-            SELECT o.id, u.email as user_email, o.first_name, o.last_name, 
-                   o.address, o.country, o.shipping_cost, o.total_amount, o.status, o.created_at
-            FROM shop_orders o
-            LEFT JOIN users u ON o.user_id = u.id
-            ORDER BY o.created_at DESC
-        """)
-        orders = []
-        for r in cur.fetchall():
-            rd = dict(r)
-            rd["created_at"] = str(rd["created_at"])
-            t = float(rd["total_amount"] or 0)
-            s = float(rd["shipping_cost"] or 0)
-            rd["net_profit"] = t - s
-            orders.append(rd)
-        return orders
+        cur.execute("SELECT * FROM shop_orders ORDER BY created_at DESC")
+        return cur.fetchall()
 
 
 @api.get("/shop/products")
@@ -1120,13 +1106,6 @@ def get_admin_shop_stats(request: Request):
         stats['by_country'] = cur.fetchall()
         return stats
 
-@api.get("/admin/shop/orders")
-def get_admin_shop_orders(request: Request):
-    user = get_user_from_request(request)
-    if not user or not user.get("is_admin"): raise HTTPException(403)
-    with DB() as cur:
-        cur.execute("SELECT * FROM shop_orders ORDER BY created_at DESC")
-        return cur.fetchall()
 
 
 @api.put("/admin/shop/products/{product_id}")
