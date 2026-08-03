@@ -896,6 +896,8 @@ def get_me(request: Request):
         "avatar": db_u["avatar"],
         "wins": db_u["wins"] or 0,
         "losses": db_u["losses"] or 0,
+        "ai_wins": db_u.get("ai_wins") or 0,
+        "ai_losses": db_u.get("ai_losses") or 0,
         "referrals": db_u["referrals"] or 0,
         "referral_code": db_u.get("referral_code"),
         "glimmer_balance": db_u.get("glimmer_balance") or 0,
@@ -1043,6 +1045,12 @@ def update_avatar(req: AvatarReq, request: Request):
 def get_leaderboard():
     with DB() as cur:
         cur.execute("SELECT nickname, mmr, wins, losses, ai_wins, ai_losses, faction, avatar FROM users ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100")
+        return cur.fetchall()
+
+@api.get("/giveaway/eligible")
+def get_giveaway_eligible():
+    with DB() as cur:
+        cur.execute("SELECT nickname, avatar FROM users WHERE (COALESCE(ai_wins, 0) + COALESCE(ai_losses, 0)) >= 3 AND COALESCE(referrals, 0) >= 1")
         return cur.fetchall()
 
 @api.get("/auth/me/matches")
