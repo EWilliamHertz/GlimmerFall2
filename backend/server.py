@@ -499,6 +499,13 @@ def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None, is_ranked
         return cur.fetchone()["id"]
 
 
+
+@api.delete("/matchmaking/{match_id}")
+def cancel_matchmaking(match_id: int):
+    with DB() as cur:
+        cur.execute("DELETE FROM matches WHERE id=%s AND status='WAITING'", (match_id,))
+    return {"status": "cancelled"}
+
 def _rand_room():
     import random, string
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
