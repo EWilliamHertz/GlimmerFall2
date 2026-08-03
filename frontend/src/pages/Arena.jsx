@@ -1089,7 +1089,7 @@ function GameBoard({ session, match, refresh, onExit }) {
                   </div>
                   <button 
                     onClick={() => {
-                      const text = `I just crushed my opponent in GlimmerFall TCG using the ${me.faction} faction! ⚔️✨ Play free at https://glimmerfall.com`;
+                      const text = `I just crushed my opponent in GlimmerFall TCG using the ${me.faction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
                       window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
                     }}
                     className="w-full mb-3 px-6 py-2.5 rounded-xl bg-black border border-white/20 text-white font-head font-bold hover:bg-white/10 flex items-center justify-center gap-2"
