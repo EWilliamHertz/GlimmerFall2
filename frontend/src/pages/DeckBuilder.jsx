@@ -163,7 +163,7 @@ export default function DeckBuilder() {
       });
       const entry = {
         id: Date.now(),
-        name: `${deck.username} - ${deck.deck_name || deck.name}`,
+        name: deck.deck_name || deck.name,
         cards: resolvedCards,
       };
       const next = [entry, ...myDecks].slice(0, 20);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { Navigate, useSearchParams } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy } from 'lucide-react';
+import { Navigate, useSearchParams, Link } from 'react-router-dom';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -433,7 +433,7 @@ function PlayerDashboard({ user, updateUser }) {
                         <Users className="w-5 h-5 text-white/50" />
                       </div>
                       <div className="flex-1">
-                        <span className="font-bold text-white/90 text-lg block">{f.nickname}</span>
+                        <Link to={`/profile/${f.nickname}`} className="font-bold text-white/90 text-lg block hover:text-[#00BFFF] transition-colors">{f.nickname}</Link>
                         {f.current_match_id && <span className="text-xs text-[#22E07B] animate-pulse">In a match</span>}
                       </div>
                       {f.current_match_id && (
@@ -681,7 +681,7 @@ function AdminPanel({ user }) {
               {/* Referral Sources */}
               <section className="glass rounded-3xl p-6">
                 <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#9B30FF]">
-                  <Link className="w-6 h-6" /> Referral Sources
+                  <LinkIcon className="w-6 h-6" /> Referral Sources
                 </h2>
                 <div className="space-y-3">
                   {telemetry.referrals?.map((r, i) => (
@@ -691,6 +691,25 @@ function AdminPanel({ user }) {
                     </div>
                   ))}
                   {telemetry.referrals?.length === 0 && <p className="text-white/50 italic">No referral data.</p>}
+                </div>
+              </section>
+
+              {/* Top User Referrals */}
+              <section className="glass rounded-3xl p-6">
+                <h2 className="font-display text-2xl font-bold mb-6 flex items-center gap-2 text-[#9B30FF]">
+                  <LinkIcon className="w-6 h-6" /> Top User Referral Links
+                </h2>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                  {telemetry.top_referrers?.map((r, i) => (
+                    <div key={i} className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-white/30 font-bold w-4">{i + 1}.</span>
+                        <span className="font-bold text-white/90">{r.referrer}</span>
+                      </div>
+                      <span className="bg-[#9B30FF]/20 text-[#9B30FF] px-2 py-1 rounded-md text-sm font-bold">{r.count} users</span>
+                    </div>
+                  ))}
+                  {(!telemetry.top_referrers || telemetry.top_referrers.length === 0) && <p className="text-white/50 italic">No user referrals yet.</p>}
                 </div>
               </section>
 
