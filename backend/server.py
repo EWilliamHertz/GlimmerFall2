@@ -507,6 +507,9 @@ def _rand_room():
 @api.post("/matchmaking")
 def matchmaking(req: MatchmakeReq):
     with DB() as cur:
+        # 1. Clean up abandoned queue lobbies first (last ping > 10s ago)
+        cur.execute("DELETE FROM matches WHERE status='WAITING' AND last_polled < NOW() - INTERVAL '10 seconds'")
+        
         cur.execute("SELECT status FROM users WHERE nickname=%s", (req.username,))
         u = cur.fetchone()
         if u and u["status"] in ["suspended", "banned"]:
@@ -641,6 +644,9 @@ def get_match(id: int = Query(...), slot: int = Query(1)):
         
         if not m:
             raise HTTPException(404, "Match not found")
+            
+        if m["status"] == "WAITING":
+            cur.execute("UPDATE matches SET last_polled=CURRENT_TIMESTAMP WHERE id=%s", (id,))
         
         state = m["state"]
         
