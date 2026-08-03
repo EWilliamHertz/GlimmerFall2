@@ -528,6 +528,11 @@ def matchmaking(req: MatchmakeReq):
                             
         deck2 = ge.build_deck(pool, faction=None, card_ids=ai_card_ids)
         state = ge.new_match_state(req.username, deck1, ge.AI_NAME, deck2, is_ai=True)
+        with DB() as cur:
+            cur.execute("SELECT mmr FROM users WHERE nickname=%s", (req.username,))
+            u_row = cur.fetchone()
+            state["players"]["1"]["mmr"] = u_row["mmr"] if u_row else 1200
+            state["players"]["2"]["mmr"] = 1200
         state["log"].insert(1, f"GlimmerBot is to play {ai_deck['deck_name']}.")
         room = _rand_room()
         mid = insert_match(room, req.username, ge.AI_NAME, state, req.deckName or "Custom", ai_deck.get("deck_name", "Random Chaos"))
@@ -576,6 +581,14 @@ def matchmaking(req: MatchmakeReq):
             deck_p1 = wstate["p1_deck"]
             state = ge.new_match_state(waiting["player1"], deck_p1, req.username, deck1, is_ai=False)
             with DB() as cur:
+                cur.execute("SELECT nickname, mmr FROM users WHERE nickname IN (%s, %s)", (waiting["player1"], req.username))
+                for row in cur.fetchall():
+                    if row["nickname"] == waiting["player1"]:
+                        state["players"]["1"]["mmr"] = row["mmr"]
+                    else:
+                        state["players"]["2"]["mmr"] = row["mmr"]
+                if "mmr" not in state["players"]["1"]: state["players"]["1"]["mmr"] = 1200
+                if "mmr" not in state["players"]["2"]: state["players"]["2"]["mmr"] = 1200
                 cur.execute("UPDATE matches SET player2=%s, player2_deck=%s WHERE id=%s", (req.username, req.deckName or "Custom", waiting["id"]))
             save_match(waiting["id"], state)
             return {"matchId": waiting["id"], "slot": 2, "roomCode": waiting["room_code"], "status": "PLAYING", "vsAI": False}
@@ -1307,3 +1320,10 @@ app.add_middleware(
 @app.on_event("shutdown")
 def _shutdown():
     DB_POOL.closeall()
+
+@api.get("/matchmaking/queue_size")
+def get_queue_size():
+    with DB() as cur:
+        cur.execute("SELECT COUNT(*) as c FROM matches WHERE status='WAITING' AND player2 IS NULL AND is_ranked = TRUE")
+        row = cur.fetchone()
+        return {"queue_size": row["c"] if row else 0}
