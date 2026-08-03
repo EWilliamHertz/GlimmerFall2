@@ -73,11 +73,23 @@ function Lobby({ onStart }) {
   const [personalDecks, setPersonalDecks] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const [queueSize, setQueueSize] = useState(0);
+
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("glimmerfall_decks") || "{}");
       setPersonalDecks(Object.values(stored));
     } catch(e){}
+
+    const fetchQueue = async () => {
+      try {
+        const { data } = await api.get("/matchmaking/queue_size");
+        setQueueSize(data.queue_size || 0);
+      } catch (e) {}
+    };
+    fetchQueue();
+    const int = setInterval(fetchQueue, 5000);
+    return () => clearInterval(int);
   }, []);
 
   const go = async (mode) => {
@@ -235,9 +247,16 @@ function Lobby({ onStart }) {
           data-testid="lobby-quick-match"
           onClick={() => go("quick")}
           disabled={loading}
-          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl glass font-head hover:border-white/25 transition-colors disabled:opacity-60"
+          className="w-full flex flex-col items-center justify-center gap-1 px-5 py-3 rounded-xl glass font-head hover:border-white/25 transition-colors disabled:opacity-60"
         >
-          <Swords className="w-4 h-4" /> Solo Queue, Match Making
+          <div className="flex items-center gap-2">
+            <Swords className="w-4 h-4" /> Solo Queue, Match Making
+          </div>
+          {queueSize > 0 && (
+            <div className="text-xs text-[#00BFFF] animate-pulse">
+              {queueSize} player{queueSize === 1 ? '' : 's'} waiting
+            </div>
+          )}
         </button>
       </div>
     </div>
@@ -290,7 +309,10 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
       <Shield className={`w-6 h-6 ${mine ? "text-[#39E58C]" : "text-red-400"}`} />
     </div>
     <div className="text-left">
-      <div className="font-head text-sm text-white/70 truncate max-w-[120px]">{player.username}</div>
+      <div className="font-head text-sm text-white/70 truncate max-w-[120px]">
+        {player.username}
+        {player.mmr && <span className="ml-1 text-xs text-[#F2A900]/80">[{player.mmr}]</span>}
+      </div>
       <div className="font-num text-2xl font-bold leading-none">
         <span className={player.hp <= 8 ? "text-red-400" : "text-white"}>{player.hp}</span>
         <span className="text-white/30 text-base"> / 25</span>
@@ -990,9 +1012,82 @@ function GameBoard({ session, match, refresh, onExit }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* FEEDBACK MODAL                                                     */
+/* ------------------------------------------------------------------ */
+function FeedbackModal({ open, onClose }) {
+  const { user } = useAuth();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) {
+      return toast.error("Please fill in both fields.");
+    }
+    setSubmitting(true);
+    try {
+      await api.post("/reports", {
+        username: user?.nickname || "Anonymous",
+        title: title.trim(),
+        description: description.trim()
+      });
+      toast.success("Feedback submitted!");
+      setTitle("");
+      setDescription("");
+      onClose();
+    } catch (err) {
+      toast.error("Failed to submit feedback.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-lg p-6">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl text-white">Give Feedback</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div>
+            <label className="block text-sm font-bold text-white/70 mb-2 font-head">Issue Summary</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Broken interaction"
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#F2A900]/50 font-head"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-white/70 mb-2 font-head">Detailed Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Please provide details..."
+              rows={4}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#F2A900]/50 font-head resize-none"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-[#00BFFF] hover:bg-[#38ccff] text-black font-bold py-3 rounded-xl transition-all disabled:opacity-50"
+          >
+            {submitting ? "Submitting..." : "Submit Feedback"}
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* ARENA CONTAINER                                                    */
 /* ------------------------------------------------------------------ */
 export default function Arena() {
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [session, setSession] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const specId = urlParams.get("spectateId");
@@ -1055,17 +1150,17 @@ export default function Arena() {
   const refresh = (newState) => setMatch((m) => (m ? { ...m, state: newState, status: newState.phase, activePlayer: newState.activePlayer } : m));
 
   const FeedbackBtn = () => (
-    <a href="/support" className="fixed bottom-4 right-4 z-[100] px-4 py-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white/50 hover:text-white font-head text-xs backdrop-blur-sm transition-all flex items-center gap-2">
+    <button onClick={() => setFeedbackOpen(true)} className="fixed bottom-4 right-4 z-[100] px-4 py-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white/50 hover:text-white font-head text-xs backdrop-blur-sm transition-all flex items-center gap-2">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
       Give Feedback
-    </a>
+    </button>
   );
 
-  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /></>;
+  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
 
   const status = match?.status || session.status;
   if (status === "WAITING") {
-    return <><WaitingRoom roomCode={session.roomCode} onCancel={() => persist(null)} /><FeedbackBtn /></>;
+    return <><WaitingRoom roomCode={session.roomCode} onCancel={() => persist(null)} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
   }
   if (!match) {
     return <div className="py-32 text-center text-white/50 font-head">Loading match…</div>;
@@ -1074,6 +1169,7 @@ export default function Arena() {
     <>
       <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />
       <FeedbackBtn />
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
 }
