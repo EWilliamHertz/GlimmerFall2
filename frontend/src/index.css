@@ -95,6 +95,7 @@ body {
   img { display: block; }
   .no-print, header, footer { display: none !important; }
   .print-no-border { border: none !important; }
+  .print-no-shadow { box-shadow: none !important; }
   .print-sheets { padding: 0 !important; gap: 0 !important; display: block !important; }
   .print-page {
     width: 100% !important;

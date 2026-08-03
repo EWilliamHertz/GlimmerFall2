@@ -213,7 +213,7 @@ export const CardTemplate = ({
 
       {/* energy cost badge (faction) */}
       <div
-        className={`absolute left-1 top-1 rounded-full flex items-center justify-center font-num font-bold text-black ${COST_CLS[size]}`}
+        className={`absolute left-1 top-1 rounded-full flex items-center justify-center font-num font-bold text-black overflow-hidden print-no-shadow ${COST_CLS[size]}`}
         style={{ background: f.color, border: "2px solid rgba(0,0,0,0.5)", boxShadow: `0 0 10px ${f.glow}` }}
         data-testid={testId ? `${testId}-cost` : undefined}
       >
