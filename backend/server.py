@@ -506,6 +506,12 @@ def _rand_room():
 
 @api.post("/matchmaking")
 def matchmaking(req: MatchmakeReq):
+    with DB() as cur:
+        cur.execute("SELECT status FROM users WHERE nickname=%s", (req.username,))
+        u = cur.fetchone()
+        if u and u["status"] in ["suspended", "banned"]:
+            raise HTTPException(403, f"Account is {u['status']}")
+
     pool = load_cards()
     deck1 = ge.build_deck(pool, req.faction, req.deckCards)
 
@@ -819,6 +825,8 @@ def login(req: LoginReq):
         u = cur.fetchone()
     if not u or not bcrypt.checkpw(req.password.encode('utf-8'), u['password_hash'].encode('utf-8')):
         raise HTTPException(401, "Invalid credentials")
+    if u.get("status") == "banned":
+        raise HTTPException(403, "Account is banned")
     
     token = jwt.encode({
         "id": u["id"],
@@ -843,6 +851,8 @@ def login(req: LoginReq):
             "referral_code": u.get("referral_code"),
             "glimmer_balance": u.get("glimmer_balance") or 0,
             "bookings": u["bookings"],
+            "badges": u.get("badges") or [],
+            "status": u.get("status") or "active",
             "matchmaking": {"mmr": u["mmr"], "rank": u["rank"]}
         }
     }
@@ -872,8 +882,10 @@ def get_me(request: Request):
         "referrals": db_u["referrals"] or 0,
         "referral_code": db_u.get("referral_code"),
         "glimmer_balance": db_u.get("glimmer_balance") or 0,
-        "bookings": db_u["bookings"] or 0,
-        "matchmaking": {"mmr": db_u["mmr"] or 1200, "rank": db_u["rank"] or "Unranked"}
+        "bookings": db_u.get("bookings") or 0,
+        "badges": db_u.get("badges") or [],
+        "status": db_u.get("status") or "active",
+        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"}
     }
 
 @api.get("/users/{nickname}")
@@ -890,8 +902,10 @@ def get_user_profile(nickname: str):
         "faction": db_u["faction"],
         "avatar": db_u["avatar"],
         "wins": db_u["wins"] or 0,
-        "losses": db_u["losses"] or 0,
-        "matchmaking": {"mmr": db_u["mmr"] or 1200, "rank": db_u["rank"] or "Unranked"}
+        "losses": db_u.get("losses") or 0,
+        "badges": db_u.get("badges") or [],
+        "status": db_u.get("status") or "active",
+        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"}
     }
 
 @api.post("/auth/verify")
@@ -1232,6 +1246,20 @@ def toggle_admin(target_id: int, request: Request):
         new_status = not target["is_admin"]
         cur.execute("UPDATE users SET is_admin=%s WHERE id=%s", (new_status, target_id))
     return {"status": "success", "is_admin": new_status}
+
+
+class UserStatusReq(BaseModel):
+    status: str
+
+@api.put("/admin/users/{target_id}/status")
+def admin_set_user_status(target_id: int, req: UserStatusReq, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    if req.status not in ["active", "suspended", "banned"]:
+        raise HTTPException(400, "Invalid status")
+    with DB() as cur:
+        cur.execute("UPDATE users SET status=%s WHERE id=%s", (req.status, target_id))
+    return {"status": "success", "new_status": req.status}
 
 @api.get("/admin/shop/orders")
 def admin_get_shop_orders(request: Request):
