@@ -474,13 +474,17 @@ def save_match(match_id, state):
                 cur.execute("UPDATE users SET mmr = %s WHERE nickname = %s", (new_p2_mmr, p2_name))
             
             if w == 1:
-                cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p1_name,))
-                if not state.get("isAI"):
+                if state.get("isAI"):
+                    cur.execute("UPDATE users SET ai_wins = COALESCE(ai_wins, 0) + 1 WHERE nickname=%s", (p1_name,))
+                else:
+                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p1_name,))
                     cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p2_name,))
             elif w == 2:
-                if not state.get("isAI"):
+                if state.get("isAI"):
+                    cur.execute("UPDATE users SET ai_losses = COALESCE(ai_losses, 0) + 1 WHERE nickname=%s", (p1_name,))
+                else:
                     cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p2_name,))
-                cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p1_name,))
+                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p1_name,))
 
         cur.execute(
             "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s WHERE id=%s",
@@ -1038,7 +1042,7 @@ def update_avatar(req: AvatarReq, request: Request):
 @api.get("/leaderboard")
 def get_leaderboard():
     with DB() as cur:
-        cur.execute("SELECT nickname, mmr, wins, losses, faction, avatar FROM users ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100")
+        cur.execute("SELECT nickname, mmr, wins, losses, ai_wins, ai_losses, faction, avatar FROM users ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100")
         return cur.fetchall()
 
 @api.get("/auth/me/matches")
