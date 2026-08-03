@@ -1694,7 +1694,7 @@ def claim_quest_reward(qid: int, request: Request):
         raise HTTPException(401, "Not logged in")
     with DB() as cur:
         cur.execute(
-            "SELECT id, reward_glimmer, is_completed, reward_claimed, description "
+            "SELECT id, reward_glimmer, is_completed, reward_claimed, description, reward "
             "FROM user_quests WHERE id=%s AND user_id=%s FOR UPDATE",
             (qid, user["id"]),
         )
@@ -1713,7 +1713,32 @@ def claim_quest_reward(qid: int, request: Request):
                 cur, user["id"], credited, "quest",
                 ref_id=str(qid), memo=q["description"][:250]
             )
-    return {"ok": True, "credited": credited, "balance": new_balance}
+        
+        reward_str = q.get("reward") or ""
+        credited_items = []
+        if "Booster Pack" in reward_str or "Pack" in reward_str:
+            import re
+            m = re.search(r'(\d+)\s*x\s*(.*Pack.*)', reward_str, re.IGNORECASE)
+            qty = int(m.group(1)) if m else 1
+            item_name = m.group(2).strip() if m else reward_str.strip()
+            cur.execute("""
+                INSERT INTO user_inventory (user_id, item_name, quantity)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id, item_name)
+                DO UPDATE SET quantity = user_inventory.quantity + EXCLUDED.quantity
+            """, (user["id"], item_name, qty))
+            credited_items.append(f"{qty}x {item_name}")
+            
+    return {"ok": True, "credited": credited, "balance": new_balance, "credited_items": credited_items}
+
+@api.get("/auth/me/inventory")
+def get_my_inventory(request: Request):
+    user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
+    with DB() as cur:
+        cur.execute("SELECT item_name, quantity FROM user_inventory WHERE user_id=%s AND quantity > 0", (user['id'],))
+        return cur.fetchall()
 
 
 # ---------- quest progress bumping (called from game_engine hooks) ----------
