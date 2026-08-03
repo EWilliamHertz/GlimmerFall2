@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import {
   Swords, Bot, Users, Shield, Zap, Layers, Sparkles, ScrollText,
-  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye
+  Play, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye, Share2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
@@ -21,6 +21,7 @@ import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 import ProjectileLayer, { fireAttackProjectile } from "@/components/ProjectileLayer";
+import FactionParticles from "@/components/FactionParticles";
 import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
@@ -486,6 +487,7 @@ function GameBoard({ session, match, refresh, onExit }) {
   const [busy, setBusy] = useState(false);
   const [inspectCard, setInspectCard] = useState(null);
   const [viewingVoid, setViewingVoid] = useState(null);
+  const [shockwaves, setShockwaves] = useState([]);
   const [muted, setMuted] = useState(() => localStorage.getItem("gf_audio_muted") === "true");
   const navigate = useNavigate();
   const audioRef = useRef(null);
@@ -602,6 +604,11 @@ function GameBoard({ session, match, refresh, onExit }) {
     } else if (e.over.id === "battlefield") {
       if (card.cardType === "Entity" || card.cardType === "Relic") {
         act("PLAY_CARD", { instanceId: card.instanceId, destination: "battlefield" });
+        if (card.cardType === "Entity" && card.cost >= 3 && e.activatorEvent?.clientX) {
+          const sw = { id: Date.now(), x: e.activatorEvent.clientX, y: e.activatorEvent.clientY, color: factionCfg(card.faction).color };
+          setShockwaves(s => [...s, sw]);
+          setTimeout(() => setShockwaves(s => s.filter(x => x.id !== sw.id)), 600);
+        }
       } else {
         toast.info("Spells are cast — tap the card in hand to cast it.");
       }
@@ -798,7 +805,30 @@ function GameBoard({ session, match, refresh, onExit }) {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <audio ref={audioRef} src={ambientTrack} autoPlay loop />
+      <FactionParticles faction={state.players[String(state.activePlayer)]?.faction} />
       <ProjectileLayer />
+      
+      <AnimatePresence>
+        {shockwaves.map(sw => (
+          <motion.div
+            key={sw.id}
+            initial={{ width: 0, height: 0, opacity: 0.8, borderWidth: 8 }}
+            animate={{ width: 400, height: 400, opacity: 0, borderWidth: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="fixed z-[60] rounded-full pointer-events-none"
+            style={{
+              left: sw.x,
+              top: sw.y,
+              transform: "translate(-50%, -50%)",
+              borderColor: sw.color,
+              boxShadow: `0 0 40px ${sw.color}`,
+              borderStyle: "solid"
+            }}
+          />
+        ))}
+      </AnimatePresence>
+
       {isDanger && (
         <div className="pointer-events-none fixed inset-0 z-[45]" style={{ boxShadow: "inset 0 0 120px 20px rgba(255,20,40,0.35)", animation: "gf-danger-pulse 1.2s ease-in-out infinite" }} />
       )}
@@ -1053,6 +1083,19 @@ function GameBoard({ session, match, refresh, onExit }) {
                 <>
                   <Crown className="w-16 h-16 text-[#F2A900] mx-auto mb-4 drop-shadow-[0_0_20px_rgba(242,169,0,0.8)]" />
                   <h2 className="font-display text-4xl font-bold text-[#F2A900]">Victory</h2>
+                  <div className="bg-[#F2A900]/10 border border-[#F2A900]/30 rounded-xl p-3 my-4">
+                    <p className="text-[#F2A900] font-bold text-sm">Faction: {me.faction}</p>
+                    <p className="text-white/70 text-xs">A glorious triumph in the Arena!</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const text = `I just crushed my opponent in GlimmerFall TCG using the ${me.faction} faction! ⚔️✨ Play free at https://glimmerfall.com`;
+                      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
+                    }}
+                    className="w-full mb-3 px-6 py-2.5 rounded-xl bg-black border border-white/20 text-white font-head font-bold hover:bg-white/10 flex items-center justify-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" /> Share to X
+                  </button>
                 </>
               ) : (
                 <>
@@ -1061,7 +1104,7 @@ function GameBoard({ session, match, refresh, onExit }) {
                 </>
               )}
               <p className="text-white/60 font-head mt-2 mb-6">The match has ended on turn {state.turn}.</p>
-              <button onClick={onExit} data-testid="return-lobby" className="px-6 py-3 rounded-xl bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f]">
+              <button onClick={onExit} data-testid="return-lobby" className="w-full px-6 py-3 rounded-xl bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f]">
                 Return to Lobby
               </button>
             </motion.div>
@@ -1398,7 +1441,10 @@ export default function Arena() {
 
   const status = match?.status || session.status;
   if (status === "WAITING") {
-    return <><WaitingRoom roomCode={session.roomCode} onCancel={() => persist(null)} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
+    return <><WaitingRoom roomCode={session.roomCode} onCancel={async () => {
+      try { await api.delete(`/matchmaking/${session.matchId}`); } catch(e) {}
+      persist(null);
+    }} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
   }
   if (!match) {
     return <div className="py-32 text-center text-white/50 font-head">Loading match…</div>;

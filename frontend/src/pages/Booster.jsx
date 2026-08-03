@@ -141,9 +141,9 @@ const PackCard = ({ card, index, flipped, onFlip, onDetail }) => {
   const special = card.rarity === "Epic" || card.rarity === "Founders Foil";
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, rotateZ: -8 }}
-      animate={{ opacity: 1, y: 0, rotateZ: 0 }}
-      transition={{ delay: index * 0.06 }}
+      initial={{ opacity: 0, scale: 0.2, rotateZ: (index % 2 === 0 ? -1 : 1) * (15 + index) }}
+      animate={{ opacity: 1, scale: 1, rotateZ: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 20, delay: index * 0.1 }}
       className="relative"
       style={{ perspective: 1000 }}
       data-testid={`pack-card-${index}`}
@@ -156,10 +156,26 @@ const PackCard = ({ card, index, flipped, onFlip, onDetail }) => {
         onClick={flipped ? onDetail : onFlip}
       >
         <div className="absolute inset-0 rounded-xl overflow-hidden border-2 border-white/15" style={{ backfaceVisibility: "hidden" }}>
+          {!flipped && special && (
+            <motion.div
+              animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -inset-4 z-[-1] rounded-xl blur-xl bg-gradient-to-tr from-[#9B30FF] via-[#F2A900] to-[#00BFFF]"
+            />
+          )}
           <img src={CARDBACK} alt="" className="w-full h-full object-cover" />
         </div>
-        <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+        <div className="absolute inset-0 rounded-xl" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
           <CardTemplate card={card} size="md" tilt={false} className="w-40" onClick={onDetail} />
+          {flipped && special && (
+            <motion.div 
+               initial={{ opacity: 1, backgroundPosition: "0% 0%" }}
+               animate={{ opacity: 0, backgroundPosition: "200% 200%" }}
+               transition={{ duration: 1.5, ease: "easeOut" }}
+               className="absolute inset-0 pointer-events-none rounded-xl z-50 bg-gradient-to-tr from-[#9B30FF] via-[#F2A900] to-[#00BFFF] mix-blend-color-dodge opacity-50"
+               style={{ backgroundSize: "200% 200%" }}
+            />
+          )}
         </div>
       </motion.div>
       {flipped && special && (
