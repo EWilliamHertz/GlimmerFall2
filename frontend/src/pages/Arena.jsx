@@ -75,6 +75,7 @@ function Lobby({ onStart }) {
   const [showDeckModal, setShowDeckModal] = useState(false);
   const [personalDecks, setPersonalDecks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [featuredGames, setFeaturedGames] = useState([]);
 
   const [queueSize, setQueueSize] = useState(0);
 
@@ -104,8 +105,18 @@ function Lobby({ onStart }) {
         setQueueSize(data.queue_size || 0);
       } catch (e) {}
     };
+    const fetchFeatured = async () => {
+      try {
+        const { data } = await api.get("/featured");
+        setFeaturedGames(data);
+      } catch (e) {}
+    };
     fetchQueue();
-    const int = setInterval(fetchQueue, 5000);
+    fetchFeatured();
+    const int = setInterval(() => {
+      fetchQueue();
+      fetchFeatured();
+    }, 5000);
     return () => clearInterval(int);
   }, [user]);
 
@@ -267,14 +278,37 @@ function Lobby({ onStart }) {
           className="w-full flex flex-col items-center justify-center gap-1 px-5 py-3 rounded-xl glass font-head hover:border-white/25 transition-colors disabled:opacity-60"
         >
           <div className="flex items-center gap-2">
-            <Swords className="w-4 h-4" /> Solo Queue, Match Making
+             <Swords className="w-4 h-4" /> Solo Queue, Match Making
           </div>
-          {queueSize > 0 && (
-            <div className="text-xs text-[#00BFFF] animate-pulse">
-              {queueSize} player{queueSize === 1 ? '' : 's'} waiting
-            </div>
-          )}
+          <div className="text-[10px] text-white/50">{queueSize} in queue</div>
         </button>
+
+        {featuredGames.length > 0 && (
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h3 className="text-xs font-head uppercase tracking-wider text-[#00BFFF] font-bold mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" /> Featured Live Matches
+            </h3>
+            <div className="flex flex-col gap-2">
+              {featuredGames.map(fg => (
+                <a
+                  key={fg.id}
+                  href={`/play?spectateId=${fg.id}&roomCode=${fg.room_code}`}
+                  className="bg-black/30 hover:bg-black/50 border border-white/5 hover:border-[#00BFFF]/30 transition-all rounded-lg p-3 flex items-center justify-between group"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-head text-sm font-bold text-white/80 group-hover:text-white">
+                      {fg.player1} <span className="text-white/30 text-xs mx-1">vs</span> {fg.player2}
+                    </span>
+                    <span className="text-[10px] text-white/40">Room: {fg.room_code}</span>
+                  </div>
+                  <div className="px-3 py-1 rounded bg-[#00BFFF]/20 text-[#00BFFF] text-[10px] font-bold tracking-widest uppercase">
+                    Spectate
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
