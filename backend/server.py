@@ -487,8 +487,8 @@ def save_match(match_id, state):
                     cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p1_name,))
 
         cur.execute(
-            "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s WHERE id=%s",
-            (Json(state), state.get("phase"), state.get("turn"), active_name, match_id),
+            "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s, history = history || %s::jsonb WHERE id=%s",
+            (Json(state), state.get("phase"), state.get("turn"), active_name, Json([state]), match_id),
         )
 
 
@@ -496,9 +496,9 @@ def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None, is_ranked
     active_name = state["players"][state.get("activePlayer", 1) and str(state.get("activePlayer", 1))]["username"] if state.get("phase") == "PLAYING" else p1
     with DB() as cur:
         cur.execute(
-            "INSERT INTO matches (room_code, player1, player2, status, current_turn, active_player, state, player1_deck, player2_deck, is_ranked) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (room_code, p1, p2, state.get("phase", "WAITING"), state.get("turn", 1), active_name, Json(state), p1_deck, p2_deck, is_ranked),
+            "INSERT INTO matches (room_code, player1, player2, status, current_turn, active_player, state, player1_deck, player2_deck, is_ranked, history) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (room_code, p1, p2, state.get("phase", "WAITING"), state.get("turn", 1), active_name, Json(state), p1_deck, p2_deck, is_ranked, Json([state])),
         )
         return cur.fetchone()["id"]
 
@@ -669,8 +669,8 @@ def get_match(id: int = Query(...), slot: int = Query(1), isSpectator: bool = Qu
                     active = str(state.get("activePlayer", 1))
                     state = apply_action(state, active, "END_TURN", {})
                     cur.execute(
-                        "UPDATE matches SET current_turn=%s, active_player=%s, state=%s WHERE id=%s",
-                        (state["turn"], state["activePlayer"], json.dumps(state), id)
+                        "UPDATE matches SET current_turn=%s, active_player=%s, state=%s, history = history || %s::jsonb WHERE id=%s",
+                        (state["turn"], state["activePlayer"], json.dumps(state), json.dumps([state]), id)
                     )
                 except Exception as e:
                     pass
@@ -686,6 +686,18 @@ def get_match(id: int = Query(...), slot: int = Query(1), isSpectator: bool = Qu
         "is_ranked": m["is_ranked"],
         "state": redact_state(state, 0 if (m["status"] == "ENDED" or isSpectator) else slot),
     }
+
+@api.get("/match/{id}/history")
+def get_match_history(id: int):
+    with DB() as cur:
+        cur.execute("SELECT history FROM matches WHERE id=%s", (id,))
+        m = cur.fetchone()
+        if not m:
+            raise HTTPException(404, "Match not found")
+        # Ensure we don't return null
+        history = m.get("history") or []
+        # We don't redact history because it's only for replays of ended games (or could add a status check)
+        return {"history": history}
 
 @api.get("/featured")
 def get_featured_matches():
@@ -1347,7 +1359,7 @@ def admin_get_shop_orders(request: Request):
     if not user or not user.get("is_admin"):
         raise HTTPException(403, "Access denied")
     with DB() as cur:
-        cur.execute("SELECT * FROM shop_orders ORDER BY created_at DESC")
+        cur.execute("SELECT * FROM shop_orders WHERE status != 'PENDING' ORDER BY created_at DESC")
         orders = cur.fetchall()
         for o in orders:
             cur.execute("""
