@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, CheckCircle, Zap, Shield, Sword, Box } from 'lucide-react';
+import { ChevronRight, CheckCircle, Zap, Shield, Sword, Box, Heart } from 'lucide-react';
 
 export default function TutorialSandbox() {
   const navigate = useNavigate();
@@ -22,21 +22,21 @@ export default function TutorialSandbox() {
       boardState: "draw_phase"
     },
     {
-      title: "Glimmer Nodes",
-      text: "You drew a 'Glimmer Node'. Nodes generate the Glimmer (mana) you need to cast spells and deploy entities. Click the Glimmer Node in your hand to play it into your Resonance Zone.",
-      actionText: null, // user must click node
-      boardState: "hand_node"
+      title: "Any Card is a Node",
+      text: "You drew 'Gaia, the World-Soul', a very expensive card. In GlimmerFall, there are no dedicated mana or energy cards! ANY card in your hand can be played upside-down as a Glimmer Node. Because she costs so much Glimmer, we can turn her into a Glimmer Node to make sure that we can play our spells! Click Gaia to turn her into a Glimmer Node in your Resonance Zone.",
+      actionText: null, // user must click gaia
+      boardState: "hand_gaia"
     },
     {
       title: "The Resonance Zone",
-      text: "Excellent! The node is now active. It provides 1 Glimmer per turn. Now that you have resources, let's draw another card.",
+      text: "Excellent! Gaia is now an active Glimmer Node. It provides 1 Glimmer per turn to cast spells and deploy entities. Now that you have resources, let's draw another card.",
       actionText: "Draw Card",
       onAction: () => setStep(4),
       boardState: "played_node"
     },
     {
       title: "Playing an Entity",
-      text: "You drew 'Emberwing Courier', an Entity that costs 1 Glimmer and has 2 Attack. Click the card to deploy it onto the battlefield.",
+      text: "You drew 'Emberwing Courier', an Entity that costs 1 Glimmer and has 2 Attack. Since you have 1 Glimmer Node active, you can play it! Click the card to deploy it onto the battlefield.",
       actionText: null, // user must click card
       boardState: "hand_entity"
     },
@@ -48,7 +48,7 @@ export default function TutorialSandbox() {
     },
     {
       title: "Direct Hit!",
-      text: "You dealt 2 damage to the opponent! That's the core loop: play nodes, gain Glimmer, deploy entities, and defeat your opponent.",
+      text: "You dealt 2 damage to the opponent! That's the core loop: use any card as a node, gain Glimmer, deploy entities, and defeat your opponent.",
       actionText: "Complete Training",
       onAction: () => navigate('/play'),
       boardState: "attack_done"
@@ -107,10 +107,14 @@ export default function TutorialSandbox() {
               animate={{ opacity: 1, y: 0 }}
               className="absolute bottom-48 left-1/4 -translate-x-1/2 flex flex-col items-center gap-3"
             >
-              <div className="w-24 h-32 bg-[#00BFFF]/10 border-2 border-[#00BFFF] rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(0,191,255,0.2)]">
-                <Zap className="w-10 h-10 text-[#00BFFF]" />
+              <div className="w-24 h-32 bg-black border border-white/20 rounded-xl shadow-[0_0_30px_rgba(0,191,255,0.2)] overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#00BFFF]/20"></div>
+                <div className="w-full h-full flex flex-col items-center justify-center rotate-180 opacity-50">
+                   <div className="text-[8px] font-bold text-[#22E07B] uppercase tracking-widest border-b border-white/10 pb-1">Gaia, the World-Soul</div>
+                   <Heart className="w-6 h-6 text-[#22E07B] mt-2" />
+                </div>
               </div>
-              <div className="text-[#00BFFF] font-bold text-xs uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-[#00BFFF]/30">Active Node (1)</div>
+              <div className="text-[#00BFFF] font-bold text-xs uppercase tracking-widest bg-black/50 px-3 py-1 rounded-full border border-[#00BFFF]/30 shadow-[0_0_10px_rgba(0,191,255,0.5)]">Active Node (1)</div>
             </motion.div>
           )}
 
@@ -143,18 +147,25 @@ export default function TutorialSandbox() {
         {/* Player Hand Area */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 h-48 items-end">
           <AnimatePresence>
-            {current.boardState === "hand_node" && (
+            {current.boardState === "hand_gaia" && (
               <motion.div
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -100, opacity: 0, scale: 0.5 }}
                 whileHover={{ y: -20 }}
                 onClick={() => setStep(3)}
-                className="w-36 h-52 bg-zinc-900 border-2 border-[#00BFFF] rounded-xl flex flex-col items-center justify-between p-3 cursor-pointer shadow-[0_0_30px_rgba(0,191,255,0.2)] hover:shadow-[0_0_40px_rgba(0,191,255,0.6)] group transition-shadow"
+                className="w-36 h-52 bg-zinc-900 border-2 border-[#22E07B] rounded-xl flex flex-col items-center justify-between p-3 cursor-pointer shadow-[0_0_30px_rgba(34,224,123,0.2)] hover:shadow-[0_0_40px_rgba(34,224,123,0.6)] group transition-shadow"
               >
-                <div className="w-full text-center text-xs font-bold text-[#00BFFF] uppercase tracking-widest border-b border-white/10 pb-2">Glimmer Node</div>
-                <Zap className="w-12 h-12 text-[#00BFFF] group-hover:scale-110 transition-transform" />
-                <div className="w-full text-center text-[10px] text-white/50 bg-black/50 rounded py-1">Click to play</div>
+                <div className="w-full text-center text-xs font-bold text-[#22E07B] uppercase tracking-widest border-b border-white/10 pb-2">Gaia, the World-Soul</div>
+                <div className="text-white/40 text-[10px] text-center px-2">Colossal earth elemental.</div>
+                <div className="w-full text-center text-[9px] text-white/90 bg-[#00BFFF]/20 border border-[#00BFFF]/50 rounded py-1 shadow-[0_0_10px_rgba(0,191,255,0.3)] animate-pulse uppercase">Click to play as Node</div>
+                <div className="w-full flex justify-between items-center bg-black/50 rounded p-1 mt-1">
+                  <span className="text-[#00BFFF] font-bold text-[10px] flex items-center gap-1"><Zap className="w-3 h-3"/>10</span>
+                  <div className="flex gap-1">
+                    <span className="text-red-400 font-bold text-[10px]">8</span>
+                    <span className="text-green-400 font-bold text-[10px]">8</span>
+                  </div>
+                </div>
               </motion.div>
             )}
 
