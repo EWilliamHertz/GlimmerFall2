@@ -1373,6 +1373,7 @@ function GameBoard({ session, match, refresh, onExit }) {
 /* ARENA CONTAINER                                                    */
 /* ------------------------------------------------------------------ */
 export default function Arena() {
+  const { user } = useAuth();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [session, setSession] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
