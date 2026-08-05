@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
-import { Activity, Crosshair, Users, Trophy, Medal } from "lucide-react";
+import { Activity, Crosshair, Users, Trophy, Medal, Play } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function UserProfile() {
@@ -97,8 +97,17 @@ export default function UserProfile() {
                     <span className="ml-2 font-bold font-head text-white/90">{match.opponent}</span>
                   </div>
                 </div>
-                <div className="text-white/30 text-xs font-head">
-                  {match.date ? new Date(match.date).toLocaleDateString() : 'Unknown Date'}
+                <div className="flex items-center gap-4">
+                  <div className="text-white/30 text-xs font-head">
+                    {match.date ? new Date(match.date).toLocaleDateString() : 'Unknown Date'}
+                  </div>
+                  <button
+                    onClick={() => navigate(`/play?replayId=${match.id}`)}
+                    className="flex items-center gap-1 px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-xs font-bold transition-colors"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    WATCH REPLAY
+                  </button>
                 </div>
               </div>
             ))}

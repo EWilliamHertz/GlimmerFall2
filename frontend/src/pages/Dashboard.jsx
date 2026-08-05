@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, useSearchParams, Link } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy } from 'lucide-react';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -524,6 +524,7 @@ function AdminPanel({ user }) {
   const [userList, setUserList] = useState([]);
   const [orderList, setOrderList] = useState([]);
   const [pollList, setPollList] = useState([]);
+  const [feedbackList, setFeedbackList] = useState([]);
 
   // Modal states
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -612,6 +613,9 @@ function AdminPanel({ user }) {
       } else if (adminTab === "polls") {
         const pRes = await api.get("/polls");
         setPollList(pRes.data);
+      } else if (adminTab === "feedback") {
+        const fRes = await api.get("/reports");
+        setFeedbackList(fRes.data);
       }
     } catch (e) {
       console.error(e);
@@ -671,6 +675,12 @@ function AdminPanel({ user }) {
           className={`px-4 py-2 rounded-xl font-head font-bold transition-all ${adminTab === "polls" ? "bg-[#FF5252] text-black" : "text-white/50 hover:text-white"}`}
         >
           <Vote className="w-4 h-4 inline-block mr-2" /> Polls
+        </button>
+        <button 
+          onClick={() => setAdminTab("feedback")}
+          className={`px-4 py-2 rounded-xl font-head font-bold transition-all ${adminTab === "feedback" ? "bg-[#F2A900] text-black" : "text-white/50 hover:text-white"}`}
+        >
+          <MessageSquare className="w-4 h-4 inline-block mr-2" /> Feedback
         </button>
       </div>
 
@@ -1267,6 +1277,37 @@ function AdminPanel({ user }) {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {adminTab === "feedback" && (
+        <div className="space-y-6 animate-in fade-in zoom-in-95">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-display font-bold text-white flex items-center gap-2">
+              <MessageSquare className="text-[#F2A900] w-6 h-6" /> User Feedback
+            </h2>
+          </div>
+          
+          <div className="grid gap-4">
+            {feedbackList.length === 0 ? (
+              <div className="text-center py-12 bg-black/20 rounded-2xl border border-white/10">
+                <p className="text-white/50 font-head">No feedback reports found.</p>
+              </div>
+            ) : (
+              feedbackList.map(item => (
+                <div key={item.id} className="bg-black/30 border border-white/10 p-4 rounded-2xl flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-lg text-white font-display">{item.title}</h3>
+                    <span className="text-xs text-white/40 font-num">{new Date(item.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-white/60 font-head">From: <span className="text-white font-bold">{item.username}</span></p>
+                  <div className="bg-black/50 p-4 rounded-xl text-white/80 font-head text-sm border border-white/5 whitespace-pre-wrap mt-2">
+                    {item.description}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

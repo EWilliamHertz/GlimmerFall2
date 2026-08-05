@@ -22,6 +22,8 @@ import { FACTIONS, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 import ProjectileLayer, { fireAttackProjectile } from "@/components/ProjectileLayer";
 import FactionParticles from "@/components/FactionParticles";
+import FeedbackModal from "@/components/FeedbackModal";
+import ReplayViewer from "@/components/ReplayViewer";
 import { useAuth } from "@/lib/auth";
 
 const SESSION_KEY = "glimmerfall_session";
@@ -1367,77 +1369,6 @@ function GameBoard({ session, match, refresh, onExit }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* FEEDBACK MODAL                                                     */
-/* ------------------------------------------------------------------ */
-function FeedbackModal({ open, onClose }) {
-  const { user } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      return toast.error("Please fill in both fields.");
-    }
-    setSubmitting(true);
-    try {
-      await api.post("/reports", {
-        username: user?.nickname || "Anonymous",
-        title: title.trim(),
-        description: description.trim()
-      });
-      toast.success("Feedback submitted!");
-      setTitle("");
-      setDescription("");
-      onClose();
-    } catch (err) {
-      toast.error("Failed to submit feedback.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-lg p-6">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-white">Give Feedback</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <label className="block text-sm font-bold text-white/70 mb-2 font-head">Issue Summary</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Broken interaction"
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#F2A900]/50 font-head"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-white/70 mb-2 font-head">Detailed Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Please provide details..."
-              rows={4}
-              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#F2A900]/50 font-head resize-none"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-[#00BFFF] hover:bg-[#38ccff] text-black font-bold py-3 rounded-xl transition-all disabled:opacity-50"
-          >
-            {submitting ? "Submitting..." : "Submit Feedback"}
-          </button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* ARENA CONTAINER                                                    */
 /* ------------------------------------------------------------------ */
@@ -1511,14 +1442,14 @@ export default function Arena() {
     </button>
   );
 
-  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
+  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} /></>;
 
   const status = match?.status || session.status;
   if (status === "WAITING") {
     return <><WaitingRoom roomCode={session.roomCode} onCancel={async () => {
       try { await api.delete(`/matchmaking/${session.matchId}`); } catch(e) {}
       persist(null);
-    }} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} /></>;
+    }} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} /></>;
   }
   if (!match) {
     return <div className="py-32 text-center text-white/50 font-head">Loading match…</div>;
@@ -1526,9 +1457,9 @@ export default function Arena() {
   if (session.isReplay) {
     return (
       <>
-        <ReplayViewer session={session} onExit={() => persist(null)} />
+        <ReplayViewer session={session} onExit={() => persist(null)} GameBoard={GameBoard} />
         <FeedbackBtn />
-        <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+        <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} />
       </>
     );
   }
@@ -1537,7 +1468,7 @@ export default function Arena() {
     <>
       <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />
       <FeedbackBtn />
-      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} />
     </>
   );
 }
@@ -1587,71 +1518,6 @@ function DiceRollModal({ state, slot, act }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* REPLAY VIEWER                                                      */
 /* ------------------------------------------------------------------ */
-function ReplayViewer({ session, onExit }) {
-  const [history, setHistory] = useState([]);
-  const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.get(`/match/${session.matchId}/history`).then(res => {
-      setHistory(res.data.history || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [session.matchId]);
-
-  useEffect(() => {
-    if (!playing || history.length === 0) return;
-    const interval = setInterval(() => {
-      setIndex(i => {
-        if (i >= history.length - 1) {
-          setPlaying(false);
-          return i;
-        }
-        return i + 1;
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [playing, history.length]);
-
-  if (loading) return <div className="py-32 text-center text-white/50 font-head">Loading replay history...</div>;
-  if (!history || history.length === 0) return (
-     <div className="py-32 text-center text-white/50 font-head">
-       No step-by-step history available for this match.<br/>
-       (Only matches played after this feature was added can be replayed.)
-       <div className="mt-4"><button onClick={onExit} className="px-4 py-2 bg-white/10 rounded">Exit</button></div>
-     </div>
-  );
-
-  const currentState = history[index];
-  const mockedMatch = {
-    id: session.matchId,
-    state: currentState,
-    status: currentState.phase,
-    activePlayer: currentState.activePlayer
-  };
-
-  return (
-    <div className="relative min-h-screen">
-      <GameBoard session={session} match={mockedMatch} refresh={() => {}} onExit={onExit} />
-      
-      {/* Playback Controls Overlay */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black/80 backdrop-blur-md border-t border-white/10 z-[100] flex flex-col items-center gap-2">
-        <div className="flex items-center gap-4">
-           <button onClick={() => setIndex(Math.max(0, index - 1))} className="p-2 hover:bg-white/10 rounded-full text-white"><SkipBack className="w-5 h-5"/></button>
-           <button onClick={() => setPlaying(!playing)} className="p-3 bg-[#00BFFF] text-black rounded-full hover:bg-[#38ccff] transition-all">
-             {playing ? <Pause className="w-6 h-6"/> : <Play className="w-6 h-6 fill-current"/>}
-           </button>
-           <button onClick={() => setIndex(Math.min(history.length - 1, index + 1))} className="p-2 hover:bg-white/10 rounded-full text-white"><SkipForward className="w-5 h-5"/></button>
-        </div>
-        <div className="w-full max-w-2xl flex items-center gap-4 text-white">
-           <span className="text-xs font-num">{index + 1}</span>
-           <input type="range" min={0} max={history.length - 1} value={index} onChange={e => setIndex(parseInt(e.target.value))} className="flex-1 accent-[#00BFFF]" />
-           <span className="text-xs font-num">{history.length}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ARENA CONTAINER                                                    */
+/* ------------------------------------------------------------------ */

@@ -5,6 +5,7 @@ import { LOGO } from "@/lib/factions";
 import { useAuth } from "@/lib/auth";
 import AuthModal from "@/components/AuthModal";
 import GlimmerPurse from "@/components/GlimmerPurse";
+import TutorialModal from "@/components/TutorialModal";
 
 const NAV_GROUPS = [
   {
@@ -42,6 +43,7 @@ const NAV_GROUPS = [
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { user } = useAuth();
 
@@ -110,8 +112,15 @@ export const Navbar = () => {
         </div>
 
         {/* CTA */}
+        <div className="hidden md:flex items-center gap-3">
+          <button
+            onClick={() => setTutorialOpen(true)}
+            className="px-4 py-1.5 rounded-full font-head text-sm font-semibold text-white bg-white/10 hover:bg-white/20 transition-colors border border-white/20"
+          >
+            Tutorial
+          </button>
         {user ? (
-          <div className="hidden md:flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <GlimmerPurse />
             <Link
               to="/dashboard"
@@ -130,6 +139,7 @@ export const Navbar = () => {
             Register / Login
           </button>
         )}
+        </div>
 
         {/* Mobile Toggle */}
         <button
@@ -174,6 +184,7 @@ export const Navbar = () => {
       )}
     </header>
     <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+    <TutorialModal isOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
     </>
   );
 };
