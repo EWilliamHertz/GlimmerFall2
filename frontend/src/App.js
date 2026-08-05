@@ -19,14 +19,15 @@ import Codex from "@/pages/Codex";
 import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
 import Shop from "@/pages/Shop";
+import TutorialSandbox from "@/pages/TutorialSandbox";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
 
 function Shell() {
   const { pathname } = useLocation();
   const isPrint = pathname === "/print" || pathname === "/print-all";
-  const hideChrome = isPrint;
-  const hideFooter = isPrint || pathname === "/play";
+  const hideChrome = isPrint || pathname === "/sandbox";
+  const hideFooter = isPrint || pathname === "/play" || pathname === "/sandbox";
   return (
     <div className="dark App min-h-screen text-foreground">
       {!hideChrome && <Navbar />}
@@ -34,6 +35,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<Arena />} />
+          <Route path="/sandbox" element={<TutorialSandbox />} />
           <Route path="/cards" element={<Cards />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/decks" element={<DeckBuilder />} />
