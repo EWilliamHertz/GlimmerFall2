@@ -656,7 +656,7 @@ def get_match(id: int = Query(...), slot: int = Query(1), isSpectator: bool = Qu
         if not m:
             raise HTTPException(404, "Match not found")
             
-        if m["status"] == "WAITING":
+        if m["status"] in ("WAITING", "PLAYING"):
             cur.execute("UPDATE matches SET last_polled=CURRENT_TIMESTAMP WHERE id=%s", (id,))
         
         state = m["state"]
@@ -702,10 +702,10 @@ def get_match_history(id: int):
 @api.get("/featured")
 def get_featured_matches():
     with DB() as cur:
-        cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND is_ranked=true ORDER BY created_at DESC LIMIT 5")
+        cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND last_polled > NOW() - INTERVAL '2 minutes' AND is_ranked=true ORDER BY created_at DESC LIMIT 5")
         ranked = cur.fetchall()
         if len(ranked) < 5:
-            cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND is_ranked=false ORDER BY created_at DESC LIMIT %s", (5 - len(ranked),))
+            cur.execute("SELECT id, player1, player2, room_code, created_at FROM matches WHERE status='PLAYING' AND last_polled > NOW() - INTERVAL '2 minutes' AND is_ranked=false ORDER BY created_at DESC LIMIT %s", (5 - len(ranked),))
             ranked.extend(cur.fetchall())
         return [{"id": m["id"], "player1": m["player1"], "player2": m["player2"], "room_code": m["room_code"], "created_at": str(m["created_at"])} for m in ranked]
 
@@ -1391,9 +1391,9 @@ def get_admin_shop_stats(request: Request):
     user = get_user_from_request(request)
     if not user or not user.get("is_admin"): raise HTTPException(403)
     with DB() as cur:
-        cur.execute("SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue FROM shop_orders")
+        cur.execute("SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_revenue FROM shop_orders WHERE status != 'PENDING'")
         stats = cur.fetchone()
-        cur.execute("SELECT country, COUNT(*) as count FROM shop_orders GROUP BY country")
+        cur.execute("SELECT country, COUNT(*) as count FROM shop_orders WHERE status != 'PENDING' GROUP BY country")
         stats['by_country'] = cur.fetchall()
         return stats
 
