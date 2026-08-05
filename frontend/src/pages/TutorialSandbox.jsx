@@ -160,7 +160,7 @@ export default function TutorialSandbox() {
                 <div className="text-white/40 text-[10px] text-center px-2">Colossal earth elemental.</div>
                 <div className="w-full text-center text-[9px] text-white/90 bg-[#00BFFF]/20 border border-[#00BFFF]/50 rounded py-1 shadow-[0_0_10px_rgba(0,191,255,0.3)] animate-pulse uppercase">Click to play as Node</div>
                 <div className="w-full flex justify-between items-center bg-black/50 rounded p-1 mt-1">
-                  <span className="text-[#00BFFF] font-bold text-[10px] flex items-center gap-1"><Zap className="w-3 h-3"/>10</span>
+                  <span className="text-[#00BFFF] font-bold text-[10px] flex items-center gap-1"><Zap className="w-3 h-3"/>8</span>
                   <div className="flex gap-1">
                     <span className="text-red-400 font-bold text-[10px]">8</span>
                     <span className="text-green-400 font-bold text-[10px]">8</span>
