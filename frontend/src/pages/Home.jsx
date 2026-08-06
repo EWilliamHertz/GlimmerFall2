@@ -157,7 +157,7 @@ export default function Home() {
               
               <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Policies & Contact</h3>
               <p>
-                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please reach out to us at: <a href="mailto:support@GlimmerFallTCG.com" className="text-white hover:underline">support@GlimmerFallTCG.com</a>.
+                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please <Link to="/support" className="text-[#00BFFF] hover:underline">submit a ticket on our Support page</Link>.
               </p>
             </div>
           </div>

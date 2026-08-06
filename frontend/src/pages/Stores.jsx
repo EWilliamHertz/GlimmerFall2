@@ -107,9 +107,9 @@ export default function Stores() {
             </Link>
             <div className="mt-8 pt-6 border-t border-white/10">
               <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider mb-3">Questions?</h3>
-              <a href="mailto:retailers@GlimmerFallTCG.com" className="flex items-center gap-2 text-white hover:text-[#00BFFF] transition-colors font-head">
-                <Mail className="w-4 h-4" /> retailers@GlimmerFallTCG.com
-              </a>
+              <Link to="/support" className="flex items-center gap-2 text-white hover:text-[#00BFFF] transition-colors font-head">
+                <Mail className="w-4 h-4" /> Contact Retailer Support
+              </Link>
             </div>
           </div>
         </section>
