@@ -141,10 +141,13 @@ export default function Home() {
                 GlimmerFall is created by a passionate solo founder with a history in TCG game design. We are currently in the late playtest stage, refining the final card balancing and physical production logistics.
               </p>
               
-              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">First Edition Production</h3>
+              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">First Edition Production & Quality</h3>
               <p>
                 The 500-box figure represents our initial <strong>production cap</strong> for the First Edition print run, not our current inventory count. By capping the first run, we ensure the highest quality control and exclusivity for early supporters.
               </p>
+              <blockquote className="mt-4 border-l-2 border-[#F2A900] pl-4 italic text-white/60 text-sm">
+                "To guarantee an uncompromising, premium feel, all GlimmerFall physical cards and sealed products are manufactured in the exact same facility that prints one of the world's most internationally established TCGs."
+              </blockquote>
             </div>
             <div>
               <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Shipping & Fulfillment</h3>
