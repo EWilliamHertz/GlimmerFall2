@@ -20,6 +20,7 @@ import Support from "@/pages/Support";
 import FlyerGenerator from "@/pages/FlyerGenerator";
 import Shop from "@/pages/Shop";
 import TutorialSandbox from "@/pages/TutorialSandbox";
+import MediaKit from "@/pages/MediaKit";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
 import { useEffect } from "react";
@@ -75,6 +76,7 @@ function Shell() {
           <Route path="/stores" element={<Stores />} />
           <Route path="/support" element={<Support />} />
           <Route path="/retailer-flyer" element={<FlyerGenerator />} />
+          <Route path="/media-kit" element={<MediaKit />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
