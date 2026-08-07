@@ -883,10 +883,7 @@ function GameBoard({ session, match, refresh, onExit }) {
         ))}
       </AnimatePresence>
 
-      {isDanger && (
-        <div className="pointer-events-none fixed inset-0 z-[45]" style={{ boxShadow: "inset 0 0 120px 20px rgba(255,20,40,0.35)", animation: "gf-danger-pulse 1.2s ease-in-out infinite" }} />
-      )}
-      <style>{`@keyframes gf-danger-pulse { 0%, 100% { opacity: 0.55 } 50% { opacity: 1 } }`}</style>
+
       <button type="button" onClick={() => setMuted(v => !v)} aria-label={muted ? "Unmute audio" : "Mute audio"} className="fixed top-20 right-4 z-40 glass rounded-lg px-3 py-2 text-xs font-head text-white/80 hover:text-white">{muted ? "🔇 Sound off" : "🔊 Sound on"}</button>
       {state.phase === "DICE_ROLL" && <DiceRollModal state={state} slot={slot} act={act} />}
       <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
