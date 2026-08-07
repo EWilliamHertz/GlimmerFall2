@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     verification_token VARCHAR(255),
     referrals INTEGER DEFAULT 0,
     bookings INTEGER DEFAULT 0,
-    mmr INTEGER DEFAULT 1200,
+    mmr INTEGER DEFAULT 1400,
     rank VARCHAR(20) DEFAULT 'Bronze IV',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
