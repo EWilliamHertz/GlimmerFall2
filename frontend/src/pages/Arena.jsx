@@ -781,13 +781,12 @@ function GameBoard({ session, match, refresh, onExit }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  // Adaptive Audio: shift playbackRate/volume when either Nexus is in danger (<10 HP).
-  const isDanger = !ended && ((me.hp ?? 25) <= 10 || (opp.hp ?? 25) <= 10);
+  // Smoothly fade volume in/out when muting
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const targetRate = isDanger ? 1.15 : 1.0;
-    const targetVol = muted ? 0 : isDanger ? 0.22 : 0.15;
+    const targetRate = 1.0;
+    const targetVol = muted ? 0 : 0.15;
     const startRate = audio.playbackRate;
     const startVol = audio.volume;
     const t0 = performance.now();
@@ -801,54 +800,7 @@ function GameBoard({ session, match, refresh, onExit }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isDanger, muted]);
-
-  // Web Audio API heartbeat when Nexus is in danger
-  useEffect(() => {
-    if (!isDanger || muted) return;
-    let ac;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      ac = new AC();
-    } catch (e) {
-      return;
-    }
-    let cancelled = false;
-    const thump = (delayMs = 0, freq = 55, peak = 0.35) => {
-      setTimeout(() => {
-        if (cancelled || ac.state === "closed") return;
-        try {
-          const osc = ac.createOscillator();
-          const gain = ac.createGain();
-          osc.type = "sine";
-          const now = ac.currentTime;
-          osc.frequency.setValueAtTime(freq, now);
-          osc.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.55), now + 0.16);
-          gain.gain.setValueAtTime(0, now);
-          gain.gain.linearRampToValueAtTime(peak, now + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-          osc.connect(gain).connect(ac.destination);
-          osc.start(now);
-          osc.stop(now + 0.32);
-        } catch (e) {}
-      }, delayMs);
-    };
-    const beat = () => {
-      if (cancelled) return;
-      thump(0, 60, 0.38);
-      thump(220, 50, 0.28);
-    };
-    const iv = setInterval(beat, 1200);
-    beat();
-    return () => {
-      cancelled = true;
-      clearInterval(iv);
-      try {
-        ac.close();
-      } catch (e) {}
-    };
-  }, [isDanger, muted]);
+  }, [muted]);
 
   const wasEndedRef = useRef(false);
   useEffect(() => {
