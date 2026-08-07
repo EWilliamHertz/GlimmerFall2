@@ -22,6 +22,28 @@ import Shop from "@/pages/Shop";
 import TutorialSandbox from "@/pages/TutorialSandbox";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
+import { useEffect } from "react";
+
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (hash) {
+      // Small timeout to allow page to render before scrolling to ID
+      setTimeout(() => {
+        const id = hash.replace('#', '');
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [pathname, hash]);
+
+  return null;
+}
 
 function Shell() {
   const { pathname } = useLocation();
@@ -30,6 +52,7 @@ function Shell() {
   const hideFooter = isPrint || pathname === "/play" || pathname === "/sandbox";
   return (
     <div className="dark App min-h-screen text-foreground">
+      <ScrollToTop />
       {!hideChrome && <Navbar />}
       <main className={hideChrome ? "" : "pt-16"}>
         <Routes>
