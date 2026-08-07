@@ -101,7 +101,7 @@ export default function Leaderboard() {
                       <td className="py-4 px-4 text-right">
                         <div className="flex items-center justify-end gap-2 font-black text-[#00BFFF] text-xl">
                           <Swords className="w-5 h-5 opacity-70" />
-                          {player.mmr || 1200}
+                          {player.mmr || 1400}
                         </div>
                       </td>
                       <td className="py-4 px-4 text-right">

@@ -228,7 +228,7 @@ function PlayerDashboard({ user, updateUser }) {
           <div className="absolute top-0 right-0 p-4 opacity-10 text-[#F2A900]"><Crosshair className="w-24 h-24" /></div>
           <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Matchmaking</h3>
           <p className="text-3xl font-black">{user.matchmaking?.rank || "Unranked"}</p>
-          <p className="text-white/60 mt-1">MMR: {user.matchmaking?.mmr || 1200}</p>
+          <p className="text-white/60 mt-1">MMR: {user.matchmaking?.mmr || 1400}</p>
         </div>
         
         <div className="glass-strong p-6 rounded-2xl border border-[#00BFFF]/30 relative overflow-hidden shadow-xl">

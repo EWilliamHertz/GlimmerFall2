@@ -454,11 +454,11 @@ def save_match(match_id, state):
             if old["is_ranked"] and p1_name and p2_name and not state.get("isAI"):
                 cur.execute("SELECT nickname, mmr FROM users WHERE nickname IN (%s, %s)", (p1_name, p2_name))
                 users = cur.fetchall()
-                p1_mmr = 1200
-                p2_mmr = 1200
+                p1_mmr = 1400
+                p2_mmr = 1400
                 for u in users:
-                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1200
-                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1200
+                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1400
+                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1400
                 
                 # Basic Elo calculation (K=32)
                 expected_p1 = 1 / (1 + 10 ** ((p2_mmr - p1_mmr) / 400))
@@ -552,8 +552,8 @@ def matchmaking(req: MatchmakeReq):
         with DB() as cur:
             cur.execute("SELECT mmr FROM users WHERE nickname=%s", (req.username,))
             u_row = cur.fetchone()
-            state["players"]["1"]["mmr"] = u_row["mmr"] if u_row else 1200
-            state["players"]["2"]["mmr"] = 1200
+            state["players"]["1"]["mmr"] = u_row["mmr"] if u_row else 1400
+            state["players"]["2"]["mmr"] = 1400
         state["log"].insert(1, f"GlimmerBot is to play {ai_deck['deck_name']}.")
         room = _rand_room()
         mid = insert_match(room, req.username, ge.AI_NAME, state, req.deckName or "Custom", ai_deck.get("deck_name", "Random Chaos"))
@@ -608,8 +608,8 @@ def matchmaking(req: MatchmakeReq):
                         state["players"]["1"]["mmr"] = row["mmr"]
                     else:
                         state["players"]["2"]["mmr"] = row["mmr"]
-                if "mmr" not in state["players"]["1"]: state["players"]["1"]["mmr"] = 1200
-                if "mmr" not in state["players"]["2"]: state["players"]["2"]["mmr"] = 1200
+                if "mmr" not in state["players"]["1"]: state["players"]["1"]["mmr"] = 1400
+                if "mmr" not in state["players"]["2"]: state["players"]["2"]["mmr"] = 1400
                 cur.execute("UPDATE matches SET player2=%s, player2_deck=%s WHERE id=%s", (req.username, req.deckName or "Custom", waiting["id"]))
             save_match(waiting["id"], state)
             return {"matchId": waiting["id"], "slot": 2, "roomCode": waiting["room_code"], "status": "PLAYING", "vsAI": False}
@@ -925,7 +925,7 @@ def get_me(request: Request):
         "bookings": db_u.get("bookings") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
-        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"}
+        "matchmaking": {"mmr": db_u.get("mmr") or 1400, "rank": db_u.get("rank") or "Unranked"}
     }
 
 @api.get("/users/{nickname}")
@@ -979,7 +979,7 @@ def get_user_profile(nickname: str):
         "losses": db_u.get("losses") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
-        "matchmaking": {"mmr": db_u.get("mmr") or 1200, "rank": db_u.get("rank") or "Unranked"},
+        "matchmaking": {"mmr": db_u.get("mmr") or 1400, "rank": db_u.get("rank") or "Unranked"},
         "matchHistory": recent_matches
     }
 @api.post("/auth/verify")
