@@ -146,6 +146,7 @@ export default function LeadershipDashboard() {
         <button onClick={() => setTab("ledger")} className={`px-4 py-3 font-bold whitespace-nowrap transition-colors border-b-2 ${tab === "ledger" ? "border-[#22E07B] text-white" : "border-transparent text-white/50 hover:text-white"}`}>Transactions Ledger</button>
         <button onClick={() => setTab("campaigns")} className={`px-4 py-3 font-bold whitespace-nowrap transition-colors border-b-2 ${tab === "campaigns" ? "border-[#F2A900] text-white" : "border-transparent text-white/50 hover:text-white"}`}>Campaigns</button>
         <button onClick={() => setTab("proposals")} className={`px-4 py-3 font-bold whitespace-nowrap transition-colors border-b-2 ${tab === "proposals" ? "border-[#00BFFF] text-white" : "border-transparent text-white/50 hover:text-white"}`}>Proposals</button>
+        <button onClick={() => setTab("tasks")} className={`px-4 py-3 font-bold whitespace-nowrap transition-colors border-b-2 ${tab === "tasks" ? "border-[#9B30FF] text-white" : "border-transparent text-white/50 hover:text-white"}`}>Tasks</button>
       </div>
 
       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -175,7 +176,7 @@ export default function LeadershipDashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="glass rounded-xl p-5 border border-white/10">
                 <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2"><Megaphone className="w-5 h-5 text-[#F2A900]" /> Active Campaigns</h2>
                 <div className="space-y-3">
@@ -195,7 +196,7 @@ export default function LeadershipDashboard() {
               <div className="glass rounded-xl p-5 border border-white/10">
                 <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2"><Briefcase className="w-5 h-5 text-[#9B30FF]" /> Recent Proposals</h2>
                 <div className="space-y-3">
-                  {suggestions.slice(0, 3).map(s => (
+                  {suggestions.filter(s => s.status !== 'Completed').slice(0, 3).map(s => (
                     <div key={s.id} className="bg-black/40 rounded-xl p-3 border border-white/5 flex gap-3 items-center">
                       <div className="flex-1">
                         <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/60 mb-1 inline-block">{s.suggestion_type}</span>
@@ -206,7 +207,25 @@ export default function LeadershipDashboard() {
                       </span>
                     </div>
                   ))}
-                  {suggestions.length === 0 && <p className="text-xs text-white/40">No active proposals.</p>}
+                  {suggestions.filter(s => s.status !== 'Completed').length === 0 && <p className="text-xs text-white/40">No active proposals.</p>}
+                </div>
+              </div>
+
+              <div className="glass rounded-xl p-5 border border-white/10">
+                <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#22E07B]" /> Completed Tasks</h2>
+                <div className="space-y-3">
+                  {suggestions.filter(s => s.status === 'Completed').slice(0, 3).map(s => (
+                    <div key={s.id} className="bg-black/40 rounded-xl p-3 border border-white/5 flex gap-3 items-center">
+                      <div className="flex-1">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/60 mb-1 inline-block">{s.suggestion_type}</span>
+                        <p className="text-xs text-white/90 line-clamp-2">{s.content}</p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-1 rounded bg-blue-500/20 text-blue-400">
+                        {s.status}
+                      </span>
+                    </div>
+                  ))}
+                  {suggestions.filter(s => s.status === 'Completed').length === 0 && <p className="text-xs text-white/40">No completed tasks yet.</p>}
                 </div>
               </div>
             </div>
@@ -374,8 +393,13 @@ export default function LeadershipDashboard() {
                         <button onClick={() => handleVote(s.id, 'Approved')} className="p-2 bg-green-500/10 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors"><CheckCircle2 className="w-5 h-5"/></button>
                         <button onClick={() => handleVote(s.id, 'Rejected')} className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"><XCircle className="w-5 h-5"/></button>
                       </div>
+                    ) : s.status === 'Approved' ? (
+                      <div className="flex gap-1 items-center">
+                        <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 border border-green-500/20">Approved</span>
+                        <button onClick={() => handleVote(s.id, 'Completed')} className="text-xs font-bold px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded-lg transition-colors border border-blue-500/20">Mark Completed</button>
+                      </div>
                     ) : (
-                      <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${s.status === 'Approved' ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
+                      <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${s.status === 'Completed' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
                         {s.status}
                       </span>
                     )}
@@ -383,6 +407,35 @@ export default function LeadershipDashboard() {
                 </div>
               ))}
               {suggestions.length === 0 && <p className="text-sm text-white/40 text-center py-8">No active proposals.</p>}
+            </div>
+          </div>
+        )}
+
+        {/* TASKS TAB */}
+        {tab === "tasks" && (
+          <div className="glass rounded-xl p-5 border border-white/10">
+            <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[#9B30FF]" /> Tasks History
+            </h2>
+            <div className="space-y-3">
+              {suggestions.map(s => (
+                <div key={s.id} className="bg-black/40 rounded-xl p-3 border border-white/5 flex gap-4 items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/60">{s.suggestion_type}</span>
+                      <span className="text-xs text-white/40">{s.user_email}</span>
+                      <span className="text-[10px] text-white/30 ml-auto">{new Date(s.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <p className="text-sm text-white/90">{s.content}</p>
+                  </div>
+                  <div className="shrink-0">
+                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${s.status === 'Completed' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' : s.status === 'Approved' ? 'bg-green-500/20 text-green-400 border border-green-500/20' : s.status === 'Pending' ? 'bg-white/10 text-white/60 border border-white/10' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
+                      {s.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {suggestions.length === 0 && <p className="text-sm text-white/40 text-center py-8">No tasks recorded.</p>}
             </div>
           </div>
         )}
