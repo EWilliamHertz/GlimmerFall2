@@ -13,6 +13,7 @@ export default function LeadershipDashboard() {
   // Forms
   const [newCampaign, setNewCampaign] = useState({ title: "", description: "", start_date: "", end_date: "", cost: 0 });
   const [newSuggestion, setNewSuggestion] = useState({ type: "Proposal", content: "" });
+  const [newTransaction, setNewTransaction] = useState({ description: "", amount: 0, date: "" });
   const [editingCampaign, setEditingCampaign] = useState(null);
 
   const fetchData = async () => {
@@ -97,6 +98,19 @@ export default function LeadershipDashboard() {
     }
   };
 
+  const handleCreateTransaction = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/admin/leadership/transactions", newTransaction);
+      setNewTransaction({ description: "", amount: 0, date: "" });
+      fetchData();
+      toast.success("Transaction added");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to add transaction");
+    }
+  };
+
   if (loading) return <div className="p-8 text-white/50 text-center animate-pulse font-head">Loading Diplomacy Data...</div>;
 
   // Build the ledger by combining shop orders and campaign costs
@@ -107,6 +121,13 @@ export default function LeadershipDashboard() {
       description: `Shop Order: ${o.email}`,
       amount: parseFloat(o.total_price || 0),
       type: 'revenue'
+    })),
+    ...(transactions.custom_transactions || []).map(t => ({
+      id: `custom_${t.id}`,
+      date: new Date(t.date),
+      description: t.description,
+      amount: parseFloat(t.amount || 0),
+      type: parseFloat(t.amount) >= 0 ? 'revenue' : 'expense'
     })),
     ...campaigns.filter(c => parseFloat(c.cost) !== 0).map(c => ({
       id: `camp_${c.id}`,
@@ -131,25 +152,63 @@ export default function LeadershipDashboard() {
         
         {/* OVERVIEW TAB */}
         {tab === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5"><DollarSign size={80} /></div>
-              <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Gross Revenue</h3>
-              <p className="text-3xl font-display font-black text-[#22E07B]">${transactions.total_usd.toFixed(2)}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5"><DollarSign size={80} /></div>
+                <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Gross Revenue (SEK)</h3>
+                <p className="text-3xl font-display font-black text-[#22E07B]">{transactions.total_usd.toFixed(2)} SEK</p>
+              </div>
+              <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5"><Megaphone size={80} /></div>
+                <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Marketing Expenses</h3>
+                <p className="text-3xl font-display font-black text-[#FF5252]">
+                  {transactions.total_marketing < 0 ? `${transactions.total_marketing.toFixed(2)} SEK` : `${transactions.total_marketing.toFixed(2)} SEK`}
+                </p>
+              </div>
+              <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5"><Briefcase size={80} /></div>
+                <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Net Profit</h3>
+                <p className={`text-3xl font-display font-black ${(transactions.total_usd + transactions.total_marketing) >= 0 ? 'text-[#22E07B]' : 'text-red-500'}`}>
+                  {(transactions.total_usd + transactions.total_marketing).toFixed(2)} SEK
+                </p>
+              </div>
             </div>
-            <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5"><Megaphone size={80} /></div>
-              <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Marketing Expenses</h3>
-              <p className="text-3xl font-display font-black text-[#FF5252]">
-                {transactions.total_marketing < 0 ? `-$${Math.abs(transactions.total_marketing).toFixed(2)}` : `$${transactions.total_marketing.toFixed(2)}`}
-              </p>
-            </div>
-            <div className="glass rounded-xl p-5 border border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5"><Briefcase size={80} /></div>
-              <h3 className="text-white/50 font-head font-bold uppercase tracking-wider text-xs mb-1">Net Profit</h3>
-              <p className={`text-3xl font-display font-black ${(transactions.total_usd + transactions.total_marketing) >= 0 ? 'text-[#22E07B]' : 'text-red-500'}`}>
-                ${(transactions.total_usd + transactions.total_marketing).toFixed(2)}
-              </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="glass rounded-xl p-5 border border-white/10">
+                <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2"><Megaphone className="w-5 h-5 text-[#F2A900]" /> Active Campaigns</h2>
+                <div className="space-y-3">
+                  {campaigns.slice(0, 3).map(c => (
+                    <div key={c.id} className="bg-black/40 rounded-xl p-3 border border-white/5">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-bold text-sm">{c.title}</h3>
+                        <span className={`text-xs font-bold font-num ${c.cost < 0 ? 'text-[#FF5252]' : 'text-white/40'}`}>{c.cost} SEK</span>
+                      </div>
+                      <p className="text-xs text-white/50 line-clamp-2">{c.description}</p>
+                    </div>
+                  ))}
+                  {campaigns.length === 0 && <p className="text-xs text-white/40">No active campaigns.</p>}
+                </div>
+              </div>
+
+              <div className="glass rounded-xl p-5 border border-white/10">
+                <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2"><Briefcase className="w-5 h-5 text-[#9B30FF]" /> Recent Proposals</h2>
+                <div className="space-y-3">
+                  {suggestions.slice(0, 3).map(s => (
+                    <div key={s.id} className="bg-black/40 rounded-xl p-3 border border-white/5 flex gap-3 items-center">
+                      <div className="flex-1">
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/60 mb-1 inline-block">{s.suggestion_type}</span>
+                        <p className="text-xs text-white/90 line-clamp-2">{s.content}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded ${s.status === 'Approved' ? 'bg-green-500/20 text-green-400' : s.status === 'Pending' ? 'bg-white/10 text-white/60' : 'bg-red-500/20 text-red-400'}`}>
+                        {s.status}
+                      </span>
+                    </div>
+                  ))}
+                  {suggestions.length === 0 && <p className="text-xs text-white/40">No active proposals.</p>}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -160,6 +219,14 @@ export default function LeadershipDashboard() {
             <h2 className="text-xl font-bold font-head mb-4 flex items-center gap-2">
               <ScrollText className="w-5 h-5 text-[#22E07B]" /> Financial Ledger
             </h2>
+
+            <form onSubmit={handleCreateTransaction} className="mb-6 flex flex-col md:flex-row gap-2 bg-black/20 p-4 rounded-xl border border-white/5">
+              <input type="text" required placeholder="Transaction Description" className="flex-1 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm" value={newTransaction.description} onChange={e => setNewTransaction({...newTransaction, description: e.target.value})} />
+              <input type="number" required step="0.01" placeholder="Amount (SEK)" className="w-32 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm" value={newTransaction.amount} onChange={e => setNewTransaction({...newTransaction, amount: e.target.value})} />
+              <input type="date" required className="w-40 bg-black/40 border border-white/10 rounded px-3 py-2 text-sm" value={newTransaction.date} onChange={e => setNewTransaction({...newTransaction, date: e.target.value})} />
+              <button type="submit" className="bg-[#22E07B] text-black font-bold text-sm px-4 py-2 rounded hover:bg-[#22E07B]/80 transition-colors flex items-center gap-1 justify-center"><Plus className="w-4 h-4"/> Add</button>
+            </form>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead>
