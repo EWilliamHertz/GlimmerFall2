@@ -2159,7 +2159,7 @@ def get_leadership_transactions(request: Request):
         cur.execute("SELECT SUM(total_amount) as total_usd FROM shop_orders WHERE status != 'cancelled'")
         usd = cur.fetchone()["total_usd"] or 0.0
         # Glimmer purchases total
-        cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE type='purchase'")
+        cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE source != 'signup_bonus'")
         glimmer = cur.fetchone()["total_glimmer"] or 0
         # Campaign Expenses
         cur.execute("SELECT SUM(cost) as total_marketing FROM campaigns")
