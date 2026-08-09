@@ -2156,7 +2156,7 @@ def get_leadership_transactions(request: Request):
     if not user or not user.get("is_admin"): raise HTTPException(403)
     with DB() as cur:
         # Shop orders total revenue
-        cur.execute("SELECT SUM(total_price) as total_usd FROM shop_orders WHERE status != 'cancelled'")
+        cur.execute("SELECT SUM(total_amount) as total_usd FROM shop_orders WHERE status != 'cancelled'")
         usd = cur.fetchone()["total_usd"] or 0.0
         # Glimmer purchases total
         cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE type='purchase'")
@@ -2166,7 +2166,7 @@ def get_leadership_transactions(request: Request):
         marketing = cur.fetchone()["total_marketing"] or 0.0
         
         # Recent transactions
-        cur.execute("SELECT id, email, total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 20")
+        cur.execute("SELECT id, user_email as email, total_amount as total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 20")
         recent_shop = cur.fetchall()
         
         return {
