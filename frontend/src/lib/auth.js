@@ -78,11 +78,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUser = (data) => {
-    if (user) {
-      const u = {...user, ...data};
-      setUser(u);
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      const u = {...prevUser, ...data};
       localStorage.setItem('glimmerfall_user', JSON.stringify(u));
-    }
+      return u;
+    });
   };
 
   return (
