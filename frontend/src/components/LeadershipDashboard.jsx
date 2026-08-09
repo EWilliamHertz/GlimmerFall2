@@ -15,6 +15,7 @@ export default function LeadershipDashboard() {
   const [newSuggestion, setNewSuggestion] = useState({ type: "Proposal", content: "" });
   const [newTransaction, setNewTransaction] = useState({ description: "", amount: 0, date: "" });
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [editingSuggestion, setEditingSuggestion] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -86,6 +87,35 @@ export default function LeadershipDashboard() {
       toast.success("Proposal submitted");
     } catch (e) {
       console.error(e);
+      toast.error("Failed to submit proposal");
+    }
+  };
+
+  const handleUpdateSuggestion = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/admin/leadership/suggestions/${editingSuggestion.id}`, {
+        content: editingSuggestion.content,
+        suggestion_type: editingSuggestion.suggestion_type
+      });
+      setEditingSuggestion(null);
+      fetchData();
+      toast.success("Proposal updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update proposal");
+    }
+  };
+
+  const handleDeleteSuggestion = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this proposal/task?")) return;
+    try {
+      await api.delete(`/admin/leadership/suggestions/${id}`);
+      fetchData();
+      toast.success("Deleted successfully");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete");
     }
   };
 
@@ -379,13 +409,32 @@ export default function LeadershipDashboard() {
                     <span className="text-xs font-bold font-num">{s.upvotes}</span>
                   </button>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/60">{s.suggestion_type}</span>
-                      <span className="text-xs text-white/40">{s.user_email}</span>
+                  {editingSuggestion && editingSuggestion.id === s.id ? (
+                    <form onSubmit={handleUpdateSuggestion} className="flex-1 flex gap-2">
+                      <select className="bg-black/40 border border-white/10 rounded px-2 text-sm outline-none" value={editingSuggestion.suggestion_type} onChange={e => setEditingSuggestion({...editingSuggestion, suggestion_type: e.target.value})}>
+                        <option>Proposal</option>
+                        <option>Goal</option>
+                        <option>Task</option>
+                      </select>
+                      <input type="text" required className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-sm outline-none" value={editingSuggestion.content} onChange={e => setEditingSuggestion({...editingSuggestion, content: e.target.value})} />
+                      <div className="flex gap-1">
+                        <button type="submit" className="p-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/40 rounded transition-colors"><Save className="w-4 h-4"/></button>
+                        <button type="button" onClick={() => setEditingSuggestion(null)} className="p-1.5 bg-white/10 text-white/50 hover:bg-white/20 rounded transition-colors"><XCircle className="w-4 h-4"/></button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/60">{s.suggestion_type}</span>
+                        <span className="text-xs text-white/40">{s.user_email}</span>
+                      </div>
+                      <p className="text-sm text-white/90">{s.content}</p>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => setEditingSuggestion(s)} className="text-xs flex items-center gap-1 text-white/40 hover:text-white transition-colors"><Edit3 className="w-3 h-3"/> Edit</button>
+                        <button onClick={() => handleDeleteSuggestion(s.id)} className="text-xs flex items-center gap-1 text-red-500/50 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3"/> Delete</button>
+                      </div>
                     </div>
-                    <p className="text-sm text-white/90">{s.content}</p>
-                  </div>
+                  )}
 
                   <div className="flex flex-col gap-1 shrink-0">
                     {s.status === 'Pending' ? (
@@ -420,14 +469,35 @@ export default function LeadershipDashboard() {
             <div className="space-y-3">
               {suggestions.map(s => (
                 <div key={s.id} className="bg-black/40 rounded-xl p-3 border border-white/5 flex gap-4 items-center">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/60">{s.suggestion_type}</span>
-                      <span className="text-xs text-white/40">{s.user_email}</span>
-                      <span className="text-[10px] text-white/30 ml-auto">{new Date(s.created_at).toLocaleDateString()}</span>
+                  
+                  {editingSuggestion && editingSuggestion.id === s.id ? (
+                    <form onSubmit={handleUpdateSuggestion} className="flex-1 flex gap-2">
+                      <select className="bg-black/40 border border-white/10 rounded px-2 text-sm outline-none" value={editingSuggestion.suggestion_type} onChange={e => setEditingSuggestion({...editingSuggestion, suggestion_type: e.target.value})}>
+                        <option>Proposal</option>
+                        <option>Goal</option>
+                        <option>Task</option>
+                      </select>
+                      <input type="text" required className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-sm outline-none" value={editingSuggestion.content} onChange={e => setEditingSuggestion({...editingSuggestion, content: e.target.value})} />
+                      <div className="flex gap-1">
+                        <button type="submit" className="p-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/40 rounded transition-colors"><Save className="w-4 h-4"/></button>
+                        <button type="button" onClick={() => setEditingSuggestion(null)} className="p-1.5 bg-white/10 text-white/50 hover:bg-white/20 rounded transition-colors"><XCircle className="w-4 h-4"/></button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/60">{s.suggestion_type}</span>
+                        <span className="text-xs text-white/40">{s.user_email}</span>
+                        <span className="text-[10px] text-white/30 ml-auto">{new Date(s.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <p className="text-sm text-white/90">{s.content}</p>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => setEditingSuggestion(s)} className="text-xs flex items-center gap-1 text-white/40 hover:text-white transition-colors"><Edit3 className="w-3 h-3"/> Edit</button>
+                        <button onClick={() => handleDeleteSuggestion(s.id)} className="text-xs flex items-center gap-1 text-red-500/50 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3"/> Delete</button>
+                      </div>
                     </div>
-                    <p className="text-sm text-white/90">{s.content}</p>
-                  </div>
+                  )}
+
                   <div className="shrink-0">
                     <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${s.status === 'Completed' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' : s.status === 'Approved' ? 'bg-green-500/20 text-green-400 border border-green-500/20' : s.status === 'Pending' ? 'bg-white/10 text-white/60 border border-white/10' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
                       {s.status}

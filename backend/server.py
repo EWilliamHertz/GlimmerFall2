@@ -2265,6 +2265,27 @@ def create_leadership_suggestion(req: dict, request: Request):
                     (user["email"], req.get("type", "Suggestion"), req.get("content")))
     return {"status": "success"}
 
+@api.put("/admin/leadership/suggestions/{sid}")
+def update_leadership_suggestion(sid: int, req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("""
+            UPDATE suggestions 
+            SET content = COALESCE(%s, content), 
+                suggestion_type = COALESCE(%s, suggestion_type)
+            WHERE id = %s
+        """, (req.get("content"), req.get("suggestion_type"), sid))
+    return {"status": "success"}
+
+@api.delete("/admin/leadership/suggestions/{sid}")
+def delete_leadership_suggestion(sid: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("DELETE FROM suggestions WHERE id = %s", (sid,))
+    return {"status": "success"}
+
 @api.post("/admin/leadership/suggestions/{sid}/vote")
 def vote_leadership_suggestion(sid: int, req: dict, request: Request):
     user = get_user_from_request(request)
