@@ -5,6 +5,7 @@ import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, 
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import LeadershipDashboard from "@/components/LeadershipDashboard";
 
 export default function Dashboard() {
   const { user, logout, verify, resendVerification, updateUser } = useAuth();
@@ -647,6 +648,12 @@ function AdminPanel({ user }) {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-wrap gap-2 glass rounded-2xl p-1 mb-4">
         <button 
+          onClick={() => setAdminTab("leadership")}
+          className={`px-4 py-2 rounded-xl font-head font-bold transition-all flex items-center gap-2 ${adminTab === "leadership" ? "bg-[#9B30FF] text-white" : "text-white/50 hover:text-white"}`}
+        >
+          <Briefcase className="w-4 h-4" /> Diplomacy
+        </button>
+        <button 
           onClick={() => setAdminTab("telemetry")}
           className={`px-4 py-2 rounded-xl font-head font-bold transition-all ${adminTab === "telemetry" ? "bg-[#00BFFF] text-black" : "text-white/50 hover:text-white"}`}
         >
@@ -683,6 +690,10 @@ function AdminPanel({ user }) {
           <MessageSquare className="w-4 h-4 inline-block mr-2" /> Feedback
         </button>
       </div>
+
+      {adminTab === "leadership" && (
+        <LeadershipDashboard />
+      )}
 
       {adminTab === "telemetry" && (
         <div className="space-y-6 animate-in fade-in zoom-in-95">
