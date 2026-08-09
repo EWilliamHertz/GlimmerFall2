@@ -16,6 +16,7 @@ export default function LeadershipDashboard() {
   const [newTransaction, setNewTransaction] = useState({ description: "", amount: 0, date: "" });
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [editingSuggestion, setEditingSuggestion] = useState(null);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -141,6 +142,34 @@ export default function LeadershipDashboard() {
     }
   };
 
+  const handleUpdateTransaction = async () => {
+    try {
+      await api.put(`/admin/leadership/transactions/${editingTransaction.id}`, {
+        description: editingTransaction.description,
+        amount: editingTransaction.amount,
+        date: editingTransaction.date
+      });
+      setEditingTransaction(null);
+      fetchData();
+      toast.success("Transaction updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update transaction");
+    }
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction?")) return;
+    try {
+      await api.delete(`/admin/leadership/transactions/${id}`);
+      fetchData();
+      toast.success("Transaction deleted");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete transaction");
+    }
+  };
+
   if (loading) return <div className="p-8 text-white/50 text-center animate-pulse font-head">Loading Diplomacy Data...</div>;
 
   // Build the ledger by combining shop orders and campaign costs
@@ -154,6 +183,8 @@ export default function LeadershipDashboard() {
     })),
     ...(transactions.custom_transactions || []).map(t => ({
       id: `custom_${t.id}`,
+      rawId: t.id,
+      rawDate: t.date,
       date: new Date(t.date),
       description: t.description,
       amount: parseFloat(t.amount || 0),
@@ -283,20 +314,46 @@ export default function LeadershipDashboard() {
                     <th className="pb-2 font-medium">Date</th>
                     <th className="pb-2 font-medium">Description</th>
                     <th className="pb-2 font-medium text-right">Amount</th>
+                    <th className="pb-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ledgerEntries.map(entry => (
-                    <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-3 text-white/60">{entry.date.toLocaleDateString()}</td>
-                      <td className="py-3">{entry.description}</td>
-                      <td className={`py-3 text-right font-bold font-num ${entry.amount > 0 ? 'text-[#22E07B]' : 'text-[#FF5252]'}`}>
-                        {entry.amount > 0 ? '+' : ''}{entry.amount.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
+                  {ledgerEntries.map(entry => {
+                    const isCustom = entry.id.startsWith('custom_');
+                    const isEditing = editingTransaction && editingTransaction.id === entry.rawId;
+
+                    return isEditing ? (
+                      <tr key={entry.id} className="border-b border-white/5 bg-white/5">
+                        <td className="py-3 px-2"><input type="date" className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs" value={editingTransaction.date} onChange={e => setEditingTransaction({...editingTransaction, date: e.target.value})} /></td>
+                        <td className="py-3 px-2"><input type="text" className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs w-full" value={editingTransaction.description} onChange={e => setEditingTransaction({...editingTransaction, description: e.target.value})} /></td>
+                        <td className="py-3 px-2 text-right"><input type="number" step="0.01" className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs w-24" value={editingTransaction.amount} onChange={e => setEditingTransaction({...editingTransaction, amount: e.target.value})} /></td>
+                        <td className="py-3 px-2 text-right">
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => handleUpdateTransaction()} className="p-1 bg-green-500/20 text-green-400 hover:bg-green-500/40 rounded transition-colors"><Save className="w-3 h-3"/></button>
+                            <button onClick={() => setEditingTransaction(null)} className="p-1 bg-white/10 text-white/50 hover:bg-white/20 rounded transition-colors"><XCircle className="w-3 h-3"/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="py-3 text-white/60">{entry.date.toLocaleDateString()}</td>
+                        <td className="py-3">{entry.description}</td>
+                        <td className={`py-3 text-right font-bold font-num ${entry.amount > 0 ? 'text-[#22E07B]' : 'text-[#FF5252]'}`}>
+                          {entry.amount > 0 ? '+' : ''}{entry.amount.toFixed(2)}
+                        </td>
+                        <td className="py-3 text-right">
+                          {isCustom && (
+                            <div className="flex gap-1 justify-end">
+                              <button onClick={() => setEditingTransaction({id: entry.rawId, date: entry.rawDate, description: entry.description, amount: entry.amount})} className="p-1 text-white/40 hover:text-white transition-colors"><Edit3 className="w-3 h-3"/></button>
+                              <button onClick={() => handleDeleteTransaction(entry.rawId)} className="p-1 text-red-500/50 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3"/></button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {ledgerEntries.length === 0 && (
-                    <tr><td colSpan="3" className="py-8 text-center text-white/40">No transactions recorded.</td></tr>
+                    <tr><td colSpan="4" className="py-8 text-center text-white/40">No transactions recorded.</td></tr>
                   )}
                 </tbody>
               </table>
