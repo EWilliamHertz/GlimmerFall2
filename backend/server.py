@@ -2197,6 +2197,28 @@ def create_custom_transaction(req: dict, request: Request):
                     (req.get("description"), req.get("amount"), req.get("date")))
     return {"status": "success"}
 
+@api.put("/admin/leadership/transactions/{tid}")
+def update_custom_transaction(tid: int, req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("""
+            UPDATE custom_transactions 
+            SET description = COALESCE(%s, description), 
+                amount = COALESCE(%s, amount),
+                date = COALESCE(%s, date)
+            WHERE id = %s
+        """, (req.get("description"), req.get("amount"), req.get("date"), tid))
+    return {"status": "success"}
+
+@api.delete("/admin/leadership/transactions/{tid}")
+def delete_custom_transaction(tid: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("DELETE FROM custom_transactions WHERE id = %s", (tid,))
+    return {"status": "success"}
+
 @api.get("/admin/leadership/campaigns")
 def get_leadership_campaigns(request: Request):
     user = get_user_from_request(request)
