@@ -2156,7 +2156,7 @@ def get_leadership_transactions(request: Request):
     if not user or not user.get("is_admin"): raise HTTPException(403)
     with DB() as cur:
         # Shop orders total revenue
-        cur.execute("SELECT SUM(total_amount) as total_usd FROM shop_orders WHERE status != 'cancelled'")
+        cur.execute("SELECT SUM(total_amount) as total_usd FROM shop_orders WHERE status = 'PAID'")
         usd = cur.fetchone()["total_usd"] or 0.0
         # Glimmer purchases total
         cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE source != 'signup_bonus'")
@@ -2166,7 +2166,7 @@ def get_leadership_transactions(request: Request):
         marketing = cur.fetchone()["total_marketing"] or 0.0
         
         # Recent transactions
-        cur.execute("SELECT id, user_email as email, total_amount as total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 20")
+        cur.execute("SELECT id, user_email as email, total_amount as total_price, status, created_at FROM shop_orders WHERE status = 'PAID' ORDER BY created_at DESC LIMIT 20")
         recent_shop = cur.fetchall()
         
         return {
@@ -2217,6 +2217,14 @@ def update_leadership_campaign(cid: int, req: dict, request: Request):
                 cost = COALESCE(%s, cost)
             WHERE id = %s
         """, (req.get("title"), req.get("description"), req.get("start_date"), req.get("end_date"), req.get("cost"), cid))
+    return {"status": "success"}
+
+@api.delete("/admin/leadership/campaigns/{cid}")
+def delete_leadership_campaign(cid: int, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("DELETE FROM campaigns WHERE id = %s", (cid,))
     return {"status": "success"}
 
 @api.get("/admin/leadership/suggestions")

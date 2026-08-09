@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Briefcase, LineChart, Megaphone, CheckCircle2, XCircle, ChevronUp, DollarSign, ScrollText, Plus, Save, Edit3 } from "lucide-react";
+import { Briefcase, LineChart, Megaphone, CheckCircle2, XCircle, ChevronUp, DollarSign, ScrollText, Plus, Save, Edit3, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function LeadershipDashboard() {
@@ -61,6 +61,18 @@ export default function LeadershipDashboard() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to update campaign");
+    }
+  };
+
+  const handleDeleteCampaign = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this campaign?")) return;
+    try {
+      await api.delete(`/admin/leadership/campaigns/${id}`);
+      fetchData();
+      toast.success("Campaign deleted");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete campaign");
     }
   };
 
@@ -227,6 +239,7 @@ export default function LeadershipDashboard() {
                               {c.cost !== undefined ? `$${parseFloat(c.cost).toFixed(2)}` : '$0.00'}
                             </span>
                             <button onClick={() => setEditingCampaign(c)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"><Edit3 className="w-4 h-4"/></button>
+                            <button onClick={() => handleDeleteCampaign(c.id)} className="p-1.5 text-red-500/50 hover:text-red-500 hover:bg-white/10 rounded transition-colors"><Trash2 className="w-4 h-4"/></button>
                           </div>
                         </div>
                         <p className="text-sm text-white/70 mb-4 bg-white/5 p-3 rounded-lg border border-white/5">{c.description}</p>
