@@ -2222,6 +2222,43 @@ def vote_leadership_suggestion(sid: int, req: dict, request: Request):
             cur.execute("UPDATE suggestions SET upvotes = upvotes + 1 WHERE id=%s", (sid,))
     return {"status": "success"}
 
+# --- Upcoming Cards (Set 2) API ---
+
+@api.get("/upcoming-cards")
+def get_upcoming_cards(request: Request):
+    user = get_user_from_request(request)
+    email = user["email"] if user else None
+    with DB() as cur:
+        # Fetch all cards from cards2 along with total score and the user's vote
+        query = """
+            SELECT c.*, 
+                   COALESCE(SUM(v.vote), 0) as vote_score,
+                   (SELECT vote FROM cards2_votes WHERE card_id = c.id AND user_email = %s) as user_vote
+            FROM cards2 c
+            LEFT JOIN cards2_votes v ON c.id = v.card_id
+            GROUP BY c.id
+            ORDER BY c.collector_number ASC
+        """
+        cur.execute(query, (email,))
+        return cur.fetchall()
+
+@api.post("/upcoming-cards/{card_id}/vote")
+def vote_upcoming_card(card_id: str, req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user: raise HTTPException(401)
+    vote_val = req.get("vote")
+    if vote_val not in (1, -1): raise HTTPException(400)
+    
+    with DB() as cur:
+        # Upsert the vote
+        cur.execute("""
+            INSERT INTO cards2_votes (card_id, user_email, vote)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (card_id, user_email) 
+            DO UPDATE SET vote = EXCLUDED.vote
+        """, (card_id, user["email"], vote_val))
+    return {"status": "success"}
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
