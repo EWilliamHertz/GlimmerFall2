@@ -21,6 +21,7 @@ import FlyerGenerator from "@/pages/FlyerGenerator";
 import Shop from "@/pages/Shop";
 import TutorialSandbox from "@/pages/TutorialSandbox";
 import MediaKit from "@/pages/MediaKit";
+import UpcomingCards from "@/pages/UpcomingCards";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
 import { useEffect } from "react";
@@ -77,6 +78,7 @@ function Shell() {
           <Route path="/support" element={<Support />} />
           <Route path="/retailer-flyer" element={<FlyerGenerator />} />
           <Route path="/media-kit" element={<MediaKit />} />
+          <Route path="/upcoming-cards" element={<UpcomingCards />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
