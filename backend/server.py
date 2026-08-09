@@ -2161,10 +2161,20 @@ def get_leadership_transactions(request: Request):
         # Glimmer purchases total
         cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE type='purchase'")
         glimmer = cur.fetchone()["total_glimmer"] or 0
+        # Campaign Expenses
+        cur.execute("SELECT SUM(cost) as total_marketing FROM campaigns")
+        marketing = cur.fetchone()["total_marketing"] or 0.0
+        
         # Recent transactions
-        cur.execute("SELECT id, email, total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 10")
+        cur.execute("SELECT id, email, total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 20")
         recent_shop = cur.fetchall()
-        return {"total_usd": usd, "total_glimmer": glimmer, "recent_shop": recent_shop}
+        
+        return {
+            "total_usd": float(usd), 
+            "total_glimmer": glimmer, 
+            "total_marketing": float(marketing),
+            "recent_shop": recent_shop
+        }
 
 @api.get("/admin/leadership/campaigns")
 def get_leadership_campaigns(request: Request):
@@ -2189,8 +2199,24 @@ def create_leadership_campaign(req: dict, request: Request):
     user = get_user_from_request(request)
     if not user or not user.get("is_admin"): raise HTTPException(403)
     with DB() as cur:
-        cur.execute("INSERT INTO campaigns (title, description, start_date, end_date) VALUES (%s, %s, %s, %s) RETURNING id",
-                    (req.get("title"), req.get("description"), req.get("start_date"), req.get("end_date")))
+        cur.execute("INSERT INTO campaigns (title, description, start_date, end_date, cost) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (req.get("title"), req.get("description"), req.get("start_date"), req.get("end_date"), req.get("cost", 0)))
+    return {"status": "success"}
+
+@api.put("/admin/leadership/campaigns/{cid}")
+def update_leadership_campaign(cid: int, req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("""
+            UPDATE campaigns 
+            SET title = COALESCE(%s, title), 
+                description = COALESCE(%s, description), 
+                start_date = COALESCE(%s, start_date), 
+                end_date = COALESCE(%s, end_date),
+                cost = COALESCE(%s, cost)
+            WHERE id = %s
+        """, (req.get("title"), req.get("description"), req.get("start_date"), req.get("end_date"), req.get("cost"), cid))
     return {"status": "success"}
 
 @api.get("/admin/leadership/suggestions")
