@@ -2155,9 +2155,16 @@ def get_leadership_transactions(request: Request):
     user = get_user_from_request(request)
     if not user or not user.get("is_admin"): raise HTTPException(403)
     with DB() as cur:
-        # Shop orders total revenue
-        cur.execute("SELECT SUM(total_amount) as total_usd FROM shop_orders WHERE status = 'PAID'")
-        usd = cur.fetchone()["total_usd"] or 0.0
+        # Shop orders total revenue (multiplied by 10 for SEK approximation)
+        cur.execute("SELECT SUM(total_amount * 10) as total_usd FROM shop_orders WHERE status = 'PAID'")
+        shop_rev = cur.fetchone()["total_usd"] or 0.0
+        
+        # Custom manual transactions sum
+        cur.execute("SELECT SUM(amount) as custom_total FROM custom_transactions")
+        custom_rev = cur.fetchone()["custom_total"] or 0.0
+        
+        usd = float(shop_rev) + float(custom_rev)
+        
         # Glimmer purchases total
         cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE source != 'signup_bonus'")
         glimmer = cur.fetchone()["total_glimmer"] or 0
@@ -2165,16 +2172,30 @@ def get_leadership_transactions(request: Request):
         cur.execute("SELECT SUM(cost) as total_marketing FROM campaigns")
         marketing = cur.fetchone()["total_marketing"] or 0.0
         
-        # Recent transactions
-        cur.execute("SELECT id, user_email as email, total_amount as total_price, status, created_at FROM shop_orders WHERE status = 'PAID' ORDER BY created_at DESC LIMIT 20")
+        # Recent shop transactions (x10)
+        cur.execute("SELECT id, user_email as email, (total_amount * 10) as total_price, status, created_at FROM shop_orders WHERE status = 'PAID' ORDER BY created_at DESC LIMIT 20")
         recent_shop = cur.fetchall()
         
+        # Custom transactions
+        cur.execute("SELECT * FROM custom_transactions ORDER BY date DESC LIMIT 50")
+        custom_tx = cur.fetchall()
+        
         return {
-            "total_usd": float(usd), 
+            "total_usd": usd, 
             "total_glimmer": glimmer, 
             "total_marketing": float(marketing),
-            "recent_shop": recent_shop
+            "recent_shop": recent_shop,
+            "custom_transactions": custom_tx
         }
+
+@api.post("/admin/leadership/transactions")
+def create_custom_transaction(req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("INSERT INTO custom_transactions (description, amount, date) VALUES (%s, %s, %s)",
+                    (req.get("description"), req.get("amount"), req.get("date")))
+    return {"status": "success"}
 
 @api.get("/admin/leadership/campaigns")
 def get_leadership_campaigns(request: Request):
