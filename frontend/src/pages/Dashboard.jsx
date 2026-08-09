@@ -175,7 +175,6 @@ function PlayerDashboard({ user, updateUser }) {
                 seen.add(c.image_url);
                 unique.push(c);
             }
-            if(unique.length >= 24) break;
         }
         setAvatars(unique);
       });
@@ -259,10 +258,10 @@ function PlayerDashboard({ user, updateUser }) {
               className="bg-black/40 border border-white/20 rounded px-2 py-1 text-[#F2A900] font-semibold text-xs outline-none cursor-pointer"
             >
               <option value="" disabled>Select Faction</option>
-              <option value="Solari Vanguard">Solari Vanguard</option>
-              <option value="Graveglass Prophecy">Graveglass Prophecy</option>
-              <option value="Fractured Continuum">Fractured Continuum</option>
-              <option value="Gaia's Loop">Gaia's Loop</option>
+              <option value="Solari">Solari</option>
+              <option value="Umbri">Umbri</option>
+              <option value="Aether">Aether</option>
+              <option value="Terra">Terra</option>
             </select>
           </div>
         </div>
