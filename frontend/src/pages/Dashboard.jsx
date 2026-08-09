@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Navigate, useSearchParams, Link } from 'react-router-dom';
-import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy, MessageSquare, Briefcase } from 'lucide-react';
+import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy, MessageSquare, Briefcase, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -183,15 +183,55 @@ function PlayerDashboard({ user, updateUser }) {
   }, [showAvatarModal, avatars.length]);
 
   const selectAvatar = async (url) => {
-    setSavingAvatar(true);
     try {
+      setSavingAvatar(true);
       await api.put("/auth/me/avatar", { avatar_url: url });
       updateUser({ avatar: url });
       setShowAvatarModal(false);
-    } catch(e) {
+      toast.success("Avatar updated!");
+    } catch (e) {
       console.error(e);
+      toast.error("Failed to update avatar");
+    } finally {
+      setSavingAvatar(false);
     }
-    setSavingAvatar(false);
+  };
+
+  const handleUploadAvatar = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setSavingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("https://api.imgbb.com/1/upload?key=b2492f987920d3e2a7903861b72ae3a4", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        await selectAvatar(data.data.url);
+      } else {
+        toast.error("Failed to upload image");
+        setSavingAvatar(false);
+      }
+    } catch(err) {
+      console.error(err);
+      toast.error("Error uploading image");
+      setSavingAvatar(false);
+    }
+  };
+
+  const handleFactionChange = async (e) => {
+    const newFaction = e.target.value;
+    try {
+      await api.put("/auth/me/faction", { faction: newFaction });
+      updateUser({ faction: newFaction });
+      toast.success("Faction updated successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update faction");
+    }
   };
 
   const winRate = (user.wins + user.losses) > 0 ? Math.round((user.wins / (user.wins + user.losses)) * 100) : 0;
@@ -211,9 +251,20 @@ function PlayerDashboard({ user, updateUser }) {
         </div>
         <div>
           <h2 className="text-2xl font-bold font-display text-white">{user.nickname}</h2>
-          <p className="text-white/60 font-head text-sm mt-1">
-            Faction: <span className="text-[#F2A900] font-semibold">{user.faction || "None"}</span>
-          </p>
+          <div className="text-white/60 font-head text-sm mt-1 flex items-center gap-2">
+            Faction: 
+            <select 
+              value={user.faction || ""} 
+              onChange={handleFactionChange}
+              className="bg-black/40 border border-white/20 rounded px-2 py-1 text-[#F2A900] font-semibold text-xs outline-none cursor-pointer"
+            >
+              <option value="" disabled>Select Faction</option>
+              <option value="Solari Vanguard">Solari Vanguard</option>
+              <option value="Graveglass Prophecy">Graveglass Prophecy</option>
+              <option value="Fractured Continuum">Fractured Continuum</option>
+              <option value="Gaia's Loop">Gaia's Loop</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -492,6 +543,15 @@ function PlayerDashboard({ user, updateUser }) {
               </button>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
+              <div className="mb-6 flex flex-col items-center gap-2 pb-6 border-b border-white/10">
+                <label className="bg-[#F2A900] text-black font-bold py-3 px-8 rounded-full cursor-pointer hover:scale-105 transition-transform flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  {savingAvatar ? "Uploading..." : "Upload Custom Avatar"}
+                  <input type="file" accept="image/*" className="hidden" disabled={savingAvatar} onChange={handleUploadAvatar} />
+                </label>
+                <p className="text-xs text-white/40">Powered by IMGBB</p>
+              </div>
+              
               {avatars.length === 0 ? (
                 <div className="text-center py-10 text-white/40 animate-pulse font-head">Loading avatars...</div>
               ) : (

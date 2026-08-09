@@ -2340,6 +2340,16 @@ def get_upcoming_cards(request: Request):
         cur.execute(query, (email,))
         return cur.fetchall()
 
+@api.put("/auth/me/faction")
+def update_faction(req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user: raise HTTPException(401)
+    new_faction = req.get("faction")
+    if not new_faction: raise HTTPException(400, "Missing faction")
+    with DB() as cur:
+        cur.execute("UPDATE users SET faction = %s WHERE email = %s", (new_faction, user["email"]))
+    return {"status": "success", "faction": new_faction}
+
 @api.post("/upcoming-cards/{card_id}/vote")
 def vote_upcoming_card(card_id: str, req: dict, request: Request):
     user = get_user_from_request(request)
