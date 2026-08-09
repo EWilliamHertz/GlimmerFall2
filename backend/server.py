@@ -2148,6 +2148,79 @@ def admin_reset_user_password_v2(target_id: int, request: Request):
         logger.error(f"Failed to send reset email: {e}")
     return {"status": "success", "message": "Password reset email sent."}
 
+# --- Leadership & Diplomacy API ---
+
+@api.get("/admin/leadership/transactions")
+def get_leadership_transactions(request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        # Shop orders total revenue
+        cur.execute("SELECT SUM(total_price) as total_usd FROM shop_orders WHERE status != 'cancelled'")
+        usd = cur.fetchone()["total_usd"] or 0.0
+        # Glimmer purchases total
+        cur.execute("SELECT SUM(amount) as total_glimmer FROM glimmer_transactions WHERE type='purchase'")
+        glimmer = cur.fetchone()["total_glimmer"] or 0
+        # Recent transactions
+        cur.execute("SELECT id, email, total_price, status, created_at FROM shop_orders ORDER BY created_at DESC LIMIT 10")
+        recent_shop = cur.fetchall()
+        return {"total_usd": usd, "total_glimmer": glimmer, "recent_shop": recent_shop}
+
+@api.get("/admin/leadership/campaigns")
+def get_leadership_campaigns(request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("SELECT * FROM campaigns ORDER BY created_at DESC")
+        camps = cur.fetchall()
+        for c in camps:
+            sd = c["start_date"]
+            ed = c.get("end_date") or '2099-01-01'
+            cur.execute("SELECT COUNT(*) as rc FROM users WHERE created_at BETWEEN %s AND %s", (sd, ed))
+            c["registrations"] = cur.fetchone()["rc"]
+            cur.execute("SELECT COUNT(*) as mc FROM matches WHERE created_at BETWEEN %s AND %s", (sd, ed))
+            c["matches_played"] = cur.fetchone()["mc"]
+            cur.execute("SELECT COUNT(*) as pc FROM page_views WHERE created_at BETWEEN %s AND %s", (sd, ed))
+            c["page_views"] = cur.fetchone()["pc"]
+        return camps
+
+@api.post("/admin/leadership/campaigns")
+def create_leadership_campaign(req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("INSERT INTO campaigns (title, description, start_date, end_date) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (req.get("title"), req.get("description"), req.get("start_date"), req.get("end_date")))
+    return {"status": "success"}
+
+@api.get("/admin/leadership/suggestions")
+def get_leadership_suggestions(request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("SELECT * FROM suggestions ORDER BY created_at DESC")
+        return cur.fetchall()
+
+@api.post("/admin/leadership/suggestions")
+def create_leadership_suggestion(req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user: raise HTTPException(403)
+    with DB() as cur:
+        cur.execute("INSERT INTO suggestions (user_email, suggestion_type, content) VALUES (%s, %s, %s)",
+                    (user["email"], req.get("type", "Suggestion"), req.get("content")))
+    return {"status": "success"}
+
+@api.post("/admin/leadership/suggestions/{sid}/vote")
+def vote_leadership_suggestion(sid: int, req: dict, request: Request):
+    user = get_user_from_request(request)
+    if not user or not user.get("is_admin"): raise HTTPException(403)
+    new_status = req.get("status")
+    with DB() as cur:
+        if new_status:
+            cur.execute("UPDATE suggestions SET status=%s WHERE id=%s", (new_status, sid))
+        else:
+            cur.execute("UPDATE suggestions SET upvotes = upvotes + 1 WHERE id=%s", (sid,))
+    return {"status": "success"}
 
 app.include_router(api)
 app.add_middleware(
