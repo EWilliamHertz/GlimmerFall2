@@ -115,6 +115,7 @@ export default function DesignerReference() {
                     {c.health !== null && <span className="inline-block bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-xs">{c.health}H</span>}
                   </td>
                   <td className="p-4 whitespace-normal min-w-[300px]">
+                    {c.keywords && <div className="text-[#9B30FF] font-bold text-xs uppercase tracking-wide mb-1">{c.keywords}</div>}
                     <div className="text-white/90 font-medium mb-1">{c.description}</div>
                     {c.lore && <div className="text-white/40 italic text-xs">"{c.lore}"</div>}
                   </td>
