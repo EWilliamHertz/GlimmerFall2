@@ -162,8 +162,8 @@ export default function TutorialSandbox() {
                 <div className="w-full flex justify-between items-center bg-black/50 rounded p-1 mt-1">
                   <span className="text-[#00BFFF] font-bold text-[10px] flex items-center gap-1"><Zap className="w-3 h-3"/>8</span>
                   <div className="flex gap-1">
-                    <span className="text-red-400 font-bold text-[10px]">8</span>
-                    <span className="text-green-400 font-bold text-[10px]">8</span>
+                    <span className="text-red-400 font-bold text-[10px]">6</span>
+                    <span className="text-green-400 font-bold text-[10px]">6</span>
                   </div>
                 </div>
               </motion.div>
