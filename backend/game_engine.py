@@ -8,7 +8,7 @@ import random
 import uuid
 from copy import deepcopy
 
-NEXUS_HP = 25
+NEXUS_HP = 30
 HAND_START = 5
 DECK_SIZE = 40
 MAX_ENERGY = 12

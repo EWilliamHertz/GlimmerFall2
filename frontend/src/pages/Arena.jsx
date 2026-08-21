@@ -368,7 +368,7 @@ const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
       </div>
       <div className="font-num text-2xl font-bold leading-none">
         <span className={player.hp <= 8 ? "text-red-400" : "text-white"}>{player.hp}</span>
-        <span className="text-white/30 text-base"> / 25</span>
+        <span className="text-white/30 text-base"> / 30</span>
       </div>
     </div>
     {isTarget && <Target className="absolute -top-2 -right-2 w-5 h-5 text-red-500 animate-pulse-glow" />}
