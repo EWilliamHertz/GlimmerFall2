@@ -201,9 +201,12 @@ function PlayerDashboard({ user, updateUser }) {
     if (!file) return;
     setSavingAvatar(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await api.post("/upload", formData);
+      const res = await api.post("/upload", file, {
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "x-filename": file.name || "avatar.png"
+        }
+      });
       if (res.data?.url) {
         await selectAvatar(res.data.url);
       } else {
@@ -616,9 +619,12 @@ function AdminPanel({ user }) {
     if (!file) return;
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await api.post("/upload", formData);
+      const res = await api.post("/upload", file, {
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "x-filename": file.name || "product.png"
+        }
+      });
       if (res.data?.url) {
         setEditingProduct({ ...editingProduct, image_url: res.data.url });
       } else {

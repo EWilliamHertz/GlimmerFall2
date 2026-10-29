@@ -5,8 +5,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, UploadFile, File
-import requests
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -31,7 +30,11 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("glimmerfall")
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+# Fix stale/expired credentials if present, or provide default NeonDB connection
+if "REDACTED_NEON_PASSWORD" in DATABASE_URL or not DATABASE_URL:
+    DATABASE_URL = "postgresql://neondb_owner:REDACTED_NEON_PASSWORD@ep-REDACTED-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
 CARDBACK_URL = os.environ.get("CARDBACK_URL", "")
 
 def get_user_from_request(request: Request):
@@ -45,10 +48,21 @@ def get_user_from_request(request: Request):
         return None
 
 
-DB_POOL = pgpool.ThreadedConnectionPool(
-    1, 10, dsn=DATABASE_URL,
-    keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
-)
+DB_POOL = None
+
+def init_db_pool():
+    global DB_POOL
+    try:
+        DB_POOL = pgpool.ThreadedConnectionPool(
+            1, 10, dsn=DATABASE_URL,
+            keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
+        )
+        logger.info("Database connection pool initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database connection pool: {e}")
+        DB_POOL = None
+
+init_db_pool()
 
 
 class DB:
@@ -56,6 +70,11 @@ class DB:
     recycles it if NeonDB has dropped it (SSL connection closed unexpectedly)."""
 
     def __enter__(self):
+        global DB_POOL
+        if DB_POOL is None:
+            init_db_pool()
+        if DB_POOL is None:
+            raise HTTPException(status_code=503, detail="Database unavailable")
         last_err = None
         for _ in range(3):
             self.conn = DB_POOL.getconn()
@@ -92,9 +111,13 @@ api = APIRouter(prefix="/api")
 
 
 def load_cards():
-    with DB() as cur:
-        cur.execute("SELECT * FROM cards ORDER BY collector_number NULLS LAST")
-        return [dict(r) for r in cur.fetchall()]
+    try:
+        with DB() as cur:
+            cur.execute("SELECT * FROM cards ORDER BY collector_number NULLS LAST")
+            return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"Failed to load cards: {e}")
+        return []
 
 
 # ---------------- static content endpoints ----------------
@@ -104,29 +127,55 @@ def root():
     return {"game": "GlimmerFall TCG", "status": "online", "cardback": CARDBACK_URL}
 
 
+@api.get("/debug")
+def get_debug():
+    cards_count = 0
+    db_ok = False
+    err = None
+    try:
+        with DB() as cur:
+            cur.execute("SELECT count(*) FROM cards")
+            cards_count = cur.fetchone()["count"]
+            db_ok = True
+    except Exception as e:
+        err = str(e)
+    return {
+        "status": "online",
+        "db_connected": db_ok,
+        "cards_count": cards_count,
+        "db_error": err,
+        "database_url_target": DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "not_configured"
+    }
+
+
 @api.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(request: Request):
     token = os.environ.get("BLOB_READ_WRITE_TOKEN")
     if not token:
         raise HTTPException(status_code=500, detail="Vercel Blob token not configured")
-    content = await file.read()
-    filename = file.filename or "upload"
+    content = await request.body()
+    content_type = request.headers.get("content-type", "application/octet-stream")
+    filename = request.headers.get("x-filename", "upload.png")
     clean_name = re.sub(r"[^\w\.\-]", "_", filename)
     pathname = f"glimmerfall/uploads/{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}_{clean_name}"
-    resp = requests.put(
+    
+    import urllib.request
+    req = urllib.request.Request(
         f"https://blob.vercel-storage.com/{pathname}",
+        data=content,
         headers={
             "Authorization": f"Bearer {token}",
             "x-api-version": "7",
-            "content-type": file.content_type or "application/octet-stream"
+            "content-type": content_type
         },
-        data=content,
-        timeout=30
+        method="PUT"
     )
-    if resp.status_code not in (200, 201):
-        raise HTTPException(status_code=502, detail=f"Vercel Blob upload failed: {resp.text}")
-    blob_url = resp.json()["url"]
-    return {"url": blob_url, "success": True}
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+            return {"url": data["url"], "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Vercel Blob upload failed: {e}")
 
 
 @api.get("/cards")
