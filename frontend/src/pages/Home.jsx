@@ -7,7 +7,7 @@ import { FACTIONS } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
 const HERO_BG =
-  "https://static.prod-images.emergentagent.com/jobs/b8c31a9c-2781-4f44-b53e-2f632cd70450/images/6b32b9586616bef4733ae73acd6ec2dcad2406fd070f4347b9c293262a10af01.png";
+  "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/hero_bg-LEXvPiF25DW4GwYAIML7yqFaTveuiz.png";
 
 const FEATURES = [
   { to: "/play", icon: Swords, title: "Player Arena", desc: "Battle live opponents or the GlimmerBot AI on a full drag-and-drop board.", color: "#F2A900" },

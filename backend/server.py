@@ -5,7 +5,8 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, UploadFile, File
+import requests
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -101,6 +102,31 @@ def load_cards():
 @api.get("/")
 def root():
     return {"game": "GlimmerFall TCG", "status": "online", "cardback": CARDBACK_URL}
+
+
+@api.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    token = os.environ.get("BLOB_READ_WRITE_TOKEN")
+    if not token:
+        raise HTTPException(status_code=500, detail="Vercel Blob token not configured")
+    content = await file.read()
+    filename = file.filename or "upload"
+    clean_name = re.sub(r"[^\w\.\-]", "_", filename)
+    pathname = f"glimmerfall/uploads/{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}_{clean_name}"
+    resp = requests.put(
+        f"https://blob.vercel-storage.com/{pathname}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "x-api-version": "7",
+            "content-type": file.content_type or "application/octet-stream"
+        },
+        data=content,
+        timeout=30
+    )
+    if resp.status_code not in (200, 201):
+        raise HTTPException(status_code=502, detail=f"Vercel Blob upload failed: {resp.text}")
+    blob_url = resp.json()["url"]
+    return {"url": blob_url, "success": True}
 
 
 @api.get("/cards")

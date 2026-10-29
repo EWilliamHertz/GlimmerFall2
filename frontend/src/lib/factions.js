@@ -1,5 +1,5 @@
 export const CARDBACK =
-  "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784376716/glimmerfall/baked_cardback.png";
+  "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/baked_cardback-8Bh4M95RMoY2TSNhQzGI5YH3XZOsb0.png";
 
 export const LOGO = "/glimmerfall-logo-256.png";
 export const LOGO_FULL = "/glimmerfall-logo.png";
@@ -60,11 +60,11 @@ export const RARITY = {
 };
 
 export const RARITY_ICONS = {
-  Common: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383884/glimmerfall/rarity_icons/common.svg",
-  Uncommon: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383885/glimmerfall/rarity_icons/uncommon.svg",
-  Rare: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg",
-  Epic: "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383889/glimmerfall/rarity_icons/rare.svg",
-  "Founders Foil": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383889/glimmerfall/rarity_icons/rare.svg",
+  Common: "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/rarity_common-tuHj85Rai6aSc8qW2RyEqhNeTxXptX.svg",
+  Uncommon: "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/rarity_uncommon-g7mzZv9t48OCGMfoDjfNqwFn1BGpxt.svg",
+  Rare: "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/rarity_mythic-QL9iyt009yFcmawQR0K0YaHbCyvCH1.svg",
+  Epic: "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/rarity_rare-4bDZ8wMiRhs2soTjHbD2aBJsMnMddj.svg",
+  "Founders Foil": "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/rarity_rare-4bDZ8wMiRhs2soTjHbD2aBJsMnMddj.svg",
 };
 
 export const rarityIcon = (r) => RARITY_ICONS[r] || RARITY_ICONS.Common;

@@ -1,0 +1,574 @@
+{
+  "timestamp": 1793306236.9640772,
+  "cards": [
+    {
+      "id": "b857dbc4-c9fa-4811-9cc3-19dd9b6fb27b",
+      "name": "Static Anomaly",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960056/glimmerfall/card_renders/static_anomaly.webp"
+    },
+    {
+      "id": "90d0ee67-f22d-43ab-a442-7ae6a5f63fe0",
+      "name": "Verdant Reclaim",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960101/glimmerfall/card_renders/verdant_reclaim.webp"
+    },
+    {
+      "id": "9f29abb2-d55c-4e6a-b5f4-267c6be7ee30",
+      "name": "Mind Sculptor",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959933/glimmerfall/card_renders/mind_sculptor.webp"
+    },
+    {
+      "id": "d6080671-8dad-4af3-a10d-6a2b5a241c35",
+      "name": "Aurora Marshal",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959746/glimmerfall/card_renders/aurora_marshal.webp"
+    },
+    {
+      "id": "88d73572-0404-4192-ae9f-6f1b769c88c8",
+      "name": "Mossback Forager",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784031771/glimmerfall/card_renders/mossback_forager.webp"
+    },
+    {
+      "id": "cadfc196-1640-4f85-81f8-e64dc8eb5f53",
+      "name": "Voltage Savant",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960116/glimmerfall/card_renders/voltage_savant.webp"
+    },
+    {
+      "id": "83b17a9e-c637-432c-a367-33f4d98283dc",
+      "name": "Canopy Ambush",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959783/glimmerfall/card_renders/canopy_ambush.webp"
+    },
+    {
+      "id": "6dee29f9-c994-4846-bd4d-4bd6a27d58fb",
+      "name": "Verdict of Embers",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960105/glimmerfall/card_renders/verdict_of_embers.webp"
+    },
+    {
+      "id": "006b5806-b70a-4782-bd09-f90a121bc31b",
+      "name": "Refracted Fate",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960007/glimmerfall/card_renders/refracted_fate.webp"
+    },
+    {
+      "id": "859da235-a051-4ed4-86cc-d940b8d5b0b9",
+      "name": "Moonless Bargain",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959947/glimmerfall/card_renders/moonless_bargain.webp"
+    },
+    {
+      "id": "dafb90c0-290f-4dfb-8f3a-5c237b8ae9f9",
+      "name": "Landslide Verdict",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959920/glimmerfall/card_renders/landslide_verdict.webp"
+    },
+    {
+      "id": "ad0abdcc-621d-44de-bd69-52a9bff06b8f",
+      "name": "Wildshape Surge",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960122/glimmerfall/card_renders/wildshape_surge.webp"
+    },
+    {
+      "id": "5755626d-7213-4adf-be61-a173c3f481a8",
+      "name": "Ebon Duelist",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959846/glimmerfall/card_renders/ebon_duelist.webp"
+    },
+    {
+      "id": "2c59bcfa-92ac-43b8-846d-14da2025d469",
+      "name": "Boulderhide Charger",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959767/glimmerfall/card_renders/boulderhide_charger.webp"
+    },
+    {
+      "id": "8c83bd78-5e7e-45f3-987a-01543ab5cd92",
+      "name": "Granite Behemoth",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959898/glimmerfall/card_renders/granite_behemoth.webp"
+    },
+    {
+      "id": "612421ae-9cfd-4b2a-b539-9a1c08755a2b",
+      "name": "Gaia, The World-Soul",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/glimmerfall/card_renders/gaia_the_world-soul.webp"
+    },
+    {
+      "id": "39b2630d-d8bd-42d4-aab4-7f4d386b70f1",
+      "name": "Umbral Assassin",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960089/glimmerfall/card_renders/umbral_assassin.webp"
+    },
+    {
+      "id": "819bfb04-ec0f-44a8-9e7d-e7d9d80e9dd3",
+      "name": "The Nightfall King",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960078/glimmerfall/card_renders/the_nightfall_king.webp"
+    },
+    {
+      "id": "f707d073-fccb-4a7b-acca-bff69cf0aae4",
+      "name": "Crown of Noon",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959804/glimmerfall/card_renders/crown_of_noon.webp"
+    },
+    {
+      "id": "d7e8dd80-d10e-43d6-beb5-2f7f38fed85c",
+      "name": "Citadel Seraph",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959794/glimmerfall/card_renders/citadel_seraph.webp"
+    },
+    {
+      "id": "680566fd-05f6-4464-8e47-0941c5b4016b",
+      "name": "Comet Array",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959797/glimmerfall/card_renders/comet_array.webp"
+    },
+    {
+      "id": "846dd8ec-4e07-43ed-88ac-4e3ebbd2c3a5",
+      "name": "Reality Fracture",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960001/glimmerfall/card_renders/reality_fracture.webp"
+    },
+    {
+      "id": "34a60a07-c2fc-42c1-b775-b4c781a940a3",
+      "name": "Primordial Growth",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959978/glimmerfall/card_renders/primordial_growth.webp"
+    },
+    {
+      "id": "6372ae58-7110-4126-8d85-d8856cb631af",
+      "name": "Mycelial Network",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959956/glimmerfall/card_renders/mycelial_network.webp"
+    },
+    {
+      "id": "481dc487-87cc-4bed-ac48-aee67091679e",
+      "name": "The Infinite Loop",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960076/glimmerfall/card_renders/the_infinite_loop.webp"
+    },
+    {
+      "id": "ae653057-288a-4a8d-995f-956fd76be2e2",
+      "name": "Singularity Engine",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960035/glimmerfall/card_renders/singularity_engine.webp"
+    },
+    {
+      "id": "bf1d7b1e-112a-44ab-82cd-ea818564d973",
+      "name": "Flowbook",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959799/glimmerfall/card_renders/countercurrent.webp"
+    },
+    {
+      "id": "de13b85f-de0e-4fc3-96f0-eb3b8f11b298",
+      "name": "Void Stalker",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960107/glimmerfall/card_renders/void_stalker.webp"
+    },
+    {
+      "id": "676451dd-fda5-4b4b-a1ef-3d24fa2e1675",
+      "name": "Sunfire Colossus",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960070/glimmerfall/card_renders/sunfire_colossus.webp"
+    },
+    {
+      "id": "1cda04a9-7e53-41ef-8833-c5915b1d4148",
+      "name": "Stonekin Elder",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960059/glimmerfall/card_renders/stonekin_elder.webp"
+    },
+    {
+      "id": "99263dc8-a68f-4916-9a9f-3953896fbdb1",
+      "name": "Forest Warden",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959871/glimmerfall/card_renders/forest_warden.webp"
+    },
+    {
+      "id": "9456ea44-f6e7-493d-bd9f-8ad1d6b40d3a",
+      "name": "Stormweaver",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960063/glimmerfall/card_renders/stormweaver.webp"
+    },
+    {
+      "id": "0f4d7674-5ea2-4a13-869f-f9aec06749ce",
+      "name": "Ancient Canopy",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959729/glimmerfall/card_renders/ancient_canopy.webp"
+    },
+    {
+      "id": "0eb3fa09-5c3d-498a-af74-369b157e13a8",
+      "name": "Nexus Weaver",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959966/glimmerfall/card_renders/nexus_weaver.webp"
+    },
+    {
+      "id": "af4d8f48-b031-4022-8691-b1bbc2dd5d27",
+      "name": "Bramble Stag",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959772/glimmerfall/card_renders/bramble_stag.webp"
+    },
+    {
+      "id": "23539462-3e84-4c8d-b4bb-38c51b7ca1b0",
+      "name": "Emberwing Courier",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959854/glimmerfall/card_renders/emberwing_courier.webp"
+    },
+    {
+      "id": "4b7470ae-05ee-41d7-a377-630e6136f436",
+      "name": "Murkborn Informant",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959954/glimmerfall/card_renders/murkborn_informant.webp"
+    },
+    {
+      "id": "b96e307c-0726-4c0b-b1dc-a5bff9726691",
+      "name": "Earthshatter",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959841/glimmerfall/card_renders/earthshatter.webp"
+    },
+    {
+      "id": "7bb20ae3-6e27-468f-a737-50b467495c3e",
+      "name": "Formula of Sparks",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959873/glimmerfall/card_renders/formula_of_sparks.webp"
+    },
+    {
+      "id": "0dbccb9c-cf9c-4f72-8f91-05e7daec96a3",
+      "name": "Ashen Penitent",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783971876/glimmerfall/card_renders/ashen_penitent.webp"
+    },
+    {
+      "id": "a65b3099-a79f-4e65-b6bd-a1c39516503e",
+      "name": "Eclipse Ritual",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1785078370/glimmerfall/card_renders/eclipse_ritual.webp"
+    },
+    {
+      "id": "73c8aded-8a55-49c4-b06a-9bd5f8042d31",
+      "name": "Seismic Stomp",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960022/glimmerfall/card_renders/seismic_stomp.webp"
+    },
+    {
+      "id": "c304ad00-6005-46fa-9ad1-497989a68ec0",
+      "name": "Soul Tithe",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960054/glimmerfall/card_renders/soul_tithe.webp"
+    },
+    {
+      "id": "3613c388-b2e6-432d-a9de-00f1e7825cb4",
+      "name": "Skyrail Saboteur",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960039/glimmerfall/card_renders/skyrail_saboteur.webp"
+    },
+    {
+      "id": "b4eb3e03-7332-4a9a-8363-d8f74950ad11",
+      "name": "Firstlight Scout",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959863/glimmerfall/card_renders/firstlight_scout.webp"
+    },
+    {
+      "id": "f8eee3b4-9516-40d4-8545-861eb5e684b3",
+      "name": "Radiant Shield",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959987/glimmerfall/card_renders/radiant_shield.webp"
+    },
+    {
+      "id": "9e175f23-f6cb-4c4e-9ae8-91317bd7f024",
+      "name": "Whispers of the Void",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960119/glimmerfall/card_renders/whispers_of_the_void.webp"
+    },
+    {
+      "id": "ba80fde6-a6ee-4937-bcd5-a7b8a951f4b2",
+      "name": "Graveglass Oracle",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959905/glimmerfall/card_renders/graveglass_oracle.webp"
+    },
+    {
+      "id": "4ce413fb-cccb-47b6-8ca3-dd164d4f2a15",
+      "name": "Solari Vanguard",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960048/glimmerfall/card_renders/solari_vanguard.webp"
+    },
+    {
+      "id": "466f4afe-1f14-4710-a42a-2576f9383aaa",
+      "name": "Haloed Bastion",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783968218/glimmerfall/card_renders/haloed_bastion.webp"
+    },
+    {
+      "id": "65adf215-d378-4364-adeb-c44ae8359d44",
+      "name": "Voidling Swarm",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960112/glimmerfall/card_renders/voidling_swarm.webp"
+    },
+    {
+      "id": "fc99f464-bfa2-4ba5-bc9d-3fb0fb5c88c5",
+      "name": "Sepulcher Warden",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960026/glimmerfall/card_renders/sepulcher_warden.webp"
+    },
+    {
+      "id": "c9fbdff9-368c-490e-8b8e-d89af1a4120e",
+      "name": "Dawnblade Templar",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959813/glimmerfall/card_renders/dawnblade_templar.webp"
+    },
+    {
+      "id": "f125f249-bde2-4d5c-9e1d-771013002e7e",
+      "name": "Hollow Courtier",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959913/glimmerfall/card_renders/hollow_courtier.webp"
+    },
+    {
+      "id": "6dfc23c6-fcb7-4ba9-8bf6-03bd763f7d59",
+      "name": "Daybreak Accord",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959818/glimmerfall/card_renders/daybreak_accord.webp"
+    },
+    {
+      "id": "790dd62e-a383-4370-8985-958d88e00558",
+      "name": "Arcane Intellect",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959733/glimmerfall/card_renders/arcane_intellect.webp"
+    },
+    {
+      "id": "24e49483-cc40-4549-942f-cec0a56f2a52",
+      "name": "Recursive Insight",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960005/glimmerfall/card_renders/recursive_insight.webp"
+    },
+    {
+      "id": "5cf5677d-79f4-4241-b0c1-51a461daab52",
+      "name": "Blackout Edict",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959755/glimmerfall/card_renders/blackout_edict.webp"
+    },
+    {
+      "id": "5481cdd8-cecf-42db-9965-7ec5a46db11f",
+      "name": "Renewal Spring",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960010/glimmerfall/card_renders/renewal_spring.webp"
+    },
+    {
+      "id": "9ba888e1-4736-41b1-8e2d-e83d16725fe9",
+      "name": "Borrowed Face",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959764/glimmerfall/card_renders/borrowed_face.webp"
+    },
+    {
+      "id": "70223d9a-fe29-4914-b328-b4a1dbc1f4ca",
+      "name": "Rootbound Mystic",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960016/glimmerfall/card_renders/rootbound_mystic.webp"
+    },
+    {
+      "id": "c7e51962-0aeb-49cc-8892-bb2ec28c5c90",
+      "name": "Solar Flare",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783968220/glimmerfall/card_renders/solar_flare.webp"
+    },
+    {
+      "id": "fce07f7e-828a-4638-9ac5-9b15a0d1fe92",
+      "name": "Ironwood Armor",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783972272/glimmerfall/card_renders/ironwood_armor.webp"
+    },
+    {
+      "id": "8f5f3a86-db6b-49e1-9a96-fedd6ab56ab1",
+      "name": "Gilded Pegasus",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783971974/glimmerfall/card_renders/gilded_pegasus.webp"
+    },
+    {
+      "id": "f5cc4421-a02e-4fe7-8740-227f7a18a9a1",
+      "name": "Astral Cartographer",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959742/glimmerfall/card_renders/astral_cartographer.webp"
+    },
+    {
+      "id": "a42d8a95-247c-4f7a-8262-42066e189a5b",
+      "name": "Mnemonic Vault",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959942/glimmerfall/card_renders/mnemonic_vault.webp"
+    },
+    {
+      "id": "e607fa9f-d012-431d-aec4-a743688f8020",
+      "name": "Sapling Defender",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960019/glimmerfall/card_renders/sapling_defender.webp"
+    },
+    {
+      "id": "e8297440-158d-4e16-a998-78c112b0e1ac",
+      "name": "Mirrorgate",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959938/glimmerfall/card_renders/mirrorgate.webp"
+    },
+    {
+      "id": "72d6d7d3-e70d-477e-9bd3-06f6893d559a",
+      "name": "Avalanche Herd",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959751/glimmerfall/card_renders/avalanche_herd.webp"
+    },
+    {
+      "id": "a05d72bc-c399-44a4-8659-d25ecbc80805",
+      "name": "Deepstone Miner",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959826/glimmerfall/card_renders/deepstone_miner.webp"
+    },
+    {
+      "id": "82c7e48f-f972-4180-9e87-9587cb039182",
+      "name": "Purge the Gloom",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959984/glimmerfall/card_renders/purge_the_gloom.webp"
+    },
+    {
+      "id": "fdcd6151-1330-44c3-a013-9d87b97f7a26",
+      "name": "Lantern District",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959925/glimmerfall/card_renders/lantern_district.webp"
+    },
+    {
+      "id": "effb130c-6797-4d99-871b-1538614fd51b",
+      "name": "Phasewing Drake",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959975/glimmerfall/card_renders/phasewing_drake.webp"
+    },
+    {
+      "id": "331f68b6-0086-449a-bddc-da2484dea47b",
+      "name": "Decree of the Sun",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783971735/glimmerfall/card_renders/decree_of_the_sun.webp"
+    },
+    {
+      "id": "ab625834-98b0-4ca8-bf60-71968aeae445",
+      "name": "Prism Courier",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959981/glimmerfall/card_renders/prism_courier.webp"
+    },
+    {
+      "id": "c155c654-5289-44d0-917b-b2062c7c841c",
+      "name": "Unmake",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960095/glimmerfall/card_renders/unmake.webp"
+    },
+    {
+      "id": "18dbe89b-466f-45b4-916a-e75ba38122ee",
+      "name": "Duskblade Fiend",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959834/glimmerfall/card_renders/duskblade_fiend.webp"
+    },
+    {
+      "id": "03fe6b3b-fe7c-4112-bf8a-a4a2683ddf03",
+      "name": "Siphon Soul",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960037/glimmerfall/card_renders/siphon_soul.webp"
+    },
+    {
+      "id": "d3c86cc3-5d2b-4ef8-bd63-2c55f2ff0b99",
+      "name": "Crypt Lantern",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959809/glimmerfall/card_renders/crypt_lantern.webp"
+    },
+    {
+      "id": "2d5fff4a-53ad-4fc9-b888-74009dce96a2",
+      "name": "Gloam Reaper",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959894/glimmerfall/card_renders/gloam_reaper.webp"
+    },
+    {
+      "id": "ae4b22d3-6839-42ce-9f81-6657d4cd1891",
+      "name": "Shadow Cloak",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960031/glimmerfall/card_renders/shadow_cloak.webp"
+    },
+    {
+      "id": "a89042b8-d712-4c10-a427-07eaad87dd5d",
+      "name": "Paradox Adept",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959971/glimmerfall/card_renders/paradox_adept.webp"
+    },
+    {
+      "id": "507958e1-8d1b-41be-86cf-f671ead1fa9b",
+      "name": "Blinding Radiance",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783968499/glimmerfall/card_renders/blinding_radiance.webp"
+    },
+    {
+      "id": "f88a8152-0818-4140-9433-5f8470ad7ec4",
+      "name": "Flare Strike",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959867/glimmerfall/card_renders/flare_strike.webp"
+    },
+    {
+      "id": "125898cc-8b04-4974-95ff-669ff634f2aa",
+      "name": "Grasping Shadows",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783972041/glimmerfall/card_renders/grasping_shadows.webp"
+    },
+    {
+      "id": "43300627-fd57-4b59-9114-5eb9d8ae346a",
+      "name": "Fading Memory",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959857/glimmerfall/card_renders/fading_memory.webp"
+    },
+    {
+      "id": "5b4c70d0-fcda-43bd-b93c-301c35c12d51",
+      "name": "Cinder Oath",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959791/glimmerfall/card_renders/cinder_oath.webp"
+    },
+    {
+      "id": "e8a250e6-a24d-4f40-923c-b3e45680d94d",
+      "name": "Luminous Guide",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959929/glimmerfall/card_renders/luminous_guide.webp"
+    },
+    {
+      "id": "0c615a03-8dd5-4363-8053-a24437731e8b",
+      "name": "Nature's Bounty",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959961/glimmerfall/card_renders/natures_bounty.webp"
+    },
+    {
+      "id": "b385e2b6-4f11-448a-a5ad-27a52c9cd5a5",
+      "name": "Zenith Inquisitor",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960126/glimmerfall/card_renders/zenith_inquisitor.webp"
+    },
+    {
+      "id": "34543fc1-98a2-4ff7-bcc1-62bf3dbffe91",
+      "name": "Chrono Shift",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959788/glimmerfall/card_renders/chrono_shift.webp"
+    },
+    {
+      "id": "06dfcb7b-e928-4751-ac28-ad7182fe2f35",
+      "name": "Aetheric Blast",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959726/glimmerfall/card_renders/aetheric_blast.webp"
+    },
+    {
+      "id": "87efbcf0-c193-4dff-8fed-670256fc47e2",
+      "name": "Brilliant Reversal",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959778/glimmerfall/card_renders/brilliant_reversal.webp"
+    },
+    {
+      "id": "b94651dd-50b8-40fb-a36d-b47af5c55eb2",
+      "name": "Sunspear Adept",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960072/glimmerfall/card_renders/sunspear_adept.webp"
+    },
+    {
+      "id": "3b1b5b33-6b50-4d42-a778-660d2d1af005",
+      "name": "Veil of Misfortune",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960098/glimmerfall/card_renders/veil_of_misfortune.webp"
+    },
+    {
+      "id": "cb23150c-c62d-4bd1-b7bd-52acb4037c23",
+      "name": "Aether Sprite",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959723/glimmerfall/card_renders/aether_sprite.webp"
+    },
+    {
+      "id": "eb9cbfc4-1a08-4427-adce-16165420abac",
+      "name": "Ravenous Echo",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959996/glimmerfall/card_renders/ravenous_echo.webp"
+    },
+    {
+      "id": "02df3475-69b7-4cdc-bed1-16702a50fe2e",
+      "name": "Displacement Field",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959830/glimmerfall/card_renders/displacement_field.webp"
+    },
+    {
+      "id": "3a9080f8-399e-437b-b86e-dc43b0b589e0",
+      "name": "Glimmer Orchard",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959888/glimmerfall/card_renders/glimmer_orchard.webp"
+    },
+    {
+      "id": "a45dc2a4-8915-4116-9229-ffd4f2c51602",
+      "name": "Thornweave Matron",
+      "image_url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783960085/glimmerfall/card_renders/thornweave_matron.webp"
+    }
+  ],
+  "shop_products": [
+    {
+      "id": "5",
+      "name": "Gaia's Loop",
+      "image_url": "https://i.ibb.co/dZckzGs/2be52eed7f7c.jpg"
+    },
+    {
+      "id": "6",
+      "name": "Solar Singularity",
+      "image_url": "https://i.ibb.co/gZT5rBcs/824ac2ab756f.jpg"
+    },
+    {
+      "id": "7",
+      "name": "Fractured Continuum",
+      "image_url": "https://i.ibb.co/mFrmqqbY/ba90b79ed369.jpg"
+    },
+    {
+      "id": "8",
+      "name": "The Graveglass Veil",
+      "image_url": "https://i.ibb.co/TxL5nxG9/dd57b835b3dc.jpg"
+    },
+    {
+      "id": "9",
+      "name": "The Awakening Booster Box",
+      "image_url": "https://i.ibb.co/PvPjP2zv/booster-box-mockup-1785352991522.jpg"
+    }
+  ],
+  "users": [
+    {
+      "id": "8",
+      "avatar": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1783959813/glimmerfall/card_renders/dawnblade_templar.webp"
+    },
+    {
+      "id": "6",
+      "avatar": "https://i.ibb.co/nMFwd9PW/Untitled.png"
+    }
+  ],
+  "static": [
+    {
+      "id": "cardback",
+      "name": "baked_cardback",
+      "url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784376716/glimmerfall/baked_cardback.png"
+    },
+    {
+      "id": "rarity_common",
+      "name": "rarity_common",
+      "url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383884/glimmerfall/rarity_icons/common.svg"
+    },
+    {
+      "id": "rarity_uncommon",
+      "name": "rarity_uncommon",
+      "url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383885/glimmerfall/rarity_icons/uncommon.svg"
+    },
+    {
+      "id": "rarity_mythic",
+      "name": "rarity_mythic",
+      "url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383891/glimmerfall/rarity_icons/mythic.svg"
+    },
+    {
+      "id": "rarity_rare",
+      "name": "rarity_rare",
+      "url": "https://res.cloudinary.com/dfyh7cs1g/image/upload/v1784383889/glimmerfall/rarity_icons/rare.svg"
+    },
+    {
+      "id": "hero_bg",
+      "name": "hero_bg",
+      "url": "https://static.prod-images.emergentagent.com/jobs/b8c31a9c-2781-4f44-b53e-2f632cd70450/images/6b32b9586616bef4733ae73acd6ec2dcad2406fd070f4347b9c293262a10af01.png"
+    }
+  ]
+}

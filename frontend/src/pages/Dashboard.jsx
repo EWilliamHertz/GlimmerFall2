@@ -202,14 +202,10 @@ function PlayerDashboard({ user, updateUser }) {
     setSavingAvatar(true);
     try {
       const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch("https://api.imgbb.com/1/upload?key=b2492f987920d3e2a7903861b72ae3a4", {
-        method: "POST",
-        body: formData
-      });
-      const data = await res.json();
-      if (data.success) {
-        await selectAvatar(data.data.url);
+      formData.append("file", file);
+      const res = await api.post("/upload", formData);
+      if (res.data?.url) {
+        await selectAvatar(res.data.url);
       } else {
         toast.error("Failed to upload image");
         setSavingAvatar(false);
@@ -621,14 +617,10 @@ function AdminPanel({ user }) {
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch(`https://api.imgbb.com/1/upload?key=${process.env.REACT_APP_IMGBB_API_KEY}`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEditingProduct({ ...editingProduct, image_url: data.data.url });
+      formData.append("file", file);
+      const res = await api.post("/upload", formData);
+      if (res.data?.url) {
+        setEditingProduct({ ...editingProduct, image_url: res.data.url });
       } else {
         alert("Failed to upload image.");
       }
