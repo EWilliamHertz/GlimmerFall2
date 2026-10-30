@@ -1,8 +1,50 @@
-export const CARDBACK =
+export const CARDBACK = "/frames/cardback.webp";
+export const FALLBACK_CARDBACK =
   "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/baked_cardback-8Bh4M95RMoY2TSNhQzGI5YH3XZOsb0.png";
 
 export const LOGO = "/glimmerfall-logo-256.png";
 export const LOGO_FULL = "/glimmerfall-logo.png";
+
+export const FACTION_FRAMES = {
+  Solari: {
+    key: "solari",
+    header: "/frames/solari_header.webp",
+    footer: "/frames/solari_footer.webp",
+    costOrb: "/frames/solari_cost_orb.webp",
+    statPill: "/frames/solari_stat_pill.webp",
+    symbol: "/solari_nobg.png",
+  },
+  Umbri: {
+    key: "umbri",
+    header: "/frames/umbri_header.webp",
+    footer: "/frames/umbri_footer.webp",
+    costOrb: "/frames/umbri_cost_orb.webp",
+    statPill: "/frames/umbri_stat_pill.webp",
+    symbol: "/umbri_nobg.png",
+  },
+  Terra: {
+    key: "terra",
+    header: "/frames/terra_header.webp",
+    footer: "/frames/terra_footer.webp",
+    costOrb: "/frames/terra_cost_orb.webp",
+    statPill: "/frames/terra_stat_pill.webp",
+    symbol: "/terra_nobg.png",
+  },
+  Aether: {
+    key: "aether",
+    header: "/frames/aether_header.webp",
+    footer: "/frames/aether_footer.webp",
+    costOrb: "/frames/aether_cost_orb.webp",
+    statPill: "/frames/aether_stat_pill.webp",
+    symbol: "/aether_nobg.png",
+  },
+};
+
+export const getDesignerCardUrl = (cardName) => {
+  if (!cardName) return null;
+  const slug = String(cardName).toLowerCase().replace(/[^\w\s-]/g, "").trim().replace(/[\s-]+/g, "_");
+  return `/cards/designer/${slug}.webp`;
+};
 
 export const FACTIONS = {
   Solari: {
@@ -15,6 +57,7 @@ export const FACTIONS = {
     text: "text-[#F2A900]",
     bgSoft: "bg-[#F2A900]/12",
     border: "border-[#F2A900]/50",
+    frames: FACTION_FRAMES.Solari,
   },
   Umbri: {
     name: "Umbri",
@@ -26,6 +69,7 @@ export const FACTIONS = {
     text: "text-[#C77DFF]",
     bgSoft: "bg-[#9B30FF]/12",
     border: "border-[#9B30FF]/50",
+    frames: FACTION_FRAMES.Umbri,
   },
   Terra: {
     name: "Terra",
@@ -37,6 +81,7 @@ export const FACTIONS = {
     text: "text-[#39E58C]",
     bgSoft: "bg-[#22E07B]/12",
     border: "border-[#22E07B]/50",
+    frames: FACTION_FRAMES.Terra,
   },
   Aether: {
     name: "Aether",
@@ -48,6 +93,7 @@ export const FACTIONS = {
     text: "text-[#38CCff]",
     bgSoft: "bg-[#00BFFF]/12",
     border: "border-[#00BFFF]/50",
+    frames: FACTION_FRAMES.Aether,
   },
 };
 

@@ -5,10 +5,15 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 
 const fetcher = (url) => api.get(url).then((r) => r.data);
-import { FACTIONS, RARITY, CARD_TYPES, factionCfg } from "@/lib/factions";
+import { FACTIONS, RARITY, CARD_TYPES, factionCfg, getDesignerCardUrl } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic"];
+const SET_OPTIONS = [
+  { id: "all", label: "All Sets" },
+  { id: "set1", label: "Set 1: Awakening" },
+  { id: "set2", label: "Set 2: Expansion" },
+];
 
 const FilterChip = ({ active, onClick, children, color, testId }) => (
   <button
@@ -24,7 +29,8 @@ const FilterChip = ({ active, onClick, children, color, testId }) => (
 );
 
 export default function Cards() {
-  const { data: cards = [] } = useSWR("/cards", fetcher);
+  const [selectedSet, setSelectedSet] = useState("all");
+  const { data: cards = [] } = useSWR(`/cards?set=${selectedSet}`, fetcher);
   const [q, setQ] = useState("");
   const [faction, setFaction] = useState(null);
   const [type, setType] = useState(null);
@@ -45,7 +51,7 @@ export default function Cards() {
     <div data-testid="cards-page" className="max-w-7xl mx-auto px-5 py-10">
       <div className="mb-8">
         <h1 className="font-display text-4xl md:text-5xl font-bold">Card Database</h1>
-        <p className="text-white/50 mt-2 font-head">The complete GlimmerFall Oracle — {cards.length} cards.</p>
+        <p className="text-white/50 mt-2 font-head">The complete GlimmerFall Oracle — {cards.length} cards in registry.</p>
       </div>
 
       {/* filters */}
@@ -59,6 +65,19 @@ export default function Cards() {
             placeholder="Search cards by name or effect..."
             className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#F2A900]/60 transition-colors"
           />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-white/40 font-head uppercase tracking-wider mr-1">Set:</span>
+          {SET_OPTIONS.map((s) => (
+            <FilterChip
+              key={s.id}
+              testId={`filter-set-${s.id}`}
+              active={selectedSet === s.id}
+              onClick={() => setSelectedSet(s.id)}
+            >
+              {s.label}
+            </FilterChip>
+          ))}
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterChip testId="filter-faction-all" active={!faction} onClick={() => setFaction(null)}>All Factions</FilterChip>
@@ -96,6 +115,9 @@ export default function Cards() {
 export const CardModal = ({ card, onClose }) => {
   const f = factionCfg(card.faction);
   const rar = RARITY[card.rarity] || RARITY.Common;
+  const designerUrl = getDesignerCardUrl(card.name);
+  const [viewDesigner, setViewDesigner] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -116,8 +138,23 @@ export const CardModal = ({ card, onClose }) => {
         <button onClick={onClose} data-testid="card-modal-close" className="absolute right-4 top-4 text-white/50 hover:text-white">
           <X />
         </button>
-        <div className="mx-auto md:mx-0">
-          <CardTemplate card={card} size="xl" tilt />
+        <div className="mx-auto md:mx-0 flex flex-col items-center">
+          {viewDesigner && designerUrl ? (
+            <div className="w-72 aspect-[5/7] rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl">
+              <img src={designerUrl} alt={card.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <CardTemplate card={card} size="xl" tilt />
+          )}
+
+          {designerUrl && (
+            <button
+              onClick={() => setViewDesigner(!viewDesigner)}
+              className="mt-3 px-3 py-1 rounded-full text-xs font-head border border-white/20 hover:border-white/50 text-white/80 transition-colors bg-white/5"
+            >
+              {viewDesigner ? "Show Interactive Frame" : "View Full Designer Print"}
+            </button>
+          )}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">

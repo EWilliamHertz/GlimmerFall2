@@ -179,8 +179,32 @@ async def upload_file(request: Request):
 
 
 @api.get("/cards")
-def get_cards():
-    return load_cards()
+def get_cards(set: Optional[str] = None):
+    try:
+        with DB() as cur:
+            if set in ("all", "both"):
+                cur.execute("""
+                    SELECT id, name, card_type, cost, power, health, description, 
+                           image_url, created_at, faction, keywords, rarity, 
+                           ai_art_prompt, COALESCE(set_name, 'Set 1') as set_name, 
+                           collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
+                    FROM cards
+                    UNION ALL
+                    SELECT id, name, card_type, cost, power, health, description, 
+                           image_url, created_at, faction, keywords, rarity, 
+                           ai_art_prompt, COALESCE(set_name, 'Expansion I: Fractured Realms') as set_name, 
+                           collector_number, COALESCE(set_code, 'EXP1') as set_code, lore 
+                    FROM cards2
+                    ORDER BY set_code, collector_number NULLS LAST
+                """)
+            elif set in ("set2", "cards2", "EXP1"):
+                cur.execute("SELECT * FROM cards2 ORDER BY collector_number NULLS LAST")
+            else:
+                cur.execute("SELECT * FROM cards ORDER BY collector_number NULLS LAST")
+            return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"Failed to get cards: {e}")
+        return []
 
 
 @api.get("/rules")

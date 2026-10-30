@@ -72,6 +72,11 @@ agenthub/agents/youtube/db
 *.pack
 *.deb
 *.dylib
+*.pdf
+**/*.pdf
+*.xlsx
+**/*.xlsx
+all cards final pdf*
 
 # Build caches
 .cache/
