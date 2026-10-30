@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 
 const fetcher = (url) => api.get(url).then((r) => r.data);
-import { FACTIONS, RARITY, CARD_TYPES, factionCfg, getDesignerCardUrl } from "@/lib/factions";
+import { FACTIONS, RARITY, CARD_TYPES, factionCfg } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic"];
@@ -115,8 +115,6 @@ export default function Cards() {
 export const CardModal = ({ card, onClose }) => {
   const f = factionCfg(card.faction);
   const rar = RARITY[card.rarity] || RARITY.Common;
-  const designerUrl = getDesignerCardUrl(card.name);
-  const [viewDesigner, setViewDesigner] = useState(false);
 
   return (
     <motion.div
@@ -138,23 +136,8 @@ export const CardModal = ({ card, onClose }) => {
         <button onClick={onClose} data-testid="card-modal-close" className="absolute right-4 top-4 text-white/50 hover:text-white">
           <X />
         </button>
-        <div className="mx-auto md:mx-0 flex flex-col items-center">
-          {viewDesigner && designerUrl ? (
-            <div className="w-72 aspect-[5/7] rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl">
-              <img src={designerUrl} alt={card.name} className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <CardTemplate card={card} size="xl" tilt />
-          )}
-
-          {designerUrl && (
-            <button
-              onClick={() => setViewDesigner(!viewDesigner)}
-              className="mt-3 px-3 py-1 rounded-full text-xs font-head border border-white/20 hover:border-white/50 text-white/80 transition-colors bg-white/5"
-            >
-              {viewDesigner ? "Show Interactive Frame" : "View Full Designer Print"}
-            </button>
-          )}
+        <div className="mx-auto md:mx-0">
+          <CardTemplate card={card} size="xl" tilt />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
