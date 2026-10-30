@@ -126,7 +126,7 @@ export const CardTemplate = ({
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
       <div className="absolute inset-0 rounded-xl overflow-hidden print-no-border" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
-        <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
+        <img src={img} alt={card?.name || "card"} className={`w-full h-full ${isDesigner ? "object-fill" : "object-cover"}`} draggable={false} loading={eager ? "eager" : "lazy"} />
 
         {/* Faction background tint - only for original layout */}
         {!isDesigner && (
