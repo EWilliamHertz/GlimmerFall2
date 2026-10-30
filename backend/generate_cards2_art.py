@@ -191,6 +191,7 @@ def main():
             FROM cards2 
             WHERE (image_url IS NULL OR image_url = '') 
               AND (ai_art_prompt IS NOT NULL OR image_prompt IS NOT NULL)
+              AND name NOT IN (SELECT name FROM cards)
             ORDER BY collector_number NULLS LAST, id
             LIMIT %s;
         """, (args.limit,))

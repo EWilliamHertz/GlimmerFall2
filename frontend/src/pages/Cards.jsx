@@ -10,9 +10,9 @@ import CardTemplate from "@/components/CardTemplate";
 
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic"];
 const SET_OPTIONS = [
-  { id: "all", label: "All Sets" },
-  { id: "set1", label: "Set 1: Awakening" },
+  { id: "set1", label: "Set 1: Awakening (100)" },
   { id: "set2", label: "Set 2: Expansion" },
+  { id: "all", label: "All Unique Cards" },
 ];
 
 const FilterChip = ({ active, onClick, children, color, testId }) => (
@@ -29,7 +29,7 @@ const FilterChip = ({ active, onClick, children, color, testId }) => (
 );
 
 export default function Cards() {
-  const [selectedSet, setSelectedSet] = useState("all");
+  const [selectedSet, setSelectedSet] = useState("set1");
   const { data: cards = [] } = useSWR(`/cards?set=${selectedSet}`, fetcher);
   const [q, setQ] = useState("");
   const [faction, setFaction] = useState(null);
