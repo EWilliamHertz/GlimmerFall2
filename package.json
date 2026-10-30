@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "GlimmerFall Root Workspace",
   "scripts": {
+    "postinstall": "cd frontend && npm install --legacy-peer-deps",
     "dev:frontend": "cd frontend && PORT=3000 npm start",
     "dev:backend": "cd backend && python3 -m uvicorn server:app --reload --port 8000",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
