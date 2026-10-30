@@ -113,7 +113,20 @@ api = APIRouter(prefix="/api")
 def load_cards():
     try:
         with DB() as cur:
-            cur.execute("SELECT * FROM cards ORDER BY collector_number NULLS LAST")
+            cur.execute("""
+                SELECT id, name, card_type, cost, power, health, description, 
+                       image_url, created_at, faction, keywords, rarity, 
+                       ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
+                       collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
+                FROM cards
+                UNION ALL
+                SELECT id, name, card_type, cost, power, health, description, 
+                       image_url, created_at, faction, keywords, rarity, 
+                       ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
+                       collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
+                FROM cards2
+                ORDER BY collector_number ASC NULLS LAST
+            """)
             return [dict(r) for r in cur.fetchall()]
     except Exception as e:
         logger.error(f"Failed to load cards: {e}")
@@ -180,51 +193,9 @@ async def upload_file(request: Request):
 
 @api.get("/cards")
 def get_cards(set: Optional[str] = None):
-    try:
-        with DB() as cur:
-            if set in ("all", "both"):
-                # Return all unique cards across both sets, prioritizing Set 1
-                # so that Set 1 cards with complete art & designer renders are kept,
-                # preventing duplicate entries like Solari Vanguard.
-                cur.execute("""
-                    SELECT * FROM (
-                        WITH combined AS (
-                            SELECT id, name, card_type, cost, power, health, description, 
-                                   image_url, created_at, faction, keywords, rarity, 
-                                   ai_art_prompt, COALESCE(set_name, 'Set 1') as set_name, 
-                                   collector_number, COALESCE(set_code, 'AWK') as set_code, lore,
-                                   1 as priority
-                            FROM cards
-                            UNION ALL
-                            SELECT id, name, card_type, cost, power, health, description, 
-                                   image_url, created_at, faction, keywords, rarity, 
-                                   ai_art_prompt, COALESCE(set_name, 'Expansion I: Fractured Realms') as set_name, 
-                                   collector_number, COALESCE(set_code, 'EXP1') as set_code, lore,
-                                   2 as priority
-                            FROM cards2
-                        )
-                        SELECT DISTINCT ON (LOWER(name)) *
-                        FROM combined
-                        ORDER BY LOWER(name), priority ASC, collector_number NULLS LAST
-                    ) deduped
-                    ORDER BY set_code, collector_number NULLS LAST
-                """)
-            elif set in ("set2", "cards2", "EXP1"):
-                cur.execute("""
-                    SELECT * FROM (
-                        SELECT DISTINCT ON (LOWER(name)) *
-                        FROM cards2
-                        WHERE LOWER(name) NOT IN (SELECT LOWER(name) FROM cards)
-                        ORDER BY LOWER(name), collector_number NULLS LAST
-                    ) t
-                    ORDER BY collector_number NULLS LAST
-                """)
-            else:
-                cur.execute("SELECT * FROM cards ORDER BY collector_number NULLS LAST")
-            return [dict(r) for r in cur.fetchall()]
-    except Exception as e:
-        logger.error(f"Failed to get cards: {e}")
-        return []
+    # All 322 cards belong to First Edition: The Awakening (100 base + 222 expansion)
+    # Unified in a single catalog ordered by collector_number 1 to 322
+    return load_cards()
 
 
 @api.get("/rules")
