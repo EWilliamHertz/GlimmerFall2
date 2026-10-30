@@ -32,13 +32,19 @@ export default function Cards() {
   const [active, setActive] = useState(null);
 
   const filtered = useMemo(() => {
-    return cards.filter((c) => {
-      if (q && !c.name.toLowerCase().includes(q.toLowerCase()) && !(c.description || "").toLowerCase().includes(q.toLowerCase())) return false;
-      if (faction && c.faction !== faction) return false;
-      if (type && c.card_type !== type) return false;
-      if (rarity && c.rarity !== rarity) return false;
-      return true;
-    });
+    return cards
+      .filter((c) => {
+        if (q && !c.name.toLowerCase().includes(q.toLowerCase()) && !(c.description || "").toLowerCase().includes(q.toLowerCase())) return false;
+        if (faction && c.faction !== faction) return false;
+        if (type && c.card_type !== type) return false;
+        if (rarity && c.rarity !== rarity) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const numA = a.collector_number != null ? Number(a.collector_number) : 999999;
+        const numB = b.collector_number != null ? Number(b.collector_number) : 999999;
+        return numA - numB;
+      });
   }, [cards, q, faction, type, rarity]);
 
   return (
@@ -82,7 +88,14 @@ export default function Cards() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6 justify-items-center">
         {filtered.map((c) => (
-          <CardTemplate key={c.id} card={c} size="md" onClick={() => setActive(c)} testId={`card-${c.collector_number}`} />
+          <div key={c.id} className="flex flex-col items-center group">
+            <CardTemplate card={c} size="md" onClick={() => setActive(c)} testId={`card-${c.collector_number}`} />
+            <div className="flex items-center gap-1.5 mt-2 text-[11px] font-mono text-white/50 group-hover:text-white transition-colors">
+              <span className="font-semibold text-[#F2A900]">#{String(c.collector_number || 0).padStart(3, "0")}</span>
+              <span className="text-white/30">•</span>
+              <span className="truncate max-w-[110px] text-white/70">{c.name}</span>
+            </div>
+          </div>
         ))}
       </div>
 

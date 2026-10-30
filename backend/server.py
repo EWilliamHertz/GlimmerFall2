@@ -114,17 +114,19 @@ def load_cards():
     try:
         with DB() as cur:
             cur.execute("""
-                SELECT id, name, card_type, cost, power, health, description, 
-                       image_url, created_at, faction, keywords, rarity, 
-                       ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
-                       collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
-                FROM cards
-                UNION ALL
-                SELECT id, name, card_type, cost, power, health, description, 
-                       image_url, created_at, faction, keywords, rarity, 
-                       ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
-                       collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
-                FROM cards2
+                SELECT * FROM (
+                    SELECT id, name, card_type, cost, power, health, description, 
+                           image_url, created_at, faction, keywords, rarity, 
+                           ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
+                           collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
+                    FROM cards
+                    UNION ALL
+                    SELECT id, name, card_type, cost, power, health, description, 
+                           image_url, created_at, faction, keywords, rarity, 
+                           ai_art_prompt, COALESCE(set_name, 'The Awakening') as set_name, 
+                           collector_number, COALESCE(set_code, 'AWK') as set_code, lore 
+                    FROM cards2
+                ) combined
                 ORDER BY collector_number ASC NULLS LAST
             """)
             return [dict(r) for r in cur.fetchall()]
