@@ -1,8 +1,13 @@
+import os
 import requests, re, psycopg2
 from requests.auth import HTTPBasicAuth
+from dotenv import load_dotenv
 
-cloud='dfyh7cs1g'; key='REDACTED_CLOUDINARY_KEY'; sec='REDACTED_CLOUDINARY_SECRET'
-DATABASE_URL="postgresql://neondb_owner:REDACTED_NEON_PASSWORD@ep-REDACTED-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+load_dotenv()
+cloud = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+key = os.environ.get("CLOUDINARY_API_KEY", "")
+sec = os.environ.get("CLOUDINARY_API_SECRET", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # fetch all resources with pagination
 resources=[]

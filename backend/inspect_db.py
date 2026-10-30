@@ -1,7 +1,10 @@
+import os
 import psycopg2
 import json
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql://neondb_owner:REDACTED_NEON_PASSWORD@ep-REDACTED-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+load_dotenv()
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()

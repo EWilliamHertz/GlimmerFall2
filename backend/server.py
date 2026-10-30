@@ -31,9 +31,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("glimmerfall")
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
-# Fix stale/expired credentials if present, or provide default NeonDB connection
-if "REDACTED_NEON_PASSWORD" in DATABASE_URL or not DATABASE_URL:
-    DATABASE_URL = "postgresql://neondb_owner:REDACTED_NEON_PASSWORD@ep-REDACTED-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+if not DATABASE_URL:
+    logger.warning("DATABASE_URL environment variable is not set. Ensure .env is loaded.")
 
 CARDBACK_URL = os.environ.get("CARDBACK_URL", "")
 

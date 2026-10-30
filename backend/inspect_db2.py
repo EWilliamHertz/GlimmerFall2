@@ -1,5 +1,9 @@
+import os
 import psycopg2, json
-DATABASE_URL = "postgresql://neondb_owner:REDACTED_NEON_PASSWORD@ep-REDACTED-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+from dotenv import load_dotenv
+
+load_dotenv()
+DATABASE_URL = os.environ.get("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL); cur = conn.cursor()
 
 cur.execute("SELECT COUNT(*) FROM cards WHERE image_url IS NOT NULL AND image_url <> '' AND image_url <> 'None'")
