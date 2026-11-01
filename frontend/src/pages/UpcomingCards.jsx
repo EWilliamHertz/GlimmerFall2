@@ -85,7 +85,7 @@ export default function UpcomingCards() {
       </div>
 
       {/* Filters Toolbar */}
-      <div className="glass rounded-xl p-4 mb-8 flex flex-wrap gap-4 items-center justify-between sticky top-20 z-40 border border-white/10 shadow-xl shadow-black/50">
+      <div className="glass-strong rounded-xl p-4 mb-8 flex flex-wrap gap-4 items-center justify-between sticky top-14 z-40 border border-white/10 shadow-xl shadow-black/50">
         <div className="flex flex-wrap gap-3 w-full md:w-auto">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />

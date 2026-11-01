@@ -48,14 +48,14 @@ export default function Cards() {
   }, [cards, q, faction, type, rarity]);
 
   return (
-    <div data-testid="cards-page" className="max-w-7xl mx-auto px-5 py-10">
-      <div className="mb-8">
+    <div data-testid="cards-page" className="max-w-7xl mx-auto px-5 pt-4 pb-10">
+      <div className="mb-6">
         <h1 className="font-display text-4xl md:text-5xl font-bold">Card Database</h1>
-        <p className="text-white/50 mt-2 font-head">The complete GlimmerFall Oracle — {cards.length} cards in registry (First Edition: Awakening).</p>
+        <p className="text-white/50 mt-1.5 font-head">The complete GlimmerFall Oracle — {cards.length} cards in registry (First Edition: Awakening).</p>
       </div>
 
       {/* filters */}
-      <div className="glass rounded-2xl p-5 mb-8 space-y-4 sticky top-20 z-30">
+      <div className="glass-strong rounded-2xl p-4 md:p-5 mb-8 space-y-4 sticky top-14 z-30 shadow-xl shadow-black/40">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
           <input
