@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { CARDBACK, RARITY, RARITY_ICONS, factionCfg, getDesignerCardUrl } from "@/lib/factions";
+import { CARDBACK, RARITY, RARITY_ICONS, factionCfg } from "@/lib/factions";
 
 const SIZES = {
   xs: "w-[80px]",
@@ -80,14 +80,8 @@ export const CardTemplate = ({
   };
   const reset = () => { mx.set(0); my.set(0); setHover(false); };
 
-  // Check if this card is one of the 56 modern redesigned cards from the designer
-  const designerUrl = getDesignerCardUrl(card?.name);
-  const isDesigner = Boolean(designerUrl && !hidden);
-
   const img = hidden
     ? CARDBACK
-    : isDesigner
-    ? designerUrl
     : card?.image_url && card.image_url !== "None"
     ? card.image_url
     : CARDBACK;
@@ -126,12 +120,10 @@ export const CardTemplate = ({
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
       <div className="absolute inset-0 rounded-xl overflow-hidden print-no-border" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
-        <img src={img} alt={card?.name || "card"} className={`w-full h-full ${isDesigner ? "object-fill" : "object-cover"}`} draggable={false} loading={eager ? "eager" : "lazy"} />
+        <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
 
-        {/* Faction background tint - only for original layout */}
-        {!isDesigner && (
-          <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to top, ${f.color}33 0%, transparent 55%)` }} />
-        )}
+        {/* Faction background tint */}
+        <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to top, ${f.color}33 0%, transparent 55%)` }} />
 
         {/* RARE — subtle holo strip that tracks mouse */}
         {isRare && tilt && (
@@ -181,67 +173,38 @@ export const CardTemplate = ({
           </>
         )}
 
-        {/* ORIGINAL LAYOUT: bottom info panel (only for non-redesigned cards) */}
-        {!isDesigner && (
-          <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"}`} style={{ textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
-            <div className="flex items-center gap-1">
-              <span className={`font-display font-bold leading-tight truncate ${NAME_CLS[size]}`} style={{ color: f.soft }} data-testid={testId ? `${testId}-name` : undefined}>
-                {card?.name}
-              </span>
+        {/* Bottom info panel */}
+        <div className={`absolute inset-x-0 bottom-0 px-1.5 pt-4 ${isEntity ? "pb-5" : "pb-1.5"}`} style={{ textShadow: "0 2px 4px rgba(0,0,0,0.8)" }}>
+          <div className="flex items-center gap-1">
+            <span className={`font-display font-bold leading-tight truncate ${NAME_CLS[size]}`} style={{ color: f.soft }} data-testid={testId ? `${testId}-name` : undefined}>
+              {card?.name}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 mt-0.5">
+            <span
+              className="inline-block px-1.5 rounded text-[8px] font-head font-semibold uppercase tracking-wide"
+              style={{ background: `${f.color}`, color: "#000" }}
+              data-testid={testId ? `${testId}-type` : undefined}
+            >
+              {card?.faction} - {type}
+            </span>
+            {kws.length > 0 && kws.slice(0, 3).map((k) => (
+              <span key={k} className="text-[7px] font-head font-bold px-1 rounded leading-tight" style={{ background: `${f.color}dd`, color: "#000" }}>{k}</span>
+            ))}
+          </div>
+          {showText && desc && (
+            <p className={isEntity ? "mt-1 pr-9" : "mt-1"} style={{ color: "rgba(255,255,255,0.92)", fontSize: size === "xl" ? 11 : 9, display: "-webkit-box", WebkitLineClamp: size === "xl" ? 5 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid={testId ? `${testId}-desc` : undefined}>
+              {desc}
+            </p>
+          )}
+
+          {/* collector info */}
+          {showText && (
+            <div className="absolute bottom-[3px] left-1.5 text-[5px] text-white/50 font-mono tracking-wider z-10 pointer-events-none" data-testid={testId ? `${testId}-collector` : undefined}>
+              {card?.set_code || "AWK"} • {String(card?.collector_number || 0).padStart(3, "0")}
             </div>
-            <div className="flex flex-wrap items-center gap-1 mt-0.5">
-              <span
-                className="inline-block px-1.5 rounded text-[8px] font-head font-semibold uppercase tracking-wide"
-                style={{ background: `${f.color}`, color: "#000" }}
-                data-testid={testId ? `${testId}-type` : undefined}
-              >
-                {card?.faction} - {type}
-              </span>
-              {kws.length > 0 && kws.slice(0, 3).map((k) => (
-                <span key={k} className="text-[7px] font-head font-bold px-1 rounded leading-tight" style={{ background: `${f.color}dd`, color: "#000" }}>{k}</span>
-              ))}
-            </div>
-            {showText && desc && (
-              <p className={isEntity ? "mt-1 pr-9" : "mt-1"} style={{ color: "rgba(255,255,255,0.92)", fontSize: size === "xl" ? 11 : 9, display: "-webkit-box", WebkitLineClamp: size === "xl" ? 5 : 4, WebkitBoxOrient: "vertical", overflow: "hidden" }} data-testid={testId ? `${testId}-desc` : undefined}>
-                {desc}
-              </p>
-            )}
-
-            {/* collector info */}
-            {showText && (
-              <div className="absolute bottom-[3px] left-1.5 text-[5px] text-white/50 font-mono tracking-wider z-10 pointer-events-none" data-testid={testId ? `${testId}-collector` : undefined}>
-                {card?.set_code || "AWK"} • {String(card?.collector_number || 0).padStart(3, "0")}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* FOR 56 REDESIGNED CARDS: hidden test/accessibility tags so automated tests pass */}
-        {isDesigner && (
-          <div className="sr-only pointer-events-none">
-            <span data-testid={testId ? `${testId}-name` : undefined}>{card?.name}</span>
-            <span data-testid={testId ? `${testId}-type` : undefined}>{card?.faction} - {type}</span>
-            <span data-testid={testId ? `${testId}-desc` : undefined}>{desc}</span>
-            <span data-testid={testId ? `${testId}-collector` : undefined}>{card?.set_code || "AWK"} • {String(card?.collector_number || 0).padStart(3, "0")}</span>
-            <span data-testid={testId ? `${testId}-cost` : undefined}>{card?.cost}</span>
-            <span data-testid={testId ? `${testId}-rarity` : undefined}>{card?.rarity}</span>
-            {isEntity && power != null && (
-              <>
-                <span data-testid={testId ? `${testId}-power` : undefined}>{power}</span>
-                <span data-testid={testId ? `${testId}-health` : undefined}>{health}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Dynamic damaged health indicator during matches for redesigned cards */}
-        {isDesigner && isEntity && damaged && (
-          <div className={`absolute right-1 bottom-1 flex items-center gap-0.5 px-1.5 rounded-md font-num font-bold border-2 border-black/80 bg-red-950/90 text-red-300 shadow-md ${PH_CLS[size]}`}>
-            <span>{power}</span>
-            <span className="opacity-50">/</span>
-            <span className="text-red-400">{health}</span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Exhausted State Overlay */}
         {exhausted && (
@@ -251,32 +214,28 @@ export const CardTemplate = ({
         )}
       </div>
 
-      {/* ORIGINAL LAYOUT: energy cost badge (only for non-redesigned cards) */}
-      {!isDesigner && (
-        <div
-          className={`absolute left-1 top-1 rounded-full flex items-center justify-center font-num font-bold text-black overflow-hidden print-no-shadow ${COST_CLS[size]}`}
-          style={{ background: f.color, border: "2px solid rgba(0,0,0,0.5)", boxShadow: `0 0 10px ${f.glow}` }}
-          data-testid={testId ? `${testId}-cost` : undefined}
-        >
-          {card?.cost}
-        </div>
-      )}
+      {/* Energy cost badge */}
+      <div
+        className={`absolute left-1 top-1 rounded-full flex items-center justify-center font-num font-bold text-black overflow-hidden print-no-shadow ${COST_CLS[size]}`}
+        style={{ background: f.color, border: "2px solid rgba(0,0,0,0.5)", boxShadow: `0 0 10px ${f.glow}` }}
+        data-testid={testId ? `${testId}-cost` : undefined}
+      >
+        {card?.cost}
+      </div>
 
-      {/* ORIGINAL LAYOUT: rarity symbol (only for non-redesigned cards) */}
-      {!isDesigner && (
-        <img
-          src={RARITY_ICONS[card?.rarity] || RARITY_ICONS.Common}
-          alt={card?.rarity || "Common"}
-          className={`absolute right-1 top-1 w-auto pointer-events-none ${RARITY_ICON_H[size]}`}
-          style={{ filter: `drop-shadow(0 0 3px ${rar.color})` }}
-          loading={eager ? "eager" : "lazy"}
-          draggable={false}
-          data-testid={testId ? `${testId}-rarity` : undefined}
-        />
-      )}
+      {/* Rarity symbol */}
+      <img
+        src={RARITY_ICONS[card?.rarity] || RARITY_ICONS.Common}
+        alt={card?.rarity || "Common"}
+        className={`absolute right-1 top-1 w-auto pointer-events-none ${RARITY_ICON_H[size]}`}
+        style={{ filter: `drop-shadow(0 0 3px ${rar.color})` }}
+        loading={eager ? "eager" : "lazy"}
+        draggable={false}
+        data-testid={testId ? `${testId}-rarity` : undefined}
+      />
 
-      {/* ORIGINAL LAYOUT: power / health pill (only for non-redesigned cards) */}
-      {!isDesigner && isEntity && power != null && (
+      {/* Power / health pill */}
+      {isEntity && power != null && (
         <div className={`absolute right-1 bottom-1 flex items-center gap-0.5 px-1.5 rounded-md font-num font-bold border-2 border-black/60 ${PH_CLS[size]}`} style={{ background: f.color, color: "#000" }}>
           <span data-testid={testId ? `${testId}-power` : undefined}>{power}</span>
           <span className="opacity-50">/</span>
