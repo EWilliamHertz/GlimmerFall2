@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Trash2, Heart, Users, BookOpen, Download, ArrowLeft, Zap, Sword, MessageSquare, Send, Award, Clock, TrendingUp, Upload } from "lucide-react";
+import { Search, Plus, Trash2, Heart, Users, BookOpen, Download, ArrowLeft, Zap, Sword, MessageSquare, Send, Award, Clock, TrendingUp, Upload, Activity, Layers } from "lucide-react";
 import { api } from "@/lib/api";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import DeckEditor from "./DeckEditor";
 import CardTemplate from "@/components/CardTemplate";
 import { useAuth } from "@/lib/auth";
+import DeckAnalytics from "@/components/DeckAnalytics";
 
 const LEGACY_STORE_KEY = "glimmerfall_decks"; // for one-time migration
 
@@ -16,12 +17,21 @@ export default function DeckBuilder() {
   const [myDecks, setMyDecks] = useState([]);
   const [cards, setCards] = useState([]);
   const [viewDeck, setViewDeck] = useState(null);
+  const [modalTab, setModalTab] = useState("cards"); // cards | analytics
   const [editorInitialDeck, setEditorInitialDeck] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [sort, setSort] = useState("upvotes"); // upvotes | newest | trending
 
   const { user } = useAuth();
+
+  const viewDeckEntries = useMemo(() => {
+    if (!viewDeck || !viewDeck.cards) return [];
+    return viewDeck.cards.map((c) => {
+      const card = cards.find((fc) => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id);
+      return { card, count: c.count || 1 };
+    }).filter((e) => e.card);
+  }, [viewDeck, cards]);
 
   // Refresh community decks according to sort
   const refreshCommunity = useCallback(() => {
@@ -457,35 +467,61 @@ export default function DeckBuilder() {
                 </h2>
                 {viewDeck.username && <p className="font-head text-white/50 text-sm mt-1">Built by <span className="text-white/80">{viewDeck.username}</span></p>}
               </div>
-              <button onClick={() => setViewDeck(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
-                <ArrowLeft className="w-6 h-6 text-white" />
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+                  <button
+                    onClick={() => setModalTab("cards")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center gap-1.5 transition-all ${
+                      modalTab === "cards" ? "bg-[#F2A900] text-black shadow-md" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" /> Cards ({viewDeckEntries.reduce((s, e) => s + (e.count || 0), 0)})
+                  </button>
+                  <button
+                    onClick={() => setModalTab("analytics")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center gap-1.5 transition-all ${
+                      modalTab === "analytics" ? "bg-[#00BFFF] text-black shadow-md" : "text-white/60 hover:text-white"
+                    }`}
+                  >
+                    <Activity className="w-3.5 h-3.5" /> Analytics
+                  </button>
+                </div>
+                <button onClick={() => setViewDeck(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                  <ArrowLeft className="w-6 h-6 text-white" />
+                </button>
+              </div>
             </div>
             
             <div className="p-6 overflow-hidden flex-1 bg-black/20 flex flex-col md:flex-row gap-6 min-h-0">
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 border-r border-white/10">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {viewDeck.cards.map((c, i) => {
-                    const fullCard = cards.find(fc => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id);
-                    if (!fullCard) return null;
-                    
-                    return (
-                      <HoverCard key={i} openDelay={100} closeDelay={0}>
-                        <HoverCardTrigger asChild>
-                          <div className="relative group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
-                            <CardTemplate card={fullCard} size="sm" tilt={true} />
-                            <div className="absolute -top-3 -right-3 w-8 h-8 bg-black rounded-full border-2 border-[#F2A900] flex items-center justify-center font-display font-bold text-sm text-[#F2A900] shadow-[0_0_10px_rgba(242,169,0,0.8)] z-10">
-                              x{c.count}
+                {modalTab === "analytics" ? (
+                  <div className="py-2 pr-2">
+                    <DeckAnalytics deckEntries={viewDeckEntries} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {viewDeck.cards.map((c, i) => {
+                      const fullCard = cards.find(fc => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id);
+                      if (!fullCard) return null;
+                      
+                      return (
+                        <HoverCard key={i} openDelay={100} closeDelay={0}>
+                          <HoverCardTrigger asChild>
+                            <div className="relative group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
+                              <CardTemplate card={fullCard} size="sm" tilt={true} />
+                              <div className="absolute -top-3 -right-3 w-8 h-8 bg-black rounded-full border-2 border-[#F2A900] flex items-center justify-center font-display font-bold text-sm text-[#F2A900] shadow-[0_0_10px_rgba(242,169,0,0.8)] z-10">
+                                x{c.count}
+                              </div>
                             </div>
-                          </div>
-                        </HoverCardTrigger>
-                        <HoverCardContent side="right" sideOffset={8} className="w-72 bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
-                          <CardTemplate card={fullCard} size="md" tilt={false} />
-                        </HoverCardContent>
-                      </HoverCard>
-                    );
-                  })}
-                </div>
+                          </HoverCardTrigger>
+                          <HoverCardContent side="right" sideOffset={8} className="w-72 bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
+                            <CardTemplate card={fullCard} size="md" tilt={false} />
+                          </HoverCardContent>
+                        </HoverCard>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               
               <div className="w-full md:w-80 flex flex-col h-full bg-black/30 rounded-2xl border border-white/5 overflow-hidden">

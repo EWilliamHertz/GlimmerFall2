@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart, Users } from "lucide-react";
+import { Search, Plus, Minus, Trash2, Save, Download, Printer, BookOpen, Share2, Upload, Zap, Sword, Heart, Users, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
-import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { api } from "@/lib/api";
 import { FACTIONS, factionCfg } from "@/lib/factions";
 import { useAuth } from "@/lib/auth";
 import CardTemplate from "@/components/CardTemplate";
+import DeckAnalytics from "@/components/DeckAnalytics";
 
 const DECK_MAX = 40;
 const COPY_MAX = 3;
@@ -46,6 +46,7 @@ export default function DeckEditor({ initialDeck, onExit }) {
   const [faction, setFaction] = useState(null);
   const [deck, setDeck] = useState({}); // cardId -> {card, count}
   const [deckName, setDeckName] = useState("New Deck");
+  const [showAnalytics, setShowAnalytics] = useState(true);
   const [saved, setSaved] = useState([]);
   const [starters, setStarters] = useState([]);
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
@@ -395,46 +396,23 @@ export default function DeckEditor({ initialDeck, onExit }) {
               </span>
             </div>
 
-            {/* stats charts */}
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div className="glass rounded-xl p-3">
-                <p className="text-[10px] font-head text-white/40 mb-2 uppercase tracking-wider text-center">Energy Curve</p>
-                <div className="h-20">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={curveData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                      <XAxis dataKey="cost" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "rgba(255,255,255,0.4)" }} dy={5} />
-                      <RechartsTooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px" }} />
-                      <Bar dataKey="count" fill="#00BFFF" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            {/* Competitive Deck Analytics */}
+            <div className="mb-5">
+              <button 
+                type="button"
+                onClick={() => setShowAnalytics(!showAnalytics)} 
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/10 text-xs font-head font-bold text-[#00BFFF] mb-3"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Activity className="w-4 h-4 text-[#F2A900]" />
+                  Competitive Deck Analytics
+                </span>
+                {showAnalytics ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
 
-              <div className="glass rounded-xl p-3 flex flex-col justify-between">
-                <div className="h-10 mb-2 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={factionData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
-                        {factionData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Fac</div>
-                </div>
-                
-                <div className="h-10 flex items-center justify-center relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={typeData} cx="50%" cy="50%" innerRadius={12} outerRadius={20} dataKey="value" stroke="none">
-                        {typeData.map((entry, index) => <Cell key={`cell-${index}`} fill={TYPE_COLORS[entry.name] || "#FFF"} />)}
-                      </Pie>
-                      <RechartsTooltip contentStyle={{ backgroundColor: "#0B0C10", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", padding: "4px 8px" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-head text-white/50">Typ</div>
-                </div>
-              </div>
+              {showAnalytics && (
+                <DeckAnalytics deckEntries={Object.values(deck)} />
+              )}
             </div>
 
             <div className="flex gap-2">

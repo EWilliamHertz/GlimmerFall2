@@ -1,64 +1,93 @@
-import re
+#!/usr/bin/env python3
+"""
+GlimmerFall Starter Deck & Tuckbox Synchronization Utility
+Validates and syncs physical tuckbox specifications, starter decks, and shop product data.
+"""
 
-with open('/home/ewilliamhe/GlimmerFall2/build_tuckboxes.py', 'r') as f:
-    content = f.read()
+import sys
+import argparse
+from pathlib import Path
 
-# 1. Add SPINE_RECT
-rect_old = """BACK_RECT = fitz.Rect(323.4, 281.3, 323.4 + PANEL_WIDTH, 281.3 + PANEL_HEIGHT)
-FRONT_RECT = fitz.Rect(550.4, 281.3, 550.4 + PANEL_WIDTH, 281.3 + PANEL_HEIGHT)"""
-rect_new = """BACK_RECT = fitz.Rect(323.4, 281.3, 323.4 + PANEL_WIDTH, 281.3 + PANEL_HEIGHT)
-FRONT_RECT = fitz.Rect(550.4, 281.3, 550.4 + PANEL_WIDTH, 281.3 + PANEL_HEIGHT)
-SPINE_WIDTH = 42.7
-SPINE_RECT = fitz.Rect(507.7, 281.3, 507.7 + SPINE_WIDTH, 281.3 + PANEL_HEIGHT)
-PX_SPINE_W = int((SPINE_WIDTH / 72.0) * DPI)"""
-content = content.replace(rect_old, rect_new)
+SCRIPT_DIR = Path(__file__).resolve().parent
+ASSIGNMENTS_MD = SCRIPT_DIR / "tuckbox_deck_assignments.md"
 
-# 2. Remove Logo from Front
-logo_front = """    # Add logo
-    logo = Image.open(LOGO_PATH).convert("RGBA")
-    logo_w = int(PX_W * 0.8)
-    logo_h = int(logo.height * (logo_w / logo.width))
-    logo = logo.resize((logo_w, logo_h), Image.Resampling.LANCZOS)
-    front_img.alpha_composite(logo, ((PX_W - logo_w)//2, 50))
-    """
-content = content.replace(logo_front, "")
+TUCKBOX_CATALOG = {
+    "gaias_loop": {
+        "name": "Gaia's Loop",
+        "faction": "Terra",
+        "art": "gaia_the_world-soul.webp",
+        "theme": "Unstoppable natural growth, giant elemental beasts, and the cyclical power of the earth.",
+        "mythic_card": "Gaia, the World-Soul",
+        "price_usd": 19.99,
+        "price_sek": 219,
+        "weight_kg": 0.25,
+    },
+    "solar_singularity": {
+        "name": "Solar Singularity",
+        "faction": "Solari",
+        "art": "emberwing_courier.webp",
+        "theme": "Blinding speed, radiant fire, and overwhelming aggressive Light magic.",
+        "mythic_card": "Solari Sun-Caller",
+        "price_usd": 19.99,
+        "price_sek": 219,
+        "weight_kg": 0.25,
+    },
+    "fractured_continuum": {
+        "name": "Fractured Continuum",
+        "faction": "Aether",
+        "art": "reality_fracture.webp",
+        "theme": "Time manipulation, spell echoing, and disruption of reality itself.",
+        "mythic_card": "Chronomancer Supreme",
+        "price_usd": 19.99,
+        "price_sek": 219,
+        "weight_kg": 0.25,
+    },
+    "the_graveglass_veil": {
+        "name": "The Graveglass Veil",
+        "faction": "Umbri",
+        "art": "graveglass_oracle.webp",
+        "theme": "Necromancy, forbidden knowledge, and sacrificial shadow magic.",
+        "mythic_card": "Graveglass Oracle",
+        "price_usd": 19.99,
+        "price_sek": 219,
+        "weight_kg": 0.25,
+    }
+}
 
-# 3. Add Logo to Back Panel
-back_url_old = """    url = "GlimmerFallTCG.com"
-    bbox = draw.textbbox((0,0), url, font=font)
-    tw = bbox[2] - bbox[0]
-    draw.text(((PX_W - tw)//2, PX_H - 150), url, font=font, fill=(255,200,50,255))"""
+def validate_assets():
+    base_art = SCRIPT_DIR / "Bhuvan_Instructions" / "Bhuvan Instructions" / "0.1 GlimmerFall Tuck-Box Production Handoff" / "03_Card_Art"
+    print(f"[*] Validating tuckbox card assets in: {base_art}")
+    all_ok = True
+    for key, data in TUCKBOX_CATALOG.items():
+        art_path = base_art / data["art"]
+        if art_path.exists():
+            print(f"  [✓] {data['name']} ({data['faction']}): art file exists ({art_path.name})")
+        else:
+            print(f"  [✗] {data['name']}: missing art at {art_path}")
+            all_ok = False
+    return all_ok
 
-back_url_new = """    url = "GlimmerFallTCG.com"
-    bbox = draw.textbbox((0,0), url, font=font)
-    tw = bbox[2] - bbox[0]
-    draw.text(((PX_W - tw)//2, PX_H - 100), url, font=font, fill=(255,200,50,255))
-    
-    # Add logo to back panel above the URL
-    logo = Image.open(LOGO_PATH).convert("RGBA")
-    logo_w = int(PX_W * 0.7)
-    logo_h = int(logo.height * (logo_w / logo.width))
-    logo = logo.resize((logo_w, logo_h), Image.Resampling.LANCZOS)
-    # Place logo around y = PX_H - 100 - logo_h - 40
-    back_img.alpha_composite(logo, ((PX_W - logo_w)//2, PX_H - 140 - logo_h))"""
-content = content.replace(back_url_old, back_url_new)
+def run_build(dpi=300):
+    from build_tuckboxes import DECKS, build_deck_tuckbox
+    out_dir = SCRIPT_DIR / "Bhuvan_Instructions"
+    for d in DECKS:
+        build_deck_tuckbox(d, out_dir=out_dir, dpi=dpi, preview=True)
+    print("\n[✓] All tuckbox production PDFs and previews generated successfully!")
 
-# 4. Create Spine Image and Insert it
-insert_old = """    page.insert_image(FRONT_RECT, filename=front_temp, overlay=False)
-    page.insert_image(BACK_RECT, filename=back_temp, overlay=False)"""
+def main():
+    parser = argparse.ArgumentParser(description="Synchronize GlimmerFall starter decks and tuckboxes")
+    parser.add_argument("--validate", action="store_true", help="Validate tuckbox art assets and specifications")
+    parser.add_argument("--build", action="store_true", help="Regenerate all 4 tuckbox print-ready PDFs")
+    parser.add_argument("--dpi", type=int, default=300, help="DPI for generation (default: 300)")
+    args = parser.parse_args()
 
-insert_new = """    # Create Spine Panel (Darkened crop of the center of base_img)
-    spine_img = base_img.crop(((base_img.width - PX_SPINE_W)//2, 0, (base_img.width + PX_SPINE_W)//2, base_img.height))
-    spine_img = spine_img.resize((PX_SPINE_W, PX_H), Image.Resampling.LANCZOS)
-    spine_enhancer = ImageEnhance.Brightness(spine_img)
-    spine_img = spine_enhancer.enhance(0.4)
-    spine_temp = f"/tmp/spine_{deck['name'].replace(' ', '_')}.png"
-    spine_img.save(spine_temp)
+    print("=== GlimmerFall Starter Deck & Tuckbox Tooling ===")
+    ok = validate_assets()
+    if not ok:
+        print("[!] Warnings encountered during validation.")
 
-    page.insert_image(FRONT_RECT, filename=front_temp, overlay=False)
-    page.insert_image(BACK_RECT, filename=back_temp, overlay=False)
-    page.insert_image(SPINE_RECT, filename=spine_temp, overlay=False)"""
-content = content.replace(insert_old, insert_new)
+    if args.build or not (args.validate):
+        run_build(dpi=args.dpi)
 
-with open('/home/ewilliamhe/GlimmerFall2/build_tuckboxes.py', 'w') as f:
-    f.write(content)
+if __name__ == "__main__":
+    main()

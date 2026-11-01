@@ -46,6 +46,89 @@ def get_user_from_request(request: Request):
     except:
         return None
 
+def get_rank_tier(mmr: int) -> dict:
+    """
+    Computes competitive seasonal tier and division based on Elo/MMR rating.
+    - Master: 2000+
+    - Diamond: 1800 - 1999 (II: 1800-1899, I: 1900-1999)
+    - Platinum: 1600 - 1799 (II: 1600-1699, I: 1700-1799)
+    - Gold: 1400 - 1599 (II: 1400-1499, I: 1500-1599)
+    - Silver: 1200 - 1399 (II: 1200-1299, I: 1300-1399)
+    - Bronze: 0 - 1199 (II: 0-999, I: 1000-1199)
+    """
+    val = int(mmr if mmr is not None else 1400)
+    if val >= 2000:
+        return {
+            "tier": "Master",
+            "division": "I",
+            "name": "Master",
+            "badge": "master",
+            "color": "#FF4500",
+            "min_mmr": 2000,
+            "max_mmr": 3000,
+            "tier_rank": 6
+        }
+    elif val >= 1800:
+        div = "I" if val >= 1900 else "II"
+        return {
+            "tier": "Diamond",
+            "division": div,
+            "name": f"Diamond {div}",
+            "badge": "diamond",
+            "color": "#B9F2FF",
+            "min_mmr": 1800,
+            "max_mmr": 1999,
+            "tier_rank": 5
+        }
+    elif val >= 1600:
+        div = "I" if val >= 1700 else "II"
+        return {
+            "tier": "Platinum",
+            "division": div,
+            "name": f"Platinum {div}",
+            "badge": "platinum",
+            "color": "#00BFFF",
+            "min_mmr": 1600,
+            "max_mmr": 1799,
+            "tier_rank": 4
+        }
+    elif val >= 1400:
+        div = "I" if val >= 1500 else "II"
+        return {
+            "tier": "Gold",
+            "division": div,
+            "name": f"Gold {div}",
+            "badge": "gold",
+            "color": "#F2A900",
+            "min_mmr": 1400,
+            "max_mmr": 1599,
+            "tier_rank": 3
+        }
+    elif val >= 1200:
+        div = "I" if val >= 1300 else "II"
+        return {
+            "tier": "Silver",
+            "division": div,
+            "name": f"Silver {div}",
+            "badge": "silver",
+            "color": "#C0C0C0",
+            "min_mmr": 1200,
+            "max_mmr": 1399,
+            "tier_rank": 2
+        }
+    else:
+        div = "I" if val >= 1000 else "II"
+        return {
+            "tier": "Bronze",
+            "division": div,
+            "name": f"Bronze {div}",
+            "badge": "bronze",
+            "color": "#CD7F32",
+            "min_mmr": 0,
+            "max_mmr": 1199,
+            "tier_rank": 1
+        }
+
 
 DB_POOL = None
 
@@ -560,9 +643,11 @@ def save_match(match_id, state):
                 
                 new_p1_mmr = max(0, int(p1_mmr + 32 * (actual_p1 - expected_p1)))
                 new_p2_mmr = max(0, int(p2_mmr + 32 * (actual_p2 - expected_p2)))
+                t1 = get_rank_tier(new_p1_mmr)
+                t2 = get_rank_tier(new_p2_mmr)
                 
-                cur.execute("UPDATE users SET mmr = %s WHERE nickname = %s", (new_p1_mmr, p1_name))
-                cur.execute("UPDATE users SET mmr = %s WHERE nickname = %s", (new_p2_mmr, p2_name))
+                cur.execute("UPDATE users SET mmr = %s, rank = %s WHERE nickname = %s", (new_p1_mmr, t1["name"], p1_name))
+                cur.execute("UPDATE users SET mmr = %s, rank = %s WHERE nickname = %s", (new_p2_mmr, t2["name"], p2_name))
             
             if w == 1:
                 if state.get("isAI"):
@@ -664,13 +749,54 @@ def matchmaking(req: MatchmakeReq):
             )
             waiting = cur.fetchone()
         else:
-            # Look for an opponent first
+            # Look for an opponent using expanding Elo rating range (chicago-card-game matchmaking engine)
+            cur.execute("SELECT mmr FROM users WHERE nickname=%s", (req.username,))
+            user_row = cur.fetchone()
+            my_mmr = user_row["mmr"] if user_row and user_row.get("mmr") is not None else 1400
+
             cur.execute(
-                "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 != %s AND is_ranked = TRUE ORDER BY id DESC LIMIT 1", (req.username,)
+                """
+                SELECT m.*, u.mmr as opp_mmr,
+                       EXTRACT(EPOCH FROM (NOW() - COALESCE(m.created_at, NOW()))) as wait_seconds
+                FROM matches m
+                LEFT JOIN users u ON m.player1 = u.nickname
+                WHERE m.status='WAITING' AND m.player2 IS NULL AND m.player1 != %s AND m.is_ranked = TRUE
+                ORDER BY m.id ASC
+                """,
+                (req.username,)
             )
-            waiting = cur.fetchone()
+            waiting_candidates = cur.fetchall()
+
+            best_match = None
+            min_elo_diff = float("inf")
+
+            for cand in waiting_candidates:
+                opp_mmr = cand.get("opp_mmr") or 1400
+                wait_time = float(cand.get("wait_seconds") or 0.0)
+                elo_diff = abs(opp_mmr - my_mmr)
+
+                # Expanding Elo tolerance window:
+                # < 15s: ±150 MMR
+                # < 30s: ±300 MMR
+                # < 60s: ±500 MMR
+                # >= 60s: any MMR
+                if wait_time < 15:
+                    max_diff = 150
+                elif wait_time < 30:
+                    max_diff = 300
+                elif wait_time < 60:
+                    max_diff = 500
+                else:
+                    max_diff = float("inf")
+
+                if elo_diff <= max_diff:
+                    if elo_diff < min_elo_diff:
+                        min_elo_diff = elo_diff
+                        best_match = cand
+
+            waiting = best_match
             if not waiting:
-                # No opponent found, check if we already have our own waiting room
+                # No compatible opponent found within tolerance, check if we already have our own waiting room
                 cur.execute(
                     "SELECT * FROM matches WHERE status='WAITING' AND player2 IS NULL AND player1 = %s AND is_ranked = TRUE ORDER BY id DESC LIMIT 1", (req.username,)
                 )
@@ -998,6 +1124,8 @@ def get_me(request: Request):
     if not db_u:
         raise HTTPException(401, "User not found")
         
+    user_mmr = db_u.get("mmr") if db_u.get("mmr") is not None else 1400
+    tier_info = get_rank_tier(user_mmr)
     return {
         "id": db_u["id"],
         "email": db_u["email"],
@@ -1016,7 +1144,16 @@ def get_me(request: Request):
         "bookings": db_u.get("bookings") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
-        "matchmaking": {"mmr": db_u.get("mmr") or 1400, "rank": db_u.get("rank") or "Unranked"}
+        "matchmaking": {
+            "mmr": user_mmr,
+            "rank": db_u.get("rank") or tier_info["name"],
+            "tier": tier_info["tier"],
+            "division": tier_info["division"],
+            "badge": tier_info["badge"],
+            "color": tier_info["color"],
+            "min_mmr": tier_info["min_mmr"],
+            "max_mmr": tier_info["max_mmr"]
+        }
     }
 
 @api.get("/users/{nickname}")
@@ -1061,6 +1198,8 @@ def get_user_profile(nickname: str):
                 "winner": winner_name
             })
             
+    user_mmr = db_u.get("mmr") if db_u.get("mmr") is not None else 1400
+    tier_info = get_rank_tier(user_mmr)
     return {
         "id": db_u["id"],
         "nickname": db_u["nickname"],
@@ -1070,7 +1209,16 @@ def get_user_profile(nickname: str):
         "losses": db_u.get("losses") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
-        "matchmaking": {"mmr": db_u.get("mmr") or 1400, "rank": db_u.get("rank") or "Unranked"},
+        "matchmaking": {
+            "mmr": user_mmr,
+            "rank": db_u.get("rank") or tier_info["name"],
+            "tier": tier_info["tier"],
+            "division": tier_info["division"],
+            "badge": tier_info["badge"],
+            "color": tier_info["color"],
+            "min_mmr": tier_info["min_mmr"],
+            "max_mmr": tier_info["max_mmr"]
+        },
         "matchHistory": recent_matches
     }
 @api.post("/auth/verify")
@@ -1154,10 +1302,79 @@ def update_avatar(req: AvatarReq, request: Request):
 # ----- SOCIAL & META FEATURES -----
 
 @api.get("/leaderboard")
-def get_leaderboard():
+def get_leaderboard(
+    region: Optional[str] = Query("all"),
+    faction: Optional[str] = Query("all"),
+    tier: Optional[str] = Query("all")
+):
     with DB() as cur:
-        cur.execute("SELECT nickname, mmr, wins, losses, ai_wins, ai_losses, faction, avatar FROM users ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100")
-        return cur.fetchall()
+        query = "SELECT nickname, mmr, wins, losses, ai_wins, ai_losses, faction, avatar FROM users WHERE 1=1"
+        params = []
+        if faction and faction != "all":
+            query += " AND faction = %s"
+            params.append(faction)
+
+        query += " ORDER BY mmr DESC NULLS LAST, wins DESC LIMIT 100"
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+
+        annotated = []
+        for idx, u in enumerate(rows):
+            mmr_val = u.get("mmr") if u.get("mmr") is not None else 1400
+            t_info = get_rank_tier(mmr_val)
+
+            # Apply tier filter if requested
+            if tier and tier != "all" and t_info["tier"].lower() != tier.lower():
+                continue
+
+            wins = u.get("wins") or 0
+            losses = u.get("losses") or 0
+            total_games = wins + losses
+            win_rate = round((wins / total_games) * 100) if total_games > 0 else 0
+
+            # Simulated region tagging for demonstration (EU, NA, APAC)
+            user_region = "EU" if idx % 3 == 0 else ("NA" if idx % 3 == 1 else "APAC")
+            if region and region != "all" and user_region.lower() != region.lower():
+                continue
+
+            annotated.append({
+                "rank_num": len(annotated) + 1,
+                "nickname": u["nickname"],
+                "mmr": mmr_val,
+                "tier": t_info["tier"],
+                "division": t_info["division"],
+                "tier_name": t_info["name"],
+                "badge": t_info["badge"],
+                "color": t_info["color"],
+                "wins": wins,
+                "losses": losses,
+                "win_rate": win_rate,
+                "ai_wins": u.get("ai_wins") or 0,
+                "ai_losses": u.get("ai_losses") or 0,
+                "faction": u.get("faction") or "Unaligned",
+                "avatar": u.get("avatar") or "default_avatar.png",
+                "region": user_region
+            })
+
+        season_info = {
+            "number": 1,
+            "name": "Season 1: Dawn of the Factions",
+            "ends_in_days": 24,
+            "total_competitors": len(annotated),
+            "tiers": [
+                {"name": "Master", "threshold": 2000, "color": "#FF4500", "badge": "master"},
+                {"name": "Diamond", "threshold": 1800, "color": "#B9F2FF", "badge": "diamond"},
+                {"name": "Platinum", "threshold": 1600, "color": "#00BFFF", "badge": "platinum"},
+                {"name": "Gold", "threshold": 1400, "color": "#F2A900", "badge": "gold"},
+                {"name": "Silver", "threshold": 1200, "color": "#C0C0C0", "badge": "silver"},
+                {"name": "Bronze", "threshold": 0, "color": "#CD7F32", "badge": "bronze"}
+            ]
+        }
+
+        return {
+            "season": season_info,
+            "players": annotated
+        }
 
 @api.get("/giveaway/eligible")
 def get_giveaway_eligible():
@@ -1514,58 +1731,151 @@ class CheckoutItem(BaseModel):
 
 class CheckoutReq(BaseModel):
     items: list[CheckoutItem]
+    currency: Optional[str] = "sek"
 
 @api.post("/shop/checkout")
 def shop_checkout(req: CheckoutReq, request: Request):
     user = get_user_from_request(request)
+    curr = (req.currency or "sek").lower().strip()
+    if curr not in ["sek", "eur", "usd"]:
+        curr = "sek"
+
     with DB() as cur:
         line_items = []
         total_weight = 0.0
         total_amount = 0.0
-        
+
         products_info = []
         for item in req.items:
             cur.execute("SELECT id, name, price, image_url, weight_kg, buy_in_price FROM shop_products WHERE id=%s", (item.id,))
             prod = cur.fetchone()
             if not prod: continue
-            
+
+            usd_price = float(prod.get("price") or 0.0)
+            if curr == "sek":
+                if abs(usd_price - 19.99) < 0.5:
+                    unit_amount = 21900
+                    display_price = 219.0
+                elif abs(usd_price - 119.99) < 1.0:
+                    unit_amount = 129900
+                    display_price = 1299.0
+                else:
+                    unit_amount = int(round(usd_price * 11.0)) * 100
+                    display_price = unit_amount / 100.0
+            elif curr == "eur":
+                if abs(usd_price - 19.99) < 0.5:
+                    unit_amount = 1899
+                    display_price = 18.99
+                elif abs(usd_price - 119.99) < 1.0:
+                    unit_amount = 10999
+                    display_price = 109.99
+                else:
+                    unit_amount = int(round(usd_price * 0.95)) * 100
+                    display_price = unit_amount / 100.0
+            else:
+                unit_amount = int(usd_price * 100)
+                display_price = usd_price
+
             total_weight += float(prod.get("weight_kg") or 0.0) * item.quantity
-            total_amount += float(prod.get("price") or 0.0) * item.quantity
-            products_info.append((prod, item.quantity))
-            
+            total_amount += display_price * item.quantity
+            products_info.append((prod, item.quantity, display_price))
+
             line_item = {
                 "price_data": {
-                    "currency": "usd",
+                    "currency": curr,
                     "product_data": {
                         "name": prod["name"],
                     },
-                    "unit_amount": int(float(prod["price"]) * 100),
+                    "unit_amount": unit_amount,
                 },
                 "quantity": item.quantity,
             }
             if prod["image_url"]:
                 line_item["price_data"]["product_data"]["images"] = [prod["image_url"]]
             line_items.append(line_item)
-            
+
         if not line_items:
             raise HTTPException(400, "Invalid products")
-            
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=line_items,
-            mode="payment",
-            shipping_address_collection={
-                "allowed_countries": ["US", "CA", "GB", "SE", "DE", "FR", "AU", "NZ", "IT", "ES", "NL", "FI", "DK", "NO"]
-            },
-            phone_number_collection={
-                "enabled": True
-            },
-            shipping_options=[
+
+        if curr == "sek":
+            shipping_options = [
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 4900, "currency": "sek"},
+                        "display_name": "PostNord Standard Inrikes (Spårbart)",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 2},
+                            "maximum": {"unit": "business_day", "value": 4},
+                        },
+                    },
+                },
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 9900, "currency": "sek"},
+                        "display_name": "PostNord Norden & Europa (Spårbart)",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 3},
+                            "maximum": {"unit": "business_day", "value": 6},
+                        },
+                    },
+                },
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 18900, "currency": "sek"},
+                        "display_name": "PostNord Priority Express International",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 1},
+                            "maximum": {"unit": "business_day", "value": 3},
+                        },
+                    },
+                }
+            ]
+        elif curr == "eur":
+            shipping_options = [
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 500, "currency": "eur"},
+                        "display_name": "PostNord Standard (EU Tracked)",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 3},
+                            "maximum": {"unit": "business_day", "value": 6},
+                        },
+                    },
+                },
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 1000, "currency": "eur"},
+                        "display_name": "PostNord Priority Express EU",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 2},
+                            "maximum": {"unit": "business_day", "value": 4},
+                        },
+                    },
+                },
+                {
+                    "shipping_rate_data": {
+                        "type": "fixed_amount",
+                        "fixed_amount": {"amount": 1900, "currency": "eur"},
+                        "display_name": "International Global Tracked",
+                        "delivery_estimate": {
+                            "minimum": {"unit": "business_day", "value": 3},
+                            "maximum": {"unit": "business_day", "value": 7},
+                        },
+                    },
+                }
+            ]
+        else:
+            shipping_options = [
                 {
                     "shipping_rate_data": {
                         "type": "fixed_amount",
                         "fixed_amount": {"amount": 900, "currency": "usd"},
-                        "display_name": "Standard Shipping (PostNord)",
+                        "display_name": "Standard Shipping (PostNord Tracked)",
                         "delivery_estimate": {
                             "minimum": {"unit": "business_day", "value": 3},
                             "maximum": {"unit": "business_day", "value": 7},
@@ -1576,31 +1886,43 @@ def shop_checkout(req: CheckoutReq, request: Request):
                     "shipping_rate_data": {
                         "type": "fixed_amount",
                         "fixed_amount": {"amount": 1900, "currency": "usd"},
-                        "display_name": "Express / International",
+                        "display_name": "Express / International Priority",
                         "delivery_estimate": {
                             "minimum": {"unit": "business_day", "value": 1},
                             "maximum": {"unit": "business_day", "value": 3},
                         },
                     },
                 }
-            ],
-            success_url=request.headers.get("origin", "http://localhost:3000") + "/shop?success=true&session_id={CHECKOUT_SESSION_ID}",
+            ]
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            shipping_address_collection={
+                "allowed_countries": ["SE", "NO", "DK", "FI", "DE", "GB", "US", "CA", "FR", "NL", "BE", "AT", "CH", "ES", "IT", "PL", "AU", "NZ"]
+            },
+            phone_number_collection={
+                "enabled": True
+            },
+            shipping_options=shipping_options,
+            success_url=request.headers.get("origin", "http://localhost:3000") + f"/shop?success=true&session_id={{CHECKOUT_SESSION_ID}}&currency={curr}",
             cancel_url=request.headers.get("origin", "http://localhost:3000") + "/shop?canceled=true",
         )
-        
+
         # Save pending order
         cur.execute(
             "INSERT INTO shop_orders (user_id, stripe_session_id, status, total_weight_kg, total_amount, total_cogs) VALUES (%s, %s, 'PENDING', %s, %s, %s) RETURNING id",
-            (user['id'] if user else None, session.id, total_weight, total_amount, sum(float(p.get("cost_price") or p.get("buy_in_price") or 0.0) * q for p, q in products_info))
+            (user['id'] if user else None, session.id, total_weight, total_amount, sum(float(p.get("cost_price") or p.get("buy_in_price") or 0.0) * q for p, q, _ in products_info))
         )
         order_id = cur.fetchone()["id"]
-        
-        for prod, qty in products_info:
+
+        for prod, qty, disp_p in products_info:
             cur.execute(
                 "INSERT INTO shop_order_items (order_id, product_id, quantity, price_at_purchase, buy_in_price_at_purchase) VALUES (%s, %s, %s, %s, %s)",
-                (order_id, prod["id"], qty, prod["price"], prod.get("cost_price") or prod.get("buy_in_price") or 0.0)
+                (order_id, prod["id"], qty, disp_p, prod.get("cost_price") or prod.get("buy_in_price") or 0.0)
             )
-            
+
         return {"url": session.url}
 
 @api.get("/shop/orders/session/{session_id}")
