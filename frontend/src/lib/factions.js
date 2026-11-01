@@ -40,7 +40,67 @@ export const FACTION_FRAMES = {
   },
 };
 
-export const getDesignerCardUrl = () => null;
+export const DESIGNER_CARDS = new Set([
+  "aether_sprite",
+  "aetheric_blast",
+  "ancient_canopy",
+  "arcane_intellect",
+  "astral_cartographer",
+  "blackout_edict",
+  "blinding_radiance",
+  "borrowed_face",
+  "bramble_stag",
+  "chrono_shift",
+  "deepstone_miner",
+  "duskblade_fiend",
+  "eclipse_ritual",
+  "emberwing_courier",
+  "fading_memory",
+  "firstlight_scout",
+  "forest_warden",
+  "formula_of_sparks",
+  "gaia_the_world-soul",
+  "gilded_pegasus",
+  "granite_behemoth",
+  "grasping_shadows",
+  "graveglass_oracle",
+  "hollow_courtier",
+  "mind_sculptor",
+  "mirrorgate",
+  "murkborn_informant",
+  "mycelial_network",
+  "nexus_weaver",
+  "paradox_adept",
+  "phasewing_drake",
+  "prism_courier",
+  "ravenous_echo",
+  "reality_fracture",
+  "renewal_spring",
+  "shadow_cloak",
+  "singularity_engine",
+  "siphon_soul",
+  "solar_flare",
+  "solari_vanguard",
+  "static_anomaly",
+  "stormweaver",
+  "the_infinite_loop",
+  "the_nightfall_king",
+  "umbral_assassin",
+  "void_stalker",
+  "voidling_swarm",
+  "voltage_savant",
+  "whispers_of_the_void",
+  "zenith_inquisitor",
+]);
+
+export const getDesignerCardUrl = (cardName) => {
+  if (!cardName) return null;
+  const slug = String(cardName).toLowerCase().replace(/[',]/g, "").trim().replace(/\s+/g, "_");
+  if (DESIGNER_CARDS.has(slug)) {
+    return `/cards/designer/${slug}.webp`;
+  }
+  return null;
+};
 
 export const FACTIONS = {
   Solari: {
