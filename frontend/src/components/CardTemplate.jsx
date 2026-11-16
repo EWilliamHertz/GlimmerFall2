@@ -80,16 +80,16 @@ export const CardTemplate = ({
   };
   const reset = () => { mx.set(0); my.set(0); setHover(false); };
 
-  // Check if this card is one of the 56 modern redesigned cards from the designer
+  // Check if this card is one of the modern redesigned cards from the designer
   const designerUrl = getDesignerCardUrl(card?.name);
   const isDesigner = Boolean(designerUrl && !hidden);
 
   const img = hidden
     ? CARDBACK
-    : isDesigner
-    ? designerUrl
     : card?.image_url && card.image_url !== "None"
     ? card.image_url
+    : isDesigner
+    ? designerUrl
     : CARDBACK;
 
   const isRare = !hidden && card?.rarity === "Rare";
