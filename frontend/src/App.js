@@ -23,6 +23,7 @@ import TutorialSandbox from "@/pages/TutorialSandbox";
 import MediaKit from "@/pages/MediaKit";
 import UpcomingCards from "@/pages/UpcomingCards";
 import DesignerReference from "@/pages/DesignerReference";
+import Designer from "@/pages/Designer";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
 import { useEffect } from "react";
@@ -81,6 +82,7 @@ function Shell() {
           <Route path="/media-kit" element={<MediaKit />} />
           <Route path="/upcoming-cards" element={<UpcomingCards />} />
           <Route path="/designer-reference" element={<DesignerReference />} />
+          <Route path="/designer" element={<Designer />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

@@ -275,11 +275,37 @@ async def upload_file(request: Request):
         raise HTTPException(status_code=502, detail=f"Vercel Blob upload failed: {e}")
 
 
+RAW_BLOB_ART_FILE = ROOT_DIR / "raw_blob_art.json"
+
+
+def load_raw_blob_art():
+    try:
+        with open(RAW_BLOB_ART_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 @api.get("/cards")
 def get_cards(set: Optional[str] = None):
     # All 322 cards belong to First Edition: The Awakening (100 base + 222 expansion)
     # Unified in a single catalog ordered by collector_number 1 to 322
     return load_cards()
+
+
+@api.get("/designer/cards")
+def get_designer_cards():
+    """Return all 322 cards ordered by collector_number with high-res raw Vercel Blob artwork."""
+    cards = load_cards()
+    raw_map = load_raw_blob_art()
+    enriched = []
+    for c in cards:
+        item = dict(c)
+        raw_override = raw_map.get(item.get("name"))
+        item["raw_image_url"] = raw_override or item.get("image_url")
+        item["framed_image_url"] = item.get("image_url") if raw_override else None
+        enriched.append(item)
+    return enriched
 
 
 @api.get("/rules")
