@@ -80,6 +80,7 @@ all cards final pdf*
 
 # Build caches
 .cache/
+card_engine/cache/
 
 memory/test_credentials.md
 
