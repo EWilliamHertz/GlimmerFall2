@@ -8,16 +8,22 @@ import {
   FileText,
   Layers,
   Scissors,
-  Sparkles,
+  Search,
   X,
 } from "lucide-react";
-import { FACTIONS, RARITY, factionCfg } from "@/lib/factions";
+import { CARD_TYPES, FACTIONS, RARITY, factionCfg } from "@/lib/factions";
+
+const PAGE_STEP = 48;
 
 export default function Results() {
   const [manifest, setManifest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [previewMode, setPreviewMode] = useState("trim"); // trim | bleed
+  const [search, setSearch] = useState("");
   const [factionFilter, setFactionFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [rarityFilter, setRarityFilter] = useState("All");
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
   const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
@@ -33,22 +39,41 @@ export default function Results() {
       });
   }, []);
 
+  useEffect(() => {
+    setVisibleCount(PAGE_STEP);
+  }, [search, factionFilter, typeFilter, rarityFilter]);
+
   const cards = useMemo(() => manifest?.cards || [], [manifest]);
+
   const filtered = useMemo(() => {
-    if (factionFilter === "All") return cards;
-    return cards.filter((c) => c.faction === factionFilter);
-  }, [cards, factionFilter]);
+    const q = search.trim().toLowerCase();
+    return cards.filter((c) => {
+      if (factionFilter !== "All" && c.faction !== factionFilter) return false;
+      if (typeFilter !== "All" && c.card_type !== typeFilter) return false;
+      if (rarityFilter !== "All" && c.rarity !== rarityFilter) return false;
+      if (!q) return true;
+      return (
+        (c.name || "").toLowerCase().includes(q) ||
+        (c.collector_label || "").toLowerCase().includes(q) ||
+        String(c.collector_number || "").includes(q) ||
+        (c.description || "").toLowerCase().includes(q) ||
+        (c.keywords || []).join(" ").toLowerCase().includes(q)
+      );
+    });
+  }, [cards, search, factionFilter, typeFilter, rarityFilter]);
+
+  const shownCards = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   if (loading) {
     return (
       <div className="min-h-screen pt-28 px-6 text-center text-white/60 font-head animate-pulse">
-        Loading GlimmerFall Prepress Sample Showcase...
+        Loading Complete 322-Card GlimmerFall Prepress Catalog...
       </div>
     );
   }
 
   return (
-    <div data-testid="results-page" className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-20 space-y-12">
+    <div data-testid="results-page" className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-20 space-y-10">
       {/* HERO HEADER */}
       <section className="glass rounded-3xl p-7 sm:p-10 border border-[#F2A900]/30 relative overflow-hidden">
         <div className="absolute -right-24 -top-24 w-96 h-96 bg-[#F2A900]/10 rounded-full blur-[110px] pointer-events-none" />
@@ -56,34 +81,36 @@ export default function Results() {
 
         <div className="relative z-10 space-y-5">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#22E07B]/15 border border-[#22E07B]/35 text-[#22E07B] text-xs font-head font-bold uppercase tracking-widest">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Press-Ready Prepress Samples · Super Board Game Manufacturing Spec
+            <CheckCircle2 className="w-3.5 h-3.5" /> Complete {cards.length}-Card Press Production · Smart Lore Edition
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="space-y-2 max-w-3xl">
               <h1 className="font-display text-3xl sm:text-5xl font-black text-white leading-tight">
-                AWK First Edition — Card Design Samples
+                AWK First Edition — All {cards.length} Press-Ready Cards
               </h1>
               <p className="text-white/75 font-head text-sm sm:text-base leading-relaxed">
-                Generated 100% deterministically from the{" "}
+                Generated 100% deterministically from the cleaned{" "}
                 <Link to="/designer" className="text-[#00BFFF] hover:underline font-semibold">
                   /designer
                 </Link>{" "}
-                database with zero manual transcription — eliminating typos, wrong collector numbers, and grammatical
-                mismatches across all 322 cards.
+                PostgreSQL database with Smart Lore, unified GlimmerFall Oracle templating, 300 DPI ICC CMYK separation,
+                and exact 69×94mm / R3 63×88mm Shenzhen press dielines.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2.5">
-              <a
-                href={manifest?.web_contact_sheet_url || "/results/GlimmerFall_AWK_Sample_Contact_Sheet.webp"}
-                target="_blank"
-                rel="noreferrer"
-                data-testid="results-open-sheet"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#F2A900] text-black font-head font-bold text-sm hover:bg-[#ffc21f] transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" /> Full 12-Card Sheet
-              </a>
+              {manifest?.web_contact_sheet_url && (
+                <a
+                  href={manifest.web_contact_sheet_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid="results-open-sheet"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#F2A900] text-black font-head font-bold text-sm hover:bg-[#ffc21f] transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" /> Showcase Sheet
+                </a>
+              )}
               <Link
                 to="/designer"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-head font-semibold text-sm transition-colors"
@@ -96,19 +123,19 @@ export default function Results() {
           {/* Prepress Specs Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="bg-black/45 border border-white/10 rounded-2xl p-4">
-              <div className="font-num text-2xl sm:text-3xl font-bold text-[#F2A900]">63×88 mm R3</div>
+              <div className="font-num text-2xl sm:text-3xl font-bold text-[#F2A900]">{cards.length} / 322</div>
               <div className="text-xs font-head text-white/50 uppercase tracking-wider mt-0.5">
-                Trim Size · 3mm Corner Radius
+                Cards Rendered (#001–#322)
               </div>
             </div>
             <div className="bg-black/45 border border-white/10 rounded-2xl p-4">
-              <div className="font-num text-2xl sm:text-3xl font-bold text-[#00BFFF]">69×94 mm</div>
+              <div className="font-num text-2xl sm:text-3xl font-bold text-[#00BFFF]">63×88 mm R3</div>
               <div className="text-xs font-head text-white/50 uppercase tracking-wider mt-0.5">
-                Full Bleed (+3mm All Sides)
+                +3mm Bleed = 69×94 mm
               </div>
             </div>
             <div className="bg-black/45 border border-white/10 rounded-2xl p-4">
-              <div className="font-num text-2xl sm:text-3xl font-bold text-[#22E07B]">450 DPI CMYK</div>
+              <div className="font-num text-2xl sm:text-3xl font-bold text-[#22E07B]">300 DPI CMYK</div>
               <div className="text-xs font-head text-white/50 uppercase tracking-wider mt-0.5">
                 ICC 4C+4C · TAC ≤ 300%
               </div>
@@ -123,24 +150,59 @@ export default function Results() {
         </div>
       </section>
 
-      {/* CONTROLS BAR */}
-      <div className="glass-strong rounded-2xl p-4 sm:p-5 sticky top-14 z-30 border border-white/10 flex flex-wrap items-center justify-between gap-3">
+      {/* STICKY SEARCH & FILTER BAR */}
+      <div className="glass-strong rounded-2xl p-4 sm:p-5 sticky top-14 z-30 border border-white/10 space-y-3 shadow-2xl shadow-black/60">
+        <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <input
+              data-testid="results-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search #001–#322 by collector number, name, keyword, or Oracle text..."
+              className="w-full bg-black/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm font-head text-white outline-none focus:border-[#F2A900]/60 transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center bg-black/55 border border-white/10 rounded-xl p-1 text-xs font-head shrink-0">
+            <button
+              onClick={() => setPreviewMode("trim")}
+              data-testid="results-mode-trim"
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-semibold transition-colors ${
+                previewMode === "trim" ? "bg-[#F2A900] text-black" : "text-white/65 hover:text-white"
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" /> Trim (63×88mm R3)
+            </button>
+            <button
+              onClick={() => setPreviewMode("bleed")}
+              data-testid="results-mode-bleed"
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-semibold transition-colors ${
+                previewMode === "bleed" ? "bg-red-500 text-white" : "text-white/65 hover:text-white"
+              }`}
+            >
+              <Scissors className="w-3.5 h-3.5" /> Bleed + Dieline (69×94mm)
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2 text-xs font-head">
           <button
             onClick={() => setFactionFilter("All")}
-            className={`px-3.5 py-1.5 rounded-full border transition-colors ${
+            className={`px-3 py-1 rounded-full border transition-colors ${
               factionFilter === "All"
                 ? "bg-white text-black font-bold border-white"
                 : "border-white/15 text-white/65 hover:text-white"
             }`}
           >
-            All Samples ({cards.length})
+            All Factions ({filtered.length})
           </button>
           {Object.values(FACTIONS).map((f) => (
             <button
               key={f.name}
               onClick={() => setFactionFilter(factionFilter === f.name ? "All" : f.name)}
-              className={`px-3.5 py-1.5 rounded-full border transition-colors ${
+              className={`px-3 py-1 rounded-full border transition-colors ${
                 factionFilter === f.name ? "text-black font-bold" : "border-white/15 text-white/65 hover:text-white"
               }`}
               style={factionFilter === f.name ? { background: f.color, borderColor: f.color } : {}}
@@ -148,34 +210,49 @@ export default function Results() {
               {f.name}
             </button>
           ))}
-        </div>
 
-        {/* Die-Cut vs Bleed+Dieline Switcher */}
-        <div className="flex items-center bg-black/55 border border-white/10 rounded-xl p-1 text-xs font-head">
-          <button
-            onClick={() => setPreviewMode("trim")}
-            data-testid="results-mode-trim"
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-semibold transition-colors ${
-              previewMode === "trim" ? "bg-[#F2A900] text-black" : "text-white/65 hover:text-white"
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" /> Finished Trim (63×88mm R3)
-          </button>
-          <button
-            onClick={() => setPreviewMode("bleed")}
-            data-testid="results-mode-bleed"
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-semibold transition-colors ${
-              previewMode === "bleed" ? "bg-red-500 text-white" : "text-white/65 hover:text-white"
-            }`}
-          >
-            <Scissors className="w-3.5 h-3.5" /> Press Bleed + Red Dieline (69×94mm)
-          </button>
+          <span className="w-px h-4 bg-white/15 mx-1" />
+
+          {["All", ...CARD_TYPES].map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(typeFilter === t && t !== "All" ? "All" : t)}
+              className={`px-3 py-1 rounded-full border transition-colors ${
+                typeFilter === t
+                  ? "bg-[#00BFFF] text-black font-bold border-[#00BFFF]"
+                  : "border-white/15 text-white/65 hover:text-white"
+              }`}
+            >
+              {t === "All" ? "All Types" : t}
+            </button>
+          ))}
+
+          <span className="w-px h-4 bg-white/15 mx-1" />
+
+          {["All", "Common", "Uncommon", "Rare", "Epic"].map((r) => {
+            const rCfg = RARITY[r];
+            const active = rarityFilter === r;
+            return (
+              <button
+                key={r}
+                onClick={() => setRarityFilter(active && r !== "All" ? "All" : r)}
+                className={`px-3 py-1 rounded-full border transition-colors ${
+                  active ? "text-black font-bold" : "border-white/15 text-white/65 hover:text-white"
+                }`}
+                style={
+                  active ? { background: rCfg ? rCfg.color : "#F2A900", borderColor: rCfg ? rCfg.color : "#F2A900" } : {}
+                }
+              >
+                {r === "All" ? "All Rarities" : r}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* CARD GRID (OFFICIAL BACKSIDE + 12 VERIFIED SAMPLE FRONTS) */}
+      {/* CARD GRID (OFFICIAL BACKSIDE + 322 VERIFIED FRONTS) */}
       <section className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {factionFilter === "All" && manifest?.web_back_url && (
+        {factionFilter === "All" && typeFilter === "All" && rarityFilter === "All" && !search.trim() && manifest?.web_back_url && (
           <article className="glass rounded-2xl p-4 border border-[#F2A900]/35 flex flex-col justify-between">
             <div>
               <div
@@ -203,7 +280,7 @@ export default function Results() {
                 </div>
                 <h3 className="font-display text-lg font-bold text-white">Official Card Back</h3>
                 <p className="text-xs font-head text-white/60 leading-relaxed">
-                  Exact 69×94mm bleed &amp; R3 63×88mm red dieline specification matched across every front card.
+                  Exact 69×94mm bleed &amp; R3 63×88mm red dieline specification matched across all 322 fronts.
                 </p>
               </div>
             </div>
@@ -213,7 +290,7 @@ export default function Results() {
           </article>
         )}
 
-        {filtered.map((card) => {
+        {shownCards.map((card) => {
           const fac = factionCfg(card.faction);
           const rar = RARITY[card.rarity] || RARITY.Common;
           const imgSrc = previewMode === "bleed" ? card.web_bleed_url : card.web_trim_url;
@@ -238,6 +315,7 @@ export default function Results() {
                     src={imgSrc}
                     alt={`${card.name} (${card.collector_label})`}
                     loading="lazy"
+                    decoding="async"
                     className="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform duration-300"
                   />
                 </div>
@@ -251,19 +329,16 @@ export default function Results() {
                   </div>
                   <h3 className="font-display text-lg font-bold text-white leading-snug">{card.name}</h3>
                   <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-head">
-                    <span
-                      className="px-2 py-0.5 rounded font-bold text-black"
-                      style={{ background: fac.color }}
-                    >
+                    <span className="px-2 py-0.5 rounded font-bold text-black" style={{ background: fac.color }}>
                       {card.faction} · {card.card_type}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-white/10 text-white/80 font-num">
                       Cost {card.cost}
                       {card.card_type === "Entity" ? ` · ${card.power}/${card.health}` : ""}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-white/5 text-white/55 font-num">
-                      TAC {card.max_tac_percent}%
-                    </span>
+                    {card.lore_included && (
+                      <span className="px-2 py-0.5 rounded bg-[#F2A900]/15 text-[#F2A900]">+ Lore</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -292,39 +367,25 @@ export default function Results() {
         })}
       </section>
 
-      {/* OPTIONAL SMART LORE COMPARISON PANEL */}
-      {manifest?.web_smart_lore_sheet_url && (
-        <section className="glass rounded-3xl p-6 sm:p-8 border border-white/10 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-head font-bold uppercase tracking-wider text-[#F2A900] mb-1">
-                <Sparkles className="w-3.5 h-3.5" /> Optional Mode Comparison (--lore-mode smart)
-              </div>
-              <h2 className="font-display text-2xl font-bold text-white">
-                Alternative: Smart Flavor Text on Short-Rule Cards Only
-              </h2>
-              <p className="text-sm font-head text-white/65 mt-1 max-w-3xl">
-                Above is strict <strong>Oracle/Rules Text Only</strong> (default). Below shows{" "}
-                <code className="text-[#00BFFF]">--lore-mode smart</code>, which includes flavor text only on vanilla or
-                short 1–2 line cards while automatically omitting lore on dense cards like{" "}
-                <strong>Graveglass Oracle</strong>.
-              </p>
-            </div>
-            <a
-              href={manifest.web_smart_lore_sheet_url}
-              target="_blank"
-              rel="noreferrer"
-              className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-head font-semibold text-white transition-colors"
-            >
-              Open Full Comparison Image
-            </a>
-          </div>
-          <img
-            src={manifest.web_smart_lore_sheet_url}
-            alt="Smart Lore Mode Comparison"
-            className="w-full rounded-2xl border border-white/10"
-          />
-        </section>
+      {/* PAGINATION / LOAD MORE */}
+      {visibleCount < filtered.length && (
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+          <button
+            onClick={() => setVisibleCount((v) => v + PAGE_STEP)}
+            data-testid="results-load-more"
+            className="px-6 py-3 rounded-full bg-[#F2A900] text-black font-head font-bold text-sm hover:bg-[#ffc21f] transition-colors"
+          >
+            Load Next {Math.min(PAGE_STEP, filtered.length - visibleCount)} Cards ({shownCards.length} /{" "}
+            {filtered.length})
+          </button>
+          <button
+            onClick={() => setVisibleCount(filtered.length)}
+            data-testid="results-show-all"
+            className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-head font-semibold text-sm transition-colors"
+          >
+            Show All {filtered.length} Cards
+          </button>
+        </div>
       )}
 
       {/* LIGHTBOX */}

@@ -7,13 +7,13 @@ Matches the exact Shenzhen press specification from Super Board Game Manufacturi
 (`SuperBoardGameQuote.pdf` + `Back side卡牌-62张-卡背.pdf`):
   - Trim Size:      63.00 x 88.00 mm (178.583 x 249.449 pt), R3 (3.00 mm) corners
   - Bleed Canvas:   69.00 x 94.00 mm (195.591 x 266.457 pt), 3.00 mm bleed on all 4 sides
-  - Color Space:    ICC-profiled CMYK (TAC <= 300%, GCR separation) for 4C+4C offset/digital print
+  - Resolution:     300 DPI press standard (supersampled from 750 DPI master)
+  - Color Space:    ICC-profiled CMYK (4C+4C, TAC <= 300%, Perceptual GCR separation)
   - PDF Layers:     3 Optional Content Groups (OCGs) matching the approved Backside PDF:
                       1. 图层 2 (Bleed Background)
                       2. 图层 1 (Card Artwork CMYK)
                       3. 图层 3 (Dieline R3 63x88mm) — 100% M + 100% Y vector cut line
   - Data Integrity: 100% database-driven from `/api/designer/cards` (`designer_cards_322.json`).
-                    Zero manual transcription of names, collector numbers, stats, or rules text.
 """
 
 import argparse
@@ -23,6 +23,7 @@ import json
 import math
 import os
 import re
+import shutil
 import time
 import urllib.request
 from pathlib import Path
@@ -35,13 +36,14 @@ ENGINE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = ENGINE_DIR.parent
 FONT_DIR = ENGINE_DIR / "fonts"
 ICC_DIR = ENGINE_DIR / "icc"
-CACHE_DIR = ENGINE_DIR / "cache"
+CACHE_DIR = Path("/tmp/glimmerfall_blob_cache")
 ASSETS_DIR = ENGINE_DIR / "assets"
 FACTION_LOGO_DIR = PROJECT_ROOT / "factionlogos"
 CATALOG_JSON = ENGINE_DIR / "designer_cards_322.json"
-OFFICIAL_BACK_PDF = ASSETS_DIR / "official_cardback_press.pdf"
+OFFICIAL_BACK_PDF = Path("/home/ewilliamhe/Back side卡牌-62张-卡背.pdf")
+if not OFFICIAL_BACK_PDF.exists():
+    OFFICIAL_BACK_PDF = ASSETS_DIR / "official_cardback_press.pdf"
 
-# Physical dimensions in millimeters (Super Board Game Manufacturing spec)
 BLEED_MM = 3.0
 TRIM_W_MM = 63.0
 TRIM_H_MM = 88.0
@@ -50,11 +52,10 @@ CANVAS_W_MM = TRIM_W_MM + 2.0 * BLEED_MM  # 69.0 mm
 CANVAS_H_MM = TRIM_H_MM + 2.0 * BLEED_MM  # 94.0 mm
 
 MM_TO_PT = 72.0 / 25.4
-PAGE_W_PT = round(CANVAS_W_MM * MM_TO_PT, 3)  # 195.591 pt (matches Back side PDF)
-PAGE_H_PT = round(CANVAS_H_MM * MM_TO_PT, 3)  # 266.457 pt (matches Back side PDF)
-BLEED_PT = round(BLEED_MM * MM_TO_PT, 4)      # 8.5039 pt (3.000 mm)
+PAGE_W_PT = round(CANVAS_W_MM * MM_TO_PT, 3)  # 195.591 pt
+PAGE_H_PT = round(CANVAS_H_MM * MM_TO_PT, 3)  # 266.457 pt
+BLEED_PT = round(BLEED_MM * MM_TO_PT, 4)      # 8.5039 pt
 
-# Default 12-card showcase spanning all 4 factions, all 4 types, all 4 rarities, and set extremes
 DEFAULT_SAMPLE_CNS = [1, 11, 24, 30, 31, 36, 55, 61, 82, 84, 251, 318]
 
 FACTION_THEMES: Dict[str, Dict] = {
@@ -201,9 +202,16 @@ def ensure_cached_art(card: Dict) -> Path:
         url = card.get("raw_image_url") or card.get("image_url")
         if not url:
             raise ValueError(f"Card #{cn:03d} ({card.get('name')}) has no artwork URL")
-        req = urllib.request.Request(url, headers={"User-Agent": "GlimmerFall-Prepress/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            cache_path.write_bytes(resp.read())
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "GlimmerFall-Prepress/1.0"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    cache_path.write_bytes(resp.read())
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(0.6)
     return cache_path
 
 
@@ -212,13 +220,6 @@ def fetch_raw_art(card: Dict) -> Image.Image:
 
 
 def detect_inner_art_box(im: Image.Image) -> Tuple[int, int, int, int]:
-    """
-    Automatically strips:
-      1. AI-generated studio walls / silver picture frames (#030 The Nightfall King, #031 Shadow Cloak)
-      2. Thin bright edge bars (#036 Graveglass Oracle)
-      3. Symmetric vertical painted inner border pillars (#001 Solari Vanguard)
-    Leaves true full-bleed illustrations 100% untouched.
-    """
     w, h = im.size
     small = im.resize((240, 240), Image.Resampling.BILINEAR).convert("RGB")
     px = small.load()
@@ -250,7 +251,6 @@ def detect_inner_art_box(im: Image.Image) -> Tuple[int, int, int, int]:
     ) / len(perim)
 
     has_outer_wall = desat_perim >= 0.72
-
     left, right, top, bottom = 0, sw - 1, 0, sh - 1
 
     if has_outer_wall:
@@ -280,7 +280,6 @@ def detect_inner_art_box(im: Image.Image) -> Tuple[int, int, int, int]:
         top += pad_y
         bottom -= pad_y
     else:
-        # Check thin symmetric vertical white bars near outer edges (e.g. #036 Graveglass Oracle)
         for probe in range(1, 14):
             _, ml_L, sl_L = col_stats(probe, 30, 210)
             _, ml_R, sl_R = col_stats(sw - 1 - probe, 30, 210)
@@ -288,7 +287,6 @@ def detect_inner_art_box(im: Image.Image) -> Tuple[int, int, int, int]:
                 left = probe + 4
                 right = sw - 1 - probe - 4
 
-        # Check symmetric straight vertical frame bars (e.g. #001 Solari Vanguard cream inner frame)
         if left == 0:
             bar_end = 0
             for probe in range(36, 56):
@@ -347,7 +345,7 @@ def make_diagonal_metallic(
     c_mid: Tuple[int, int, int],
     c_high: Tuple[int, int, int],
 ) -> Image.Image:
-    gw, gh = min(160, max(16, w // 6)), min(220, max(16, h // 6))
+    gw, gh = min(140, max(16, w // 6)), min(190, max(16, h // 6))
     im = Image.new("RGB", (gw, gh))
     px = im.load()
     for y in range(gh):
@@ -590,14 +588,6 @@ def wrap_lines_variable_width(
 
 
 def resolve_effective_lore(rules_text: str, lore_text: str, lore_mode: str) -> str:
-    """
-    Controls flavor/lore inclusion:
-      - 'none':  Strictly Oracle/Rules text ONLY (0 lore clutter).
-      - 'smart': Keeps lore ONLY on vanilla cards (0 rules) or ultra-short 1-line cards
-                 (rules <= 52 chars AND lore <= 130 chars) so dense cards like Graveglass Oracle
-                 stay 100% clean.
-      - 'all':   Includes all lore with automatic font scaling so nothing ever overflows.
-    """
     if lore_mode == "none" or not lore_text:
         return ""
     if lore_mode == "smart":
@@ -659,7 +649,6 @@ def layout_rules_and_lore(
         total_h = len(r_lines) * rules_lh + div_gap + len(l_lines) * lore_lh
         start_y = box_top + max(pad_y, (box_h - total_h) * 0.44)
 
-        # Re-wrap at true centered start_y so P/H plaque wrap threshold is exact
         r_lines = (
             wrap_lines_variable_width(
                 rules_text, rules_font, start_y, rules_lh, full_w, narrow_w, narrow_y_threshold
@@ -685,7 +674,7 @@ def layout_rules_and_lore(
     return best
 
 
-def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = "none") -> Image.Image:
+def render_card_master_rgba(card: Dict, render_dpi: int = 750, lore_mode: str = "smart") -> Image.Image:
     mm = render_dpi / 25.4
     pt = render_dpi / 72.0
     W = int(round(CANVAS_W_MM * mm))
@@ -697,11 +686,9 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     card_type = card.get("card_type") or "Entity"
     is_entity = card_type == "Entity"
 
-    # 1. Base Full-Bleed Obsidian Background (0..69mm x 0..94mm)
     canvas = Image.new("RGBA", (W, H), (13, 14, 19, 255))
     draw = ImageDraw.Draw(canvas)
 
-    # 2. Inner Architectural Faction Chassis (5.8..63.2mm x 5.8..88.2mm -> 3.0mm safe border inside trim)
     fx0, fy0 = int(round(5.8 * mm)), int(round(5.8 * mm))
     fx1, fy1 = int(round(63.2 * mm)), int(round(88.2 * mm))
     fw, fh = fx1 - fx0, fy1 - fy0
@@ -753,7 +740,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     draw.polygon(rail_poly, outline=(*theme["primary"], 115), width=max(2, int(round(0.18 * mm))))
     draw.polygon(chassis_poly, outline=(*theme["highlight"], 180), width=max(2, int(round(0.18 * mm))))
 
-    # 3. Centerpiece Artwork Viewport (7.0..62.0mm x 14.5..60.4mm -> 55.0mm x 45.9mm)
+    # Centerpiece Artwork Viewport
     ax0, ay0 = int(round(7.0 * mm)), int(round(14.5 * mm))
     ax1, ay1 = int(round(62.0 * mm)), int(round(60.4 * mm))
     aw, ah = ax1 - ax0, ay1 - ay0
@@ -795,7 +782,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     )
     draw.polygon(inner_art_poly, outline=(*theme["highlight"], 115), width=max(1, int(round(0.12 * mm))))
 
-    # 4. Top Card Nameplate & Faction Medallion (15.4..62.0mm x 7.1..13.9mm)
+    # Top Nameplate & Faction Medallion
     nx0, ny0 = int(round(15.4 * mm)), int(round(7.1 * mm))
     nx1, ny1 = int(round(62.0 * mm)), int(round(13.9 * mm))
     name_poly = chamfer_rect_poly(nx0, ny0, nx1, ny1, 1.2 * mm, 1.8 * mm, 1.2 * mm, 1.2 * mm)
@@ -845,7 +832,6 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
         canvas.alpha_composite(em_resized, (med_cx - em_resized.width // 2, med_cy - em_resized.height // 2))
         draw = ImageDraw.Draw(canvas)
 
-    # Card Name Typography (Cinzel Bold — single-line up to ~27 chars, 2-line balanced stack for ultra-long names)
     card_name = clean_text(card.get("name"))
     name_left_x = int(round(18.5 * mm))
     name_right_x = med_cx - med_r - int(round(2.0 * mm))
@@ -887,7 +873,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
         draw.text((name_left_x + sh_off, y2_t + sh_off), l2, font=two_font, fill=(0, 0, 0, 235))
         draw.text((name_left_x, y2_t), l2, font=two_font, fill=(252, 250, 245, 255))
 
-    # 5. Top-Left Resonance Cost Crystal Crest (5.4..17.6mm x 5.4..18.8mm)
+    # Top-Left Resonance Cost Crystal Crest
     cx0, cy0 = 5.4 * mm, 5.4 * mm
     cx1, cy1 = 17.6 * mm, 18.8 * mm
     crest_outer = [
@@ -925,7 +911,6 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     inner_c_mask = Image.new("L", (W, H), 0)
     ImageDraw.Draw(inner_c_mask).polygon(crest_inner, fill=255)
 
-    # Proper RGBA alpha_composite for crystal facet sheen (preserves opaque rich jewel core!)
     jewel_grad = make_vertical_gradient(cw_px, ch_px, theme["core_top"], theme["core_bot"]).convert("RGBA")
     facet_ov = Image.new("RGBA", (cw_px, ch_px), (0, 0, 0, 0))
     fd = ImageDraw.Draw(facet_ov)
@@ -983,7 +968,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
             width=max(1, int(round(0.11 * mm))),
         )
 
-    # 6. Lower Oracle/Rules Text Chamber (7.0..62.0mm x 63.0..83.7mm -> 20.7mm height)
+    # Lower Oracle/Rules Text Chamber
     rules_text = clean_text(card.get("description"))
     raw_lore = clean_text(card.get("lore"))
     effective_lore = resolve_effective_lore(rules_text, raw_lore, lore_mode)
@@ -995,7 +980,6 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
 
     text_bg = make_vertical_gradient(tw_box, th_box, (15, 18, 27), (10, 12, 18)).convert("RGBA")
     if emblem is not None:
-        # Slightly stronger centered watermark (11%) on pure vanilla Entities so chamber feels crafted
         is_empty_chamber = not rules_text and not effective_lore
         wm_scale = 0.72 if is_empty_chamber else 0.78
         wm_alpha = 0.12 if is_empty_chamber else 0.055
@@ -1030,7 +1014,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     draw = ImageDraw.Draw(canvas)
     draw.polygon(text_poly, outline=(*theme["primary"], 185), width=max(2, int(round(0.24 * mm))))
 
-    # 7. Mid-Card Type, Rarity Gem & Keyword Bar (7.0..62.0mm x 58.2..63.6mm)
+    # Mid-Card Type, Rarity Gem & Keyword Bar
     bx0, by0 = int(round(7.0 * mm)), int(round(58.2 * mm))
     bx1, by1 = int(round(62.0 * mm)), int(round(63.6 * mm))
     bar_poly = chamfer_rect_poly(bx0, by0, bx1, by1, 1.3 * mm, 1.3 * mm, 0.8 * mm, 0.8 * mm)
@@ -1086,7 +1070,6 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
     draw.text((type_x + int(0.18 * mm), type_y + int(0.20 * mm)), type_label, font=type_font, fill=(0, 0, 0, 220))
     draw.text((type_x, type_y), type_label, font=type_font, fill=(248, 250, 252, 255))
 
-    # Keyword Callout Pills — dynamically sized so 1 or 2+ keywords NEVER touch the Type label
     kws = parse_keywords(card.get("keywords"))
     if kws:
         min_kw_left = type_x + (tb[2] - tb[0]) + int(round(1.8 * mm))
@@ -1127,7 +1110,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
             draw.text((tx_kw, ty_kw), kw_up, font=kw_font, fill=(*theme["pill_text"], 255))
             cur_right = px0_p - gap_px
 
-    # 8. Oracle/Rules Text Rendering
+    # Oracle/Rules & Smart Lore Rendering
     text_pad_x = 2.6 * mm
     full_text_w = (tx1 - tx0) - 2.0 * text_pad_x
     ph_x0 = int(round(46.2 * mm))
@@ -1185,7 +1168,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
             draw.text((lx, cur_y), line, font=l_font, fill=(192, 201, 216, 255))
             cur_y += l_lh
 
-    # 9. Entity Combat Stat Plaque (Power / Health — Entities Only)
+    # Entity Combat Stat Plaque
     if is_entity and card.get("power") is not None and card.get("health") is not None:
         ph_poly = chamfer_rect_poly(ph_x0, ph_y0, ph_x1, ph_y1, 1.5 * mm, 1.5 * mm, 1.5 * mm, 1.5 * mm)
         ph_shad = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -1253,7 +1236,7 @@ def render_card_master_rgba(card: Dict, render_dpi: int = 900, lore_mode: str = 
         draw.text((hx_txt + int(0.2 * mm), hy_txt + int(0.24 * mm)), hlt_str, font=stat_font, fill=(0, 0, 0, 235))
         draw.text((hx_txt, hy_txt), hlt_str, font=stat_font, fill=(234, 255, 242, 255))
 
-    # 10. Collector & Authenticity Footer Rail (y = 85.75 mm — crisp separation between Left, Center ◆, Right)
+    # Collector & Authenticity Footer Rail
     foot_cy = 85.75 * mm
     set_code = (card.get("set_code") or "AWK").upper()
     cn_num = int(card.get("collector_number") or 0)
@@ -1353,9 +1336,10 @@ def append_cmyk_card_page(doc: pymupdf.Document, bleed_cmyk: Image.Image, ocgs: 
     bg_shape.finish(fill=(0.70, 0.65, 0.62, 0.90), color=None, oc=ocg_bg)
     bg_shape.commit()
 
-    tiff_buf = io.BytesIO()
-    bleed_cmyk.save(tiff_buf, format="TIFF", compression="tiff_adobe_deflate")
-    page.insert_image(mb, stream=tiff_buf.getvalue(), oc=ocg_art)
+    # 4:4:4 Full-Chroma q=96 ICC CMYK DCTDecode stream (~210 KB/card, standard Adobe PDF/X-4 press quality)
+    jpg_buf = io.BytesIO()
+    bleed_cmyk.save(jpg_buf, format="JPEG", quality=96, subsampling=0)
+    page.insert_image(mb, stream=jpg_buf.getvalue(), oc=ocg_art)
 
     cut_shape = page.new_shape()
     cut_shape.draw_rect(trim_rect, radius=BLEED_PT / trim_rect.width)
@@ -1363,10 +1347,16 @@ def append_cmyk_card_page(doc: pymupdf.Document, bleed_cmyk: Image.Image, ocgs: 
     cut_shape.commit()
 
 
+_WORKER_CMYK: Optional[CMYKConverter] = None
+
+
 def _worker_render_one(task: Tuple[Dict, str, int, int, str]) -> Dict:
+    global _WORKER_CMYK
+    if _WORKER_CMYK is None:
+        _WORKER_CMYK = CMYKConverter()
+
     card, out_dir_str, render_dpi, export_dpi, lore_mode = task
     out_dir = Path(out_dir_str)
-    cmyk_conv = CMYKConverter()
 
     master_rgba = render_card_master_rgba(card, render_dpi=render_dpi, lore_mode=lore_mode)
 
@@ -1376,18 +1366,15 @@ def _worker_render_one(task: Tuple[Dict, str, int, int, str]) -> Dict:
 
     bleed_rgba = master_rgba.resize((out_w, out_h), Image.Resampling.LANCZOS)
     bleed_rgb = bleed_rgba.convert("RGB")
-    bleed_cmyk = cmyk_conv.rgb_to_cmyk(bleed_rgb)
+    bleed_cmyk = _WORKER_CMYK.rgb_to_cmyk(bleed_rgb)
 
     cn = int(card.get("collector_number") or 0)
     safe_slug = re.sub(r"[^a-zA-Z0-9]+", "_", card.get("name") or "Card").strip("_")
     base_name = f"AWK_{cn:03d}_{safe_slug}"
 
     pdf_dir = out_dir / "pdf_cmyk"
-    trim_dir = out_dir / "png_trim"
-    proof_dir = out_dir / "png_bleed_proof"
-    pdf_dir.mkdir(parents=True, exist_ok=True)
-    trim_dir.mkdir(parents=True, exist_ok=True)
-    proof_dir.mkdir(parents=True, exist_ok=True)
+    trim_dir = out_dir / "trim"
+    bleed_dir = out_dir / "bleed"
 
     b_px = int(round(BLEED_MM * mm_out))
     trim_w = out_w - 2 * b_px
@@ -1402,8 +1389,8 @@ def _worker_render_one(task: Tuple[Dict, str, int, int, str]) -> Dict:
     trim_mask = mask_ss.resize((trim_w, trim_h), Image.Resampling.LANCZOS)
     cropped_trim.putalpha(trim_mask)
 
-    trim_png_path = trim_dir / f"{base_name}_TRIM_63x88mm_R3.png"
-    cropped_trim.save(trim_png_path, dpi=(export_dpi, export_dpi))
+    trim_webp_name = f"AWK_{cn:03d}_trim.webp"
+    cropped_trim.save(trim_dir / trim_webp_name, "WEBP", quality=92)
 
     proof_img = bleed_rgba.copy()
     pd = ImageDraw.Draw(proof_img)
@@ -1411,22 +1398,24 @@ def _worker_render_one(task: Tuple[Dict, str, int, int, str]) -> Dict:
         (b_px, b_px, out_w - b_px - 1, out_h - b_px - 1),
         radius=r3_px,
         outline=(237, 28, 36, 255),
-        width=max(3, int(round(0.32 * mm_out))),
+        width=max(2, int(round(0.32 * mm_out))),
     )
-    proof_png_path = proof_dir / f"{base_name}_BLEED_DIELINE_69x94mm.png"
-    proof_img.convert("RGB").save(proof_png_path, dpi=(export_dpi, export_dpi))
+    bleed_webp_name = f"AWK_{cn:03d}_bleed.webp"
+    proof_img.convert("RGB").save(bleed_dir / bleed_webp_name, "WEBP", quality=91)
 
     doc = pymupdf.open()
     append_cmyk_card_page(doc, bleed_cmyk)
-    pdf_path = pdf_dir / f"{base_name}_PRINT_CMYK_69x94mm.pdf"
-    doc.save(str(pdf_path), deflate=True, garbage=3)
+    pdf_name = f"{base_name}_PRINT_CMYK_69x94mm.pdf"
+    doc.save(str(pdf_dir / pdf_name), deflate=True, garbage=3)
     doc.close()
 
-    cmyk_bytes = bleed_cmyk.resize((80, 110), Image.Resampling.BILINEAR).tobytes()
+    cmyk_bytes = bleed_cmyk.resize((60, 80), Image.Resampling.BILINEAR).tobytes()
     max_tac = max(
         (cmyk_bytes[i] + cmyk_bytes[i + 1] + cmyk_bytes[i + 2] + cmyk_bytes[i + 3]) / 2.55
         for i in range(0, len(cmyk_bytes), 4)
     )
+
+    eff_lore = resolve_effective_lore(clean_text(card.get("description")), clean_text(card.get("lore")), lore_mode)
 
     return {
         "collector_number": cn,
@@ -1440,91 +1429,92 @@ def _worker_render_one(task: Tuple[Dict, str, int, int, str]) -> Dict:
         "health": card.get("health"),
         "keywords": parse_keywords(card.get("keywords")),
         "description": clean_text(card.get("description")),
-        "lore_included": bool(resolve_effective_lore(clean_text(card.get("description")), clean_text(card.get("lore")), lore_mode)),
-        "raw_image_url": card.get("raw_image_url"),
-        "existing_framed_prototype_url": card.get("framed_image_url"),
-        "pdf_cmyk": f"pdf_cmyk/{pdf_path.name}",
-        "png_trim": f"png_trim/{trim_png_path.name}",
-        "png_bleed_proof": f"png_bleed_proof/{proof_png_path.name}",
+        "lore_included": bool(eff_lore),
+        "pdf_cmyk": f"pdf_cmyk/{pdf_name}",
+        "web_pdf_url": f"/results/pdf_cmyk/{pdf_name}",
+        "web_trim_url": f"/results/trim/{trim_webp_name}",
+        "web_bleed_url": f"/results/bleed/{bleed_webp_name}",
         "max_tac_percent": round(max_tac, 1),
         "dpi": export_dpi,
     }
 
 
-def build_combined_press_deck_pdf(out_dir: Path, manifest_items: List[Dict]):
-    combined = pymupdf.open()
-    if OFFICIAL_BACK_PDF.exists():
-        back_doc = pymupdf.open(str(OFFICIAL_BACK_PDF))
-        combined.insert_pdf(back_doc)
-        pix = back_doc[0].get_pixmap(dpi=300)
-        pix.save(str(out_dir / "AWK_000_Official_Card_Back_BLEED_DIELINE.png"))
-        back_doc.close()
-
-    for item in manifest_items:
-        card_pdf = pymupdf.open(str(out_dir / item["pdf_cmyk"]))
-        combined.insert_pdf(card_pdf)
-        card_pdf.close()
-
-    out_pdf = out_dir / "GlimmerFall_AWK_Sample_Pack_With_Back_CMYK_69x94mm.pdf"
-    combined.save(str(out_pdf), deflate=True, garbage=3)
-    combined.close()
-    return out_pdf
-
-
-def build_contact_sheet(out_dir: Path, manifest_items: List[Dict], lore_mode: str):
+def build_contact_sheet(out_dir: Path, sample_items: List[Dict], lore_mode: str, total_count: int) -> Path:
     cols = 4
-    rows = math.ceil(len(manifest_items) / cols)
-    thumb_w, thumb_h = 480, 670
-    pad = 36
-    header_h = 130
+    rows = math.ceil(len(sample_items) / cols)
+    thumb_w, thumb_h = 460, 642
+    pad = 32
+    header_h = 128
     sheet_w = pad + cols * (thumb_w + pad)
     sheet_h = header_h + pad + rows * (thumb_h + pad)
 
     sheet = make_vertical_gradient(sheet_w, sheet_h, (13, 16, 24), (8, 10, 16)).convert("RGBA")
     sd = ImageDraw.Draw(sheet)
-    title_f = load_font("Cinzel-Variable.ttf", 44, weight=800)
-    sub_f = load_font("Outfit-Variable.ttf", 22, weight=500)
+    title_f = load_font("Cinzel-Variable.ttf", 42, weight=800)
+    sub_f = load_font("Outfit-Variable.ttf", 21, weight=500)
 
-    mode_lbl = "Oracle/Rules Text Only" if lore_mode == "none" else f"Lore Mode: {lore_mode}"
-    sd.text((pad, 30), "GLIMMERFALL TCG — FIRST EDITION: THE AWAKENING (AWK)", font=title_f, fill=(242, 169, 0, 255))
+    sd.text((pad, 28), "GLIMMERFALL TCG — FIRST EDITION: THE AWAKENING (AWK)", font=title_f, fill=(242, 169, 0, 255))
     sd.text(
-        (pad, 84),
-        f"Press-Ready Prepress Sheet ({mode_lbl})  •  63×88mm R3 (+3mm Bleed = 69×94mm)  •  450 DPI ICC CMYK",
+        (pad, 80),
+        f"Complete {total_count}-Card Production Set (Lore Mode: {lore_mode})  •  63×88mm R3 (+3mm Bleed = 69×94mm)  •  300 DPI ICC CMYK",
         font=sub_f,
         fill=(182, 192, 208, 255),
     )
 
-    for idx, item in enumerate(manifest_items):
+    for idx, item in enumerate(sample_items):
         r, c = divmod(idx, cols)
         x = pad + c * (thumb_w + pad)
         y = header_h + r * (thumb_h + pad)
-        im = Image.open(out_dir / item["png_trim"]).convert("RGBA")
+        webp_rel = item["web_trim_url"].replace("/results/", "")
+        im = Image.open(out_dir / webp_rel).convert("RGBA")
         im_r = im.resize((thumb_w, thumb_h), Image.Resampling.LANCZOS)
         sheet.alpha_composite(im_r, (x, y))
 
-    sheet_path = out_dir / "GlimmerFall_AWK_Sample_Contact_Sheet.png"
-    sheet.convert("RGB").save(sheet_path, quality=95)
+    sheet_path = out_dir / "GlimmerFall_AWK_Sample_Contact_Sheet.webp"
+    sheet.convert("RGB").save(sheet_path, "WEBP", quality=92)
     return sheet_path
+
+
+def sync_workspace_results_links(pub_out_dir: Path, ws_results_dir: Path):
+    """
+    Creates clean symlinks in `/results` pointing to `../frontend/public/results/*`
+    so both workspace `/results` and live Vercel `/results` expose all 322 cards
+    without duplicating ~120MB of assets on disk or in Git.
+    """
+    if ws_results_dir.resolve() == pub_out_dir.resolve():
+        return
+    if ws_results_dir.exists():
+        shutil.rmtree(ws_results_dir)
+    ws_results_dir.mkdir(parents=True, exist_ok=True)
+
+    for entry in ["pdf_cmyk", "trim", "bleed", "manifest.json", "GlimmerFall_AWK_Sample_Contact_Sheet.webp", "AWK_000_Official_Card_Back_BLEED_DIELINE.webp"]:
+        target_rel = Path("..") / "frontend" / "public" / "results" / entry
+        link_path = ws_results_dir / entry
+        if (pub_out_dir / entry).exists():
+            link_path.symlink_to(target_rel)
+
+    (ws_results_dir / "README.md").write_text(
+        "# GlimmerFall TCG — Complete 322-Card Prepress Set (`AWK`)\n\n"
+        "- **`pdf_cmyk/`** — All 322 individual 3-layer ICC CMYK press-ready PDFs (`69×94mm` w/ `63×88mm R3` TrimBox & toggleable `图层 3` Red Dieline)\n"
+        "- **`trim/`** — All 322 `63×88mm R3` die-cut previews\n"
+        "- **`bleed/`** — All 322 `69×94mm` full-bleed + red R3 cut-line prepress proofs\n"
+        "- **`manifest.json`** — Complete 322-card production manifest & TAC audit\n",
+        encoding="utf-8",
+    )
 
 
 def main():
     parser = argparse.ArgumentParser(description="GlimmerFall AWK Prepress Card Generator")
     parser.add_argument("--samples", action="store_true", help="Generate the 12-card showcase sample pack")
-    parser.add_argument("--cards", type=str, help="Comma-separated collector numbers (e.g. 1,11,55,318)")
+    parser.add_argument("--cards", type=str, help="Comma-separated collector numbers")
     parser.add_argument("--all", action="store_true", help="Generate all 322 cards in Expansion 1: The Awakening")
-    parser.add_argument(
-        "--lore-mode",
-        choices=["none", "smart", "all"],
-        default="none",
-        help="Flavor text policy: 'none' (Oracle/rules text only, default), 'smart' (short-text cards only), 'all'",
-    )
-    parser.add_argument("--dpi", type=int, default=450, help="Output print DPI (default: 450, supersampled from 900)")
-    parser.add_argument("--workers", type=int, default=os.cpu_count() or 4, help="Parallel worker processes")
+    parser.add_argument("--lore-mode", choices=["none", "smart", "all"], default="smart")
+    parser.add_argument("--dpi", type=int, default=300, help="Press output DPI (default: 300, supersampled from 750)")
+    parser.add_argument("--workers", type=int, default=os.cpu_count() or 4)
     parser.add_argument(
         "--outdir",
         type=str,
-        default=str(PROJECT_ROOT / "results"),
-        help="Target output directory (default: /results in workspace)",
+        default=str(PROJECT_ROOT / "frontend" / "public" / "results"),
     )
     args = parser.parse_args()
 
@@ -1543,14 +1533,17 @@ def main():
         targets = [by_cn[cn] for cn in DEFAULT_SAMPLE_CNS if cn in by_cn]
 
     out_dir = Path(args.outdir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    render_dpi = max(600, args.dpi * 2)
+    (out_dir / "pdf_cmyk").mkdir(parents=True, exist_ok=True)
+    (out_dir / "trim").mkdir(parents=True, exist_ok=True)
+    (out_dir / "bleed").mkdir(parents=True, exist_ok=True)
 
-    print(f"[*] Prefetching Vercel Blob artwork for {len(targets)} cards...")
-    with ThreadPoolExecutor(max_workers=16) as pool:
+    render_dpi = max(600, int(round(args.dpi * 2.5)))
+
+    print(f"[*] Prefetching Vercel Blob artwork for {len(targets)} cards -> {CACHE_DIR} ...")
+    with ThreadPoolExecutor(max_workers=20) as pool:
         list(pool.map(ensure_cached_art, targets))
 
-    print(f"[*] Rendering {len(targets)} GlimmerFall AWK cards ({args.workers} workers, lore_mode={args.lore_mode}) -> {out_dir}")
+    print(f"[*] Rendering {len(targets)} cards ({args.workers} workers, {render_dpi}->{args.dpi} DPI, lore_mode={args.lore_mode}) -> {out_dir}")
     tasks = [(c, str(out_dir), render_dpi, args.dpi, args.lore_mode) for c in targets]
 
     manifest_items: List[Dict] = []
@@ -1561,13 +1554,26 @@ def main():
             done_cnt += 1
             meta = fut.result()
             manifest_items.append(meta)
-            print(f"  [{done_cnt:03d}/{len(targets):03d}] AWK #{meta['collector_number']:03d} — {meta['name']}")
+            if done_cnt <= 5 or done_cnt % 25 == 0 or done_cnt == len(targets):
+                print(f"  [{done_cnt:03d}/{len(targets):03d}] AWK #{meta['collector_number']:03d} — {meta['name']}")
 
     manifest_items.sort(key=lambda m: m["collector_number"])
-    combined_pdf = build_combined_press_deck_pdf(out_dir, manifest_items)
-    contact_sheet = build_contact_sheet(out_dir, manifest_items, args.lore_mode)
+
+    if OFFICIAL_BACK_PDF.exists():
+        shutil.copy2(OFFICIAL_BACK_PDF, out_dir / "pdf_cmyk" / "AWK_000_Official_Card_Back_PRINT_CMYK_69x94mm.pdf")
+        back_doc = pymupdf.open(str(OFFICIAL_BACK_PDF))
+        pix = back_doc[0].get_pixmap(dpi=240)
+        Image.frombytes("RGB", [pix.width, pix.height], pix.samples).save(
+            out_dir / "AWK_000_Official_Card_Back_BLEED_DIELINE.webp", "WEBP", quality=92
+        )
+        back_doc.close()
+
+    by_res_cn = {m["collector_number"]: m for m in manifest_items}
+    showcase_subset = [by_res_cn[cn] for cn in DEFAULT_SAMPLE_CNS if cn in by_res_cn] or manifest_items[:12]
+    contact_sheet = build_contact_sheet(out_dir, showcase_subset, args.lore_mode, len(manifest_items))
 
     elapsed = time.time() - t0
+    lore_cnt = sum(1 for m in manifest_items if m["lore_included"])
     manifest = {
         "game": "GlimmerFall TCG",
         "expansion": "The Awakening (AWK)",
@@ -1575,25 +1581,30 @@ def main():
         "lore_mode": args.lore_mode,
         "total_catalog_cards": len(catalog),
         "generated_count": len(manifest_items),
+        "smart_lore_cards_count": lore_cnt,
         "elapsed_seconds": round(elapsed, 1),
+        "web_back_url": "/results/AWK_000_Official_Card_Back_BLEED_DIELINE.webp",
+        "web_contact_sheet_url": f"/results/{contact_sheet.name}",
         "press_specification": {
             "manufacturer": "Super Board Game Manufacturing (Shenzhen, CN)",
             "trim_mm": "63.00 x 88.00 mm",
             "corner_radius_mm": "3.00 mm (R3)",
             "bleed_mm": "3.00 mm all sides",
             "bleed_canvas_mm": "69.00 x 94.00 mm",
+            "dpi": args.dpi,
             "color_space": "ICC CMYK (4C+4C, TAC <= 300%)",
-            "paper_stock": "300gsm artpaper (Common/Uncommon) & 300gsm holographic paper (Rare/Epic)",
-            "finish": "Glossy varnishing",
             "dieline_layer": "图层 3 (Dieline R3 63x88mm) — CMYK (0, 100%, 100%, 0) separate OCG layer",
         },
-        "combined_press_pdf": combined_pdf.name,
-        "contact_sheet_png": contact_sheet.name,
-        "official_back_preview": "AWK_000_Official_Card_Back_BLEED_DIELINE.png",
         "cards": manifest_items,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"\n[✓] Complete in {elapsed:.1f}s! ({elapsed / max(1, len(manifest_items)):.2f}s/card)")
+
+    # Sync workspace `/results` directory links without duplicating disk space
+    sync_workspace_results_links(out_dir, PROJECT_ROOT / "results")
+
+    # Clean temporary Vercel Blob cache in /tmp once finished
+    shutil.rmtree(CACHE_DIR, ignore_errors=True)
+    print(f"\n[✓] Complete! {len(manifest_items)} cards ({lore_cnt} w/ smart lore) rendered in {elapsed:.1f}s ({elapsed / max(1, len(manifest_items)):.2f}s/card)")
 
 
 if __name__ == "__main__":
