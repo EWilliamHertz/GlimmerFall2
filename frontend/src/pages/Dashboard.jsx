@@ -561,7 +561,7 @@ function PlayerDashboard({ user, updateUser }) {
                       alt={c.name}
                       title={c.name}
                       onClick={() => !savingAvatar && selectAvatar(c.image_url)}
-                      className={`w-full aspect-square object-cover rounded-full border-2 cursor-pointer transition-all hover:scale-110 ${user.avatar === c.image_url ? 'border-[#F2A900] shadow-[0_0_15px_rgba(242,169,0,0.5)]' : 'border-white/10 hover:border-white/40'}`}
+                      className={`w-full aspect-square object-cover object-[50%_26%] rounded-full border-2 cursor-pointer transition-all hover:scale-110 ${user.avatar === c.image_url ? 'border-[#F2A900] shadow-[0_0_15px_rgba(242,169,0,0.5)]' : 'border-white/10 hover:border-white/40'}`}
                     />
                   ))}
                 </div>

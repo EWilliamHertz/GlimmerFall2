@@ -78,6 +78,14 @@ agenthub/agents/youtube/db
 **/*.xlsx
 all cards final pdf*
 
+# Factory Print & Packaging Handoff Files
+/print/
+print/
+Booster Box*
+Booster Pack*
+TuckInBox*
+InquiryForKenzi.docx
+
 # Build caches
 .cache/
 card_engine/cache/

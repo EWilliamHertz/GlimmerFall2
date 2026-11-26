@@ -175,8 +175,8 @@ export default function Codex() {
                       className="bg-black/60 rounded-2xl overflow-hidden flex flex-col sm:flex-row h-full border border-white/5 hover:border-white/20 transition-colors group"
                     >
                       {c.image_url && (
-                        <div className="w-full sm:w-40 h-40 sm:h-auto shrink-0 relative border-b sm:border-b-0 sm:border-r border-white/10">
-                          <img src={c.image_url} alt={c.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <div className="w-full sm:w-40 aspect-[63/88] shrink-0 relative border-b sm:border-b-0 sm:border-r border-white/10 bg-black/50">
+                          <img src={c.image_url} alt={c.name} className="w-full h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity" />
                         </div>
                       )}
                       <div className="p-6 flex flex-col justify-center flex-1">

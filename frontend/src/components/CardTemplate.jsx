@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { CARDBACK, RARITY, RARITY_ICONS, factionCfg, getDesignerCardUrl } from "@/lib/factions";
+import { CARDBACK, RARITY, RARITY_ICONS, factionCfg, getReadyCardBlobUrl } from "@/lib/factions";
 
 const SIZES = {
   xs: "w-[80px]",
@@ -80,16 +80,16 @@ export const CardTemplate = ({
   };
   const reset = () => { mx.set(0); my.set(0); setHover(false); };
 
-  // Check if this card is one of the modern redesigned cards from the designer
-  const designerUrl = getDesignerCardUrl(card?.name);
-  const isDesigner = Boolean(designerUrl && !hidden);
+  // Resolve the finished press-ready AWK card image on Vercel Blob (`glimmerfall/awk-cards/`)
+  const readyUrl = !hidden ? getReadyCardBlobUrl(card) : null;
+  const isDesigner = Boolean(readyUrl && !hidden);
 
   const img = hidden
     ? CARDBACK
+    : readyUrl
+    ? readyUrl
     : card?.image_url && card.image_url !== "None"
     ? card.image_url
-    : isDesigner
-    ? designerUrl
     : CARDBACK;
 
   const isRare = !hidden && card?.rarity === "Rare";
@@ -125,8 +125,8 @@ export const CardTemplate = ({
       className={`${width ? "" : SIZES[size]} relative shrink-0 ${width && height ? "" : "aspect-[5/7]"} rounded-xl cursor-pointer select-none transition-shadow duration-300
         ${dimmed ? "opacity-40" : ""} ${className}`}
     >
-      <div className="absolute inset-0 rounded-xl overflow-hidden print-no-border" style={{ border: `2px solid ${selected ? "#ffffff" : f.color}` }}>
-        <img src={img} alt={card?.name || "card"} className={`w-full h-full ${isDesigner ? "object-fill" : "object-cover"}`} draggable={false} loading={eager ? "eager" : "lazy"} />
+      <div className="absolute inset-0 rounded-xl overflow-hidden print-no-border" style={{ border: selected ? "2px solid #ffffff" : isDesigner ? "1px solid rgba(255,255,255,0.12)" : `2px solid ${f.color}` }}>
+        <img src={img} alt={card?.name || "card"} className="w-full h-full object-cover" draggable={false} loading={eager ? "eager" : "lazy"} />
 
         {/* Faction background tint - only for original layout */}
         {!isDesigner && (

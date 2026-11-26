@@ -67,12 +67,12 @@ export default function MediaKit() {
 
       <div>
         <h2 className="text-2xl font-bold font-head mb-6 flex items-center gap-2 border-b border-white/10 pb-2">
-          <ImageIcon className="w-6 h-6 text-[#00BFFF]" /> Raw Card Artwork ({cards.length})
+          <ImageIcon className="w-6 h-6 text-[#00BFFF]" /> Official AWK Cards ({cards.length})
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {cards.map((card) => (
             <div key={card.id} className="glass rounded-xl overflow-hidden group relative">
-              <div className="aspect-[5/7] bg-black">
+              <div className="aspect-[63/88] bg-black">
                 <img src={card.image_url} alt={card.name} className="w-full h-full object-cover" loading="lazy" />
               </div>
               <div className="p-3">

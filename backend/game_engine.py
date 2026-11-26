@@ -252,7 +252,7 @@ def apply_enters_trigger(state, slot, new_entity):
         low = (e.get("description") or "").lower()
         if "whenever another" in low and "enters" in low:
             # check faction match
-            m = re.search(r"whenever another\s+([a-z]+)\s+entity\s+enters", low)
+            m = _re.search(r"whenever another\s+([a-z]+)\s+entity\s+enters", low)
             if m:
                 req_faction = m.group(1).title()
                 if new_entity.get("faction") != req_faction:
@@ -262,7 +262,7 @@ def apply_enters_trigger(state, slot, new_entity):
             effect_part = low.split("enters,")[-1].strip() if "enters," in low else low
             
             # currently only handles "heal your nexus X"
-            hm = re.search(r"heal your nexus\s+(\d+)", effect_part)
+            hm = _re.search(r"heal your nexus\s+(\d+)", effect_part)
             if hm:
                 amt = int(hm.group(1))
                 state["players"][slot]["hp"] += amt
