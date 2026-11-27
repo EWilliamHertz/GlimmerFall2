@@ -4,8 +4,12 @@ Only CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS / CREATE INDEX IF NOT
 Safe to run repeatedly on startup or standalone via CLI.
 """
 import os
+from pathlib import Path
 import sys
 import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 STATEMENTS = [
     # matches: lifecycle + mode metadata

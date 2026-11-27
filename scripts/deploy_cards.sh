@@ -20,7 +20,6 @@ ssh -i "$KEY" "$HOST" "
   fi
   .venv/bin/pip install -q -r requirements.txt
   if [ -f .env ]; then
-    set -a && . ./.env && set +a
     .venv/bin/python migrations/remodel_2026_11.py
   fi
   pm2 startOrReload ecosystem.config.cjs
