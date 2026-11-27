@@ -192,16 +192,19 @@ export default function GlimmerPurse() {
   const [balance, setBalance] = useState(user?.glimmer_balance ?? 0);
   const [refCode, setRefCode] = useState(user?.referral_code ?? null);
   const [open, setOpen] = useState(false);
+  const userId = user?.id;
 
   const refresh = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     try {
       const r = await api.get("/glimmer/balance");
-      setBalance(r.data.balance ?? 0);
-      setRefCode(r.data.referral_code || refCode);
-      if (updateUser) updateUser({ glimmer_balance: r.data.balance ?? 0, referral_code: r.data.referral_code });
+      const nextBal = r.data.balance ?? 0;
+      const nextRef = r.data.referral_code ?? null;
+      setBalance(nextBal);
+      if (nextRef) setRefCode(nextRef);
+      if (updateUser) updateUser({ glimmer_balance: nextBal, ...(nextRef ? { referral_code: nextRef } : {}) });
     } catch (e) {}
-  }, [user, updateUser, refCode]);
+  }, [userId, updateUser]);
 
   useEffect(() => {
     refresh();

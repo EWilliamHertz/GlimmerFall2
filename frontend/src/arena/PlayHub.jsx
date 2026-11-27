@@ -65,8 +65,10 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
     localStorage.setItem(DECK_CHOICE_KEY, JSON.stringify(sel));
   };
 
+  const userId = user?.id ?? null;
+
   useEffect(() => {
-    if (user) {
+    if (userId) {
       api
         .get("/auth/me/decks")
         .then((r) => {
@@ -90,7 +92,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
         setPersonalDecks([]);
       }
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     let mounted = true;
@@ -108,7 +110,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
 
     const checkActive = async () => {
       try {
-        if (user || localStorage.getItem("glimmerfall_guest_token")) {
+        if (userId || localStorage.getItem("glimmerfall_guest_token")) {
           const r = await api.get("/me/active-match");
           if (mounted && r.data?.matchId) setActiveMatch(r.data);
           else if (mounted) setActiveMatch(null);
@@ -123,7 +125,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
       mounted = false;
       clearInterval(timer);
     };
-  }, [user]);
+  }, [userId]);
 
   const queueState = useQueueStream(Boolean(searchingMode), (matched) => {
     setSearchingMode(null);
@@ -141,6 +143,18 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
       localStorage.setItem("gf_username", guestInput.trim());
     }
     return ensurePlayerSession(guestInput.trim() || "Summoner");
+  };
+
+  const describePlayError = (e, fallback) => {
+    const detail = e?.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (e?.response?.status === 401 || e?.response?.status === 403) {
+      return "Your session expired — please sign in again.";
+    }
+    if (!e?.response) {
+      return `${fallback} (Network error reaching game server — please refresh the page once.)`;
+    }
+    return fallback;
   };
 
   const handleJoinQueue = async (mode) => {
@@ -169,7 +183,12 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
         setSearchingMode(mode);
       }
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Could not join matchmaking queue.");
+      if (e?.response?.status === 401 && mode === "ranked") {
+        toast.info("Please sign in again to join Ranked.");
+        openAuthModal("login");
+      } else {
+        toast.error(describePlayError(e, "Could not join matchmaking queue."));
+      }
     } finally {
       setBusyAction(null);
     }
@@ -203,7 +222,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
         status: "PLAYING",
       });
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Could not start GlimmerBot match.");
+      toast.error(describePlayError(e, "Could not start GlimmerBot match."));
     } finally {
       setBusyAction(null);
     }
@@ -228,7 +247,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
         .catch(() => {});
       onEnterLobby(r.data.code, deckSelection);
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Could not create private lobby.");
+      toast.error(describePlayError(e, "Could not create private lobby."));
     } finally {
       setBusyAction(null);
     }
@@ -252,7 +271,7 @@ export default function PlayHub({ onEnterMatch, onEnterLobby }) {
         .catch(() => {});
       onEnterLobby(code, deckSelection);
     } catch (e) {
-      toast.error(e.response?.data?.detail || "Lobby not found or already full.");
+      toast.error(describePlayError(e, "Lobby not found or already full."));
     } finally {
       setBusyAction(null);
     }

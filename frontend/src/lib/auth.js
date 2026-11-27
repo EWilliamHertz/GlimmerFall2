@@ -98,20 +98,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = React.useCallback(() => {
     setUser(null);
     localStorage.removeItem('glimmerfall_user');
     localStorage.removeItem('glimmerfall_token');
-  };
+  }, []);
 
-  const updateUser = (data) => {
+  React.useEffect(() => {
+    const onExpired = () => logout();
+    window.addEventListener("gf-auth-expired", onExpired);
+    return () => window.removeEventListener("gf-auth-expired", onExpired);
+  }, [logout]);
+
+  const updateUser = React.useCallback((data) => {
+    if (!data) return;
     setUser(prevUser => {
       if (!prevUser) return null;
+      const changed = Object.keys(data).some((k) => prevUser[k] !== data[k]);
+      if (!changed) return prevUser;
       const u = {...prevUser, ...data};
       localStorage.setItem('glimmerfall_user', JSON.stringify(u));
       return u;
     });
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, register, verify, resendVerification, logout, updateUser }}>

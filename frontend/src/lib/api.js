@@ -3,7 +3,7 @@ import axios from "axios";
 // Same-origin by default (works on Vercel where the API is served under /api on
 // the same domain). In production with the Oracle realtime backend or local dev,
 // REACT_APP_BACKEND_URL points at https://play-api.glimmerfall.online or http://localhost:8000.
-export const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/+$/, "");
+export const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 export const API = `${BACKEND_URL}/api`;
 
 export const GUEST_TOKEN_KEY = "glimmerfall_guest_token";
@@ -13,7 +13,7 @@ export function getActiveToken() {
   return localStorage.getItem("glimmerfall_token") || localStorage.getItem(GUEST_TOKEN_KEY) || null;
 }
 
-export const api = axios.create({ baseURL: API });
+export const api = axios.create({ baseURL: API, timeout: 15000 });
 
 api.interceptors.request.use((config) => {
   const token = getActiveToken();
@@ -26,6 +26,44 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const config = error?.config;
+    if (!config) return Promise.reject(error);
+
+    // Retry once on transient network/transport error (e.g. HTTP/2 stream reset or cold wakeup)
+    if (!error.response && !config._netRetried) {
+      config._netRetried = true;
+      await new Promise((r) => setTimeout(r, 250));
+      return api.request(config);
+    }
+
+    // Auto-heal stale guest or user tokens if rejected with 401 on play/lobby/queue routes
+    const url = String(config.url || "");
+    const isAuthRoute = url.startsWith("/auth/login") || url.startsWith("/auth/register");
+    if (error.response?.status === 401 && !isAuthRoute && !config._authRetried) {
+      config._authRetried = true;
+      const hadUserToken = Boolean(localStorage.getItem("glimmerfall_token"));
+      if (hadUserToken) {
+        localStorage.removeItem("glimmerfall_token");
+        localStorage.removeItem("glimmerfall_user");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("gf-auth-expired"));
+        }
+      } else if (localStorage.getItem(GUEST_TOKEN_KEY)) {
+        localStorage.removeItem(GUEST_TOKEN_KEY);
+        localStorage.removeItem(GUEST_NAME_KEY);
+        if (!url.startsWith("/guest")) {
+          await ensurePlayerSession();
+          return api.request(config);
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 let guestInflight = null;
 
