@@ -12,7 +12,11 @@ echo "==========================================="
 echo ""
 echo "[1/4] Installing Python Backend Dependencies..."
 cd backend
-pip install -r requirements.txt
+if [ -x .venv/bin/pip ]; then
+  .venv/bin/pip install -r requirements.txt
+else
+  pip install -r requirements.txt
+fi
 cd ..
 
 echo ""
@@ -24,7 +28,11 @@ cd ..
 echo ""
 echo "[3/4] Starting Python Backend Server (Port 8000)..."
 cd backend
-uvicorn server:app --port 8000 &
+if [ -x .venv/bin/python ]; then
+  .venv/bin/python -m uvicorn server:app --port 8000 &
+else
+  uvicorn server:app --port 8000 &
+fi
 cd ..
 
 echo ""

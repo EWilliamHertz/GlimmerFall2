@@ -863,22 +863,33 @@ def do_cast_spell(state, slot, payload):
         raise ActionError("Rite (slow) spells can only be cast on your own turn.")
     cost = card["cost"]
     
-    # Voltage Savant cost reduction
+    # Friendly spell cost reduction auras
     has_voltage = any(e["name"] == "Voltage Savant" for e in pl.get("battlefield", []))
     if has_voltage and pl.get("spellsCastThisTurn", 0) == 0:
         cost = max(0, cost - 1)
-        
+    beacons = sum(1 for e in pl.get("battlefield", []) if e["name"] == "Astral Beacon")
+    if beacons and cost > 1:
+        cost = max(1, cost - beacons)
+
     if cost > pl["energy"]:
         raise ActionError("Not enough Energy.")
-        
-    pl["spellsCastThisTurn"] = pl.get("spellsCastThisTurn", 0) + 1
-    pl["energy"] -= cost
+
+    low_desc = (card.get("description") or "").lower()
+    needs_entity_only = (
+        ("target entity" in low_desc or "target enemy entity" in low_desc or "target friendly entity" in low_desc)
+        and "any target" not in low_desc
+    )
+    if needs_entity_only and (payload.get("targetType") != "entity" or not payload.get("targetId")):
+        raise ActionError("Choose an Entity on the battlefield to target.")
 
     if payload.get("targetType") == "entity" and payload.get("targetId"):
         for e in enemy_entities(state, slot):
             if e["instanceId"] == payload["targetId"] and "Stealth" in e["keywords"]:
-                if "target" in (card.get("description") or "").lower():
+                if "target" in low_desc:
                     raise ActionError("Stealth entities cannot be targeted.")
+
+    pl["spellsCastThisTurn"] = pl.get("spellsCastThisTurn", 0) + 1
+    pl["energy"] -= cost
 
     pl["hand"].pop(idx)
 
@@ -1338,25 +1349,24 @@ TUTORIAL_CARDS = {
     "colossus": {
         "id": 4, "name": "Sunfire Colossus", "faction": "Solari", "card_type": "Entity",
         "cost": 5, "power": 6, "health": 6, "keywords": "Overwhelm",
-        "description": "Overwhelm", "rarity": "Rare", "collector_number": 4, "image_url": None,
+        "description": "", "rarity": "Rare", "collector_number": 4, "image_url": None,
     },
     "vanguard": {
         "id": 1, "name": "Solari Vanguard", "faction": "Solari", "card_type": "Entity",
         "cost": 1, "power": 2, "health": 1, "keywords": None,
-        "description": "A swift vanguard ready to strike the moment it enters.",
-        "rarity": "Common", "collector_number": 1, "image_url": None,
+        "description": "", "rarity": "Common", "collector_number": 1, "image_url": None,
     },
-    "flare": {
-        "id": 8, "name": "Flare Strike", "faction": "Solari", "card_type": "Flash",
-        "cost": 1, "power": None, "health": None, "keywords": None,
-        "description": "Deal 2 damage to any target.",
-        "rarity": "Common", "collector_number": 8, "image_url": None,
+    "soul_drain": {
+        "id": 176, "name": "Soul Drain", "faction": "Umbri", "card_type": "Rite",
+        "cost": 2, "power": None, "health": None, "keywords": None,
+        "description": "Deal 3 damage to target Entity. Heal your Nexus 3.",
+        "rarity": "Common", "collector_number": 176, "image_url": None,
     },
     "courier": {
         "id": 11, "name": "Emberwing Courier", "faction": "Solari", "card_type": "Entity",
         "cost": 2, "power": 2, "health": 1, "keywords": None,
-        "description": "When this Entity deals damage to a Nexus, ready one Glimmer Node.",
-        "rarity": "Common", "collector_number": 11, "image_url": None,
+        "description": "When this Entity deals damage to a Nexus, ready one Glimmer Node you control.",
+        "rarity": "Rare", "collector_number": 11, "image_url": None,
     },
     "shield": {
         "id": 6, "name": "Radiant Shield", "faction": "Solari", "card_type": "Relic",
@@ -1364,11 +1374,11 @@ TUTORIAL_CARDS = {
         "description": "Attached Entity gets +1/+2 and Guard.",
         "rarity": "Uncommon", "collector_number": 6, "image_url": None,
     },
-    "sentinel": {
-        "id": 901, "name": "Gloom Sentinel", "faction": "Umbri", "card_type": "Entity",
-        "cost": 1, "power": 1, "health": 2, "keywords": "Guard",
-        "description": "Guard (Enemies must attack this Entity before the Nexus.)",
-        "rarity": "Common", "collector_number": 26, "image_url": None,
+    "beacon": {
+        "id": 269, "name": "Astral Beacon", "faction": "Aether", "card_type": "Entity",
+        "cost": 1, "power": 0, "health": 3, "keywords": "Guard",
+        "description": "Your Spells cost 1 less (minimum 1).",
+        "rarity": "Common", "collector_number": 269, "image_url": None,
     },
 }
 
@@ -1377,14 +1387,7 @@ def _pick_tutorial_card(pool, key):
     spec = TUTORIAL_CARDS[key]
     for c in pool or []:
         if c.get("name") == spec["name"]:
-            merged = dict(c)
-            merged["cost"] = spec["cost"]
-            merged["power"] = spec["power"]
-            merged["health"] = spec["health"]
-            merged["card_type"] = spec["card_type"]
-            merged["keywords"] = spec["keywords"]
-            merged["description"] = spec["description"]
-            return merged
+            return dict(c)
     return dict(spec)
 
 
@@ -1393,10 +1396,10 @@ def new_tutorial_state(p1_name, pool=None):
     import time
     colossus = _pick_tutorial_card(pool, "colossus")
     vanguard = _pick_tutorial_card(pool, "vanguard")
-    flare = _pick_tutorial_card(pool, "flare")
+    soul_drain = _pick_tutorial_card(pool, "soul_drain")
     courier = _pick_tutorial_card(pool, "courier")
     shield = _pick_tutorial_card(pool, "shield")
-    sentinel = _pick_tutorial_card(pool, "sentinel")
+    beacon = _pick_tutorial_card(pool, "beacon")
 
     p1 = {
         "username": p1_name,
@@ -1404,7 +1407,7 @@ def new_tutorial_state(p1_name, pool=None):
         "energy": 0,
         "maxEnergy": 0,
         "hand": [make_instance(colossus), make_instance(vanguard)],
-        "library": [make_instance(flare), make_instance(courier), make_instance(shield)] + [
+        "library": [make_instance(soul_drain), make_instance(courier), make_instance(shield)] + [
             make_instance(vanguard) for _ in range(10)
         ],
         "battlefield": [],
@@ -1419,8 +1422,8 @@ def new_tutorial_state(p1_name, pool=None):
         "hp": 4,
         "energy": 0,
         "maxEnergy": 0,
-        "hand": [make_instance(colossus), make_instance(sentinel)],
-        "library": [make_instance(sentinel) for _ in range(10)],
+        "hand": [make_instance(colossus), make_instance(beacon)],
+        "library": [make_instance(beacon) for _ in range(10)],
         "battlefield": [],
         "resonanceRow": [],
         "relics": [],

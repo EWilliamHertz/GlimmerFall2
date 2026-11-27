@@ -245,7 +245,7 @@ function BattlefieldEntity({
               <Eye className="w-3 h-3 text-[#00BFFF]" />
             </button>
           )}
-          <div className="w-[82px] sm:w-[116px] md:w-[128px]">
+          <div className="w-[90px] sm:w-[114px] md:w-[126px]">
             <CardTemplate
               card={entity}
               size="sm"
@@ -311,7 +311,7 @@ function HandCardItem({ card, selected, affordable, draggable, onSelect, onInspe
       data-testid={testId}
     >
       <CardTooltip card={card} side="top">
-        <div className="w-[92px] sm:w-[124px] md:w-[142px]">
+        <div className="w-[96px] sm:w-[120px] md:w-[136px]">
           <CardTemplate
             card={card}
             size="md"
@@ -539,6 +539,10 @@ export default function GameBoard({
         if (hasVoltage && (me?.spellsCastThisTurn || 0) === 0) {
           cost = Math.max(0, cost - 1);
         }
+        const beacons = (me?.battlefield || []).filter((e) => e.name === "Astral Beacon").length;
+        if (beacons > 0 && cost > 1) {
+          cost = Math.max(1, cost - beacons);
+        }
       }
       return cost;
     },
@@ -765,8 +769,35 @@ export default function GameBoard({
     }
   };
 
+  const spellCanTargetNexus = useMemo(() => {
+    if (!pendingSpell) return false;
+    const low = (pendingSpell.description || "").toLowerCase();
+    if (low.includes("any target") || low.includes("target player")) return true;
+    if (
+      low.includes("target entity") ||
+      low.includes("target enemy entity") ||
+      low.includes("target friendly entity") ||
+      low.includes("target attacking entity")
+    ) {
+      return false;
+    }
+    return low.includes("enemy nexus") || low.includes("two different targets");
+  }, [pendingSpell]);
+
+  const spellNeedsTarget = useMemo(() => {
+    if (!pendingSpell) return false;
+    const low = (pendingSpell.description || "").toLowerCase();
+    return low.includes("target") || low.includes("any target");
+  }, [pendingSpell]);
+
   const clickNexus = (targetSlot) => {
-    if (pendingSpell) return castAt("nexus", null, targetSlot);
+    if (pendingSpell) {
+      if (!spellCanTargetNexus) {
+        toast.info(`${pendingSpell.name} must target an Entity on the battlefield.`);
+        return;
+      }
+      return castAt("nexus", null, targetSlot);
+    }
     if (targetSlot !== viewSlot && selectedAttacker) {
       act("ATTACK_NEXUS", { attackerId: selectedAttacker });
       setSelectedAttacker(null);
@@ -801,7 +832,12 @@ export default function GameBoard({
   const tacticalPrompt = useMemo(() => {
     if (ended) return "Match Ended";
     if (isReadOnly) return session.isReplay ? "Replay Mode" : "Spectating Live";
-    if (pendingSpell) return `Casting ${pendingSpell.name}: tap any target Entity or Nexus`;
+    if (pendingSpell) {
+      if (!spellNeedsTarget) return `Casting ${pendingSpell.name}: tap Confirm Cast below`;
+      return spellCanTargetNexus
+        ? `Casting ${pendingSpell.name}: tap any target Entity or Nexus`
+        : `Casting ${pendingSpell.name}: tap an Entity on the battlefield`;
+    }
     if (selectedAttacker) {
       return enemyHasGuard && !attackerIsEvasive
         ? "Enemy Guard active — tap the shielded Guard Entity to attack!"
@@ -818,6 +854,8 @@ export default function GameBoard({
     isReadOnly,
     session.isReplay,
     pendingSpell,
+    spellNeedsTarget,
+    spellCanTargetNexus,
     selectedAttacker,
     enemyHasGuard,
     attackerIsEvasive,
@@ -842,13 +880,16 @@ export default function GameBoard({
         <DiceRollModal state={state} slot={viewSlot} act={act} />
       )}
 
-      <div className="relative z-10 h-[100dvh] max-w-6xl mx-auto px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden pt-safe pb-safe select-none">
+      <div className="relative z-10 min-h-[100dvh] max-w-6xl mx-auto px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between gap-2 overflow-x-hidden pt-safe pb-safe select-none">
         {/* 1. TOP BAR: Opponent Nexus + Stats + Match Utilities */}
         <div className="flex items-center justify-between gap-2 shrink-0">
           <NexusBadge
             player={opp}
             mine={false}
-            isTarget={(Boolean(selectedAttacker) && (!enemyHasGuard || attackerIsEvasive)) || Boolean(pendingSpell)}
+            isTarget={
+              (Boolean(selectedAttacker) && (!enemyHasGuard || attackerIsEvasive)) ||
+              (Boolean(pendingSpell) && spellCanTargetNexus)
+            }
             spotlight={spot === "enemy-nexus"}
             onClick={() => clickNexus(oppSlot)}
             testId="enemy-nexus"
@@ -957,10 +998,10 @@ export default function GameBoard({
         )}
 
         {/* 2. BATTLEFIELD ARENA (Enemy Row + Center Turn/Rope + Friendly Row) */}
-        <div className="flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2">
+        <div className="flex-1 flex flex-col justify-between gap-2">
           {/* Enemy Battlefield */}
           <div
-            className={`glass rounded-2xl px-2.5 py-2 flex-1 min-h-[88px] relative flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar ${
+            className={`glass rounded-2xl px-2.5 py-2.5 sm:py-3 flex-1 min-h-[152px] sm:min-h-[188px] md:min-h-[208px] relative flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto overflow-y-hidden sm:overflow-visible sm:flex-wrap no-scrollbar ${
               spot === "enemy-entity" ? "ring-2 ring-[#F2A900]" : ""
             }`}
           >
@@ -1041,7 +1082,7 @@ export default function GameBoard({
                 act("PLAY_CARD", { instanceId: selectedHandCard.instanceId, destination: "battlefield" });
               }
             }}
-            className="glass px-2.5 py-2 flex-1 min-h-[92px] relative flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar"
+            className="glass px-2.5 py-2.5 sm:py-3 flex-1 min-h-[152px] sm:min-h-[188px] md:min-h-[208px] relative flex items-center justify-center gap-2 sm:gap-3 overflow-x-auto overflow-y-hidden sm:overflow-visible sm:flex-wrap no-scrollbar"
           >
             <AnimatePresence>
               {(me?.battlefield || []).map((e) => {
@@ -1083,7 +1124,7 @@ export default function GameBoard({
           <NexusBadge
             player={me}
             mine
-            isTarget={Boolean(pendingSpell)}
+            isTarget={Boolean(pendingSpell) && spellCanTargetNexus}
             onClick={() => clickNexus(viewSlot)}
             testId="my-nexus"
           />
@@ -1254,22 +1295,31 @@ export default function GameBoard({
                 className="mb-2 mx-auto max-w-xl glass-strong rounded-2xl p-2 border border-[#F2A900]/50 flex flex-wrap items-center justify-center gap-2 shadow-2xl"
               >
                 <span className="text-xs font-head text-white px-2">
-                  Aiming <b className="text-[#F2A900]">{pendingSpell.name}</b>: tap an Entity or
+                  Aiming <b className="text-[#F2A900]">{pendingSpell.name}</b>:{" "}
+                  {!spellNeedsTarget
+                    ? "confirm cast"
+                    : spellCanTargetNexus
+                    ? "tap an Entity or"
+                    : "tap an Entity on the battlefield"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => castAt("nexus", null, oppSlot)}
-                  className="px-3 py-1.5 rounded-xl bg-red-500 text-white font-head font-bold text-xs"
-                >
-                  Enemy Nexus
-                </button>
-                <button
-                  type="button"
-                  onClick={() => castAt(null, null, oppSlot)}
-                  className="px-3 py-1.5 rounded-xl bg-white/15 text-white font-head font-bold text-xs"
-                >
-                  Cast (No Target)
-                </button>
+                {spellCanTargetNexus && (
+                  <button
+                    type="button"
+                    onClick={() => castAt("nexus", null, oppSlot)}
+                    className="px-3 py-1.5 rounded-xl bg-red-500 text-white font-head font-bold text-xs"
+                  >
+                    Enemy Nexus
+                  </button>
+                )}
+                {!spellNeedsTarget && (
+                  <button
+                    type="button"
+                    onClick={() => castAt(null, null, oppSlot)}
+                    className="px-3 py-1.5 rounded-xl bg-[#F2A900] text-black font-head font-bold text-xs"
+                  >
+                    Confirm Cast
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setPendingSpell(null)}
@@ -1283,7 +1333,7 @@ export default function GameBoard({
 
           {/* Hand Cards Rail */}
           <div
-            className={`flex items-end justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar px-2 pt-4 pb-1 min-h-[138px] sm:min-h-[184px] rounded-2xl ${
+            className={`flex items-end justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto overflow-y-hidden sm:overflow-visible sm:flex-wrap no-scrollbar px-2 pt-6 sm:pt-7 pb-2 min-h-[170px] sm:min-h-[212px] md:min-h-[234px] rounded-2xl ${
               spot === "hand" ? "ring-2 ring-[#F2A900]" : ""
             }`}
           >

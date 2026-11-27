@@ -84,10 +84,10 @@ def test_guided_tutorial_full_playthrough():
     assert state["isTutorial"] is True
     assert state["players"]["2"]["hp"] == 4
 
-    # Turn 1: Draw (Flare Strike), Resonate (Sunfire Colossus), Deploy (Solari Vanguard), Attack Nexus (4 -> 2), End Turn
+    # Turn 1: Draw (Soul Drain), Resonate (Sunfire Colossus), Deploy (Solari Vanguard), Attack Nexus (4 -> 2), End Turn
     ge.apply_action(state, 1, "DRAW_CARD", {})
     p1 = state["players"]["1"]
-    assert any(c["name"] == "Flare Strike" for c in p1["hand"])
+    assert any(c["name"] == "Soul Drain" and c["collector_number"] == 176 for c in p1["hand"])
 
     colossus = next(c for c in p1["hand"] if c["name"] == "Sunfire Colossus")
     ge.apply_action(state, 1, "PLAY_CARD", {"instanceId": colossus["instanceId"], "destination": "resonance"})
@@ -100,26 +100,37 @@ def test_guided_tutorial_full_playthrough():
     ge.apply_action(state, 1, "ATTACK_NEXUS", {"attackerId": vanguard["instanceId"]})
     assert state["players"]["2"]["hp"] == 2
 
-    # Ending turn triggers Nexus Construct to deploy a 1/2 Guard Sentinel and pass back
+    # Ending turn triggers Nexus Construct to deploy Astral Beacon (0/3 Guard, #269) and pass back
     ge.apply_action(state, 1, "END_TURN", {})
     assert state["activePlayer"] == 1
     enemy_bf = state["players"]["2"]["battlefield"]
     assert len(enemy_bf) == 1
+    assert enemy_bf[0]["name"] == "Astral Beacon"
+    assert enemy_bf[0]["collector_number"] == 269
     assert "Guard" in enemy_bf[0]["keywords"]
 
     # Attacking Nexus directly is blocked by Guard!
     with pytest.raises(ge.ActionError, match="Guard"):
         ge.apply_action(state, 1, "ATTACK_NEXUS", {"attackerId": vanguard["instanceId"]})
 
-    # Turn 2: Draw, Resonate, Cast Flare Strike on Guard Sentinel to destroy it, then Attack Nexus for lethal!
+    # Turn 2: Draw, Resonate 2nd Node for 2/2 Energy, Cast Soul Drain on Astral Beacon, then Attack Nexus for lethal!
     ge.apply_action(state, 1, "DRAW_CARD", {})
     courier = next(c for c in p1["hand"] if c["name"] == "Emberwing Courier")
     ge.apply_action(state, 1, "PLAY_CARD", {"instanceId": courier["instanceId"], "destination": "resonance"})
+    assert p1["energy"] == 2 and p1["maxEnergy"] == 2
 
-    flare = next(c for c in p1["hand"] if c["name"] == "Flare Strike")
+    soul_drain = next(c for c in p1["hand"] if c["name"] == "Soul Drain")
+    # Entity-only spell rejects targeting Nexus directly without wasting card/energy
+    with pytest.raises(ge.ActionError, match="Entity"):
+        ge.apply_action(
+            state, 1, "CAST_SPELL",
+            {"instanceId": soul_drain["instanceId"], "targetType": "nexus", "targetSlot": 2},
+        )
+    assert p1["energy"] == 2
+
     ge.apply_action(
         state, 1, "CAST_SPELL",
-        {"instanceId": flare["instanceId"], "targetType": "entity", "targetId": enemy_bf[0]["instanceId"]},
+        {"instanceId": soul_drain["instanceId"], "targetType": "entity", "targetId": enemy_bf[0]["instanceId"]},
     )
     assert len(state["players"]["2"]["battlefield"]) == 0
 

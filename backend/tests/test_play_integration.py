@@ -189,6 +189,34 @@ def test_guest_cannot_join_ranked_but_can_play_casual_and_bot(client):
     assert r_bot.status_code == 200
     assert r_bot.json()["matchId"] > 0
 
+    r_tut = client.post("/api/tutorial/start", headers=_hdr(tok))
+    assert r_tut.status_code == 200
+    tut_mid = r_tut.json()["matchId"]
+    # Draw turn 1 card -> authentic Soul Drain (#176)
+    act_draw = client.post(f"/api/v2/match/{tut_mid}/action", json={"action": "DRAW_CARD", "payload": {}}, headers=_hdr(tok))
+    assert act_draw.status_code == 200
+    p1_hand = act_draw.json()["state"]["players"]["1"]["hand"]
+    assert any(c["name"] == "Soul Drain" and c["collector_number"] == 176 for c in p1_hand)
+
+
+def test_register_auto_login_case_insensitive_and_nickname_dedup(client):
+    r1 = client.post("/api/auth/register", json={"email": "PilotHero@Example.COM", "password": "secret123", "faction": "solari"})
+    assert r1.status_code == 200, r1.text
+    d1 = r1.json()
+    assert d1["ok"] is True
+    assert d1["token"]
+    assert d1["user"]["nickname"] == "pilothero"
+
+    # Second user with same email prefix on a different domain gets deduplicated nickname instead of IntegrityError
+    r2 = client.post("/api/auth/register", json={"email": "pilothero@otherdomain.com", "password": "secret123", "faction": "umbri"})
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["user"]["nickname"] == "pilothero1"
+
+    # Case-insensitive login succeeds
+    lg = client.post("/api/auth/login", json={"email": "  pilothero@example.com  ", "password": "secret123"})
+    assert lg.status_code == 200, lg.text
+    assert lg.json()["user"]["nickname"] == "pilothero"
+
 
 def test_slot_spoofing_rejected_and_opponent_hand_redacted(client):
     t1 = _make_user(client, "SecAlice", 1450)

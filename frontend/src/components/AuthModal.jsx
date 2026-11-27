@@ -9,10 +9,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const [password, setPassword] = useState('');
   const [faction, setFaction] = useState('solari');
   const [referrerCode, setReferrerCode] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setIsLogin(initialMode !== "register");
+      setErrorMsg('');
     }
   }, [isOpen, initialMode]);
 
@@ -33,12 +36,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLogin) {
-      await login(email, password);
-    } else {
-      await register(email, password, faction, referrerCode || null);
+    setErrorMsg('');
+    setSubmitting(true);
+    try {
+      const res = isLogin
+        ? await login(email, password)
+        : await register(email, password, faction, referrerCode || null);
+      if (res?.ok) {
+        onClose();
+      } else if (res?.error) {
+        setErrorMsg(res.error);
+      }
+    } finally {
+      setSubmitting(false);
     }
-    onClose();
   };
 
   return (
@@ -51,14 +62,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
         {/* TABS */}
         <div className="flex border-b border-white/10">
           <button 
+            type="button"
             className={`flex-1 py-4 text-sm font-bold tracking-widest uppercase transition-colors ${isLogin ? 'text-[#F2A900] border-b-2 border-[#F2A900]' : 'text-white/50 hover:text-white'}`}
-            onClick={() => setIsLogin(true)}
+            onClick={() => { setIsLogin(true); setErrorMsg(''); }}
           >
             Login
           </button>
           <button 
+            type="button"
             className={`flex-1 py-4 text-sm font-bold tracking-widest uppercase transition-colors ${!isLogin ? 'text-[#00BFFF] border-b-2 border-[#00BFFF]' : 'text-white/50 hover:text-white'}`}
-            onClick={() => setIsLogin(false)}
+            onClick={() => { setIsLogin(false); setErrorMsg(''); }}
           >
             Register
           </button>
@@ -131,8 +144,18 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
               </div>
             )}
 
-            <button type="submit" className={`w-full py-3.5 rounded-xl text-black font-bold tracking-wide transition-colors ${isLogin ? 'bg-[#F2A900] hover:bg-[#ffc21f]' : 'bg-[#00BFFF] hover:bg-[#20caff]'}`}>
-              {isLogin ? 'Sign In' : 'Create Account'}
+            {errorMsg && (
+              <div className="rounded-xl px-4 py-2.5 bg-red-500/15 border border-red-500/40 text-red-300 text-xs font-head leading-relaxed">
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className={`w-full py-3.5 rounded-xl text-black font-bold tracking-wide transition-colors disabled:opacity-50 ${isLogin ? 'bg-[#F2A900] hover:bg-[#ffc21f]' : 'bg-[#00BFFF] hover:bg-[#20caff]'}`}
+            >
+              {submitting ? (isLogin ? 'Signing In…' : 'Creating Account…') : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </div>
         </form>

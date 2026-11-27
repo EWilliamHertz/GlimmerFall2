@@ -135,20 +135,101 @@ def get_rank_tier(mmr: int) -> dict:
         }
 
 
+import queue as _queue
 import threading
+import time as _time
 
 DB_POOL = None
 DB_POOL_MAX = int(os.environ.get("DB_POOL_MAX", "24"))
+DB_IDLE_TTL = 180.0  # recycle idle sockets before Neon's 300s idle drop
 DB_SEM = threading.BoundedSemaphore(DB_POOL_MAX)
+
+
+class _WarmLifoPool:
+    """Lock-free LIFO connection pool that keeps up to `maxconn` warm connections
+    alive (unlike psycopg2's SimpleConnectionPool which closes every connection
+    above `minconn` on putconn and holds a global lock during TLS connect)."""
+
+    def __init__(self, maxconn: int, dsn: str):
+        self.maxconn = maxconn
+        self.dsn = dsn
+        self._idle = _queue.LifoQueue(maxsize=maxconn)
+        self._ts = {}
+
+    def _open_new(self):
+        conn = psycopg2.connect(
+            dsn=self.dsn,
+            connect_timeout=8,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5,
+        )
+        self._ts[id(conn)] = _time.monotonic()
+        return conn
+
+    def getconn(self):
+        now = _time.monotonic()
+        while True:
+            try:
+                conn = self._idle.get_nowait()
+            except _queue.Empty:
+                return self._open_new()
+            last_used = self._ts.pop(id(conn), 0.0)
+            if conn.closed or (now - last_used) > DB_IDLE_TTL:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                continue
+            return conn
+
+    def putconn(self, conn, close=False):
+        if conn is None:
+            return
+        self._ts.pop(id(conn), None)
+        if close or conn.closed:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return
+        try:
+            status = conn.info.transaction_status
+            if status == psycopg2.extensions.TRANSACTION_STATUS_UNKNOWN:
+                conn.close()
+                return
+            if status != psycopg2.extensions.TRANSACTION_STATUS_IDLE:
+                conn.rollback()
+            self._ts[id(conn)] = _time.monotonic()
+            self._idle.put_nowait(conn)
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def closeall(self):
+        while True:
+            try:
+                conn = self._idle.get_nowait()
+            except _queue.Empty:
+                break
+            self._ts.pop(id(conn), None)
+            try:
+                conn.close()
+            except Exception:
+                pass
+
 
 def init_db_pool():
     global DB_POOL, DB_SEM
+    if not DATABASE_URL:
+        DB_POOL = None
+        return
     try:
         DB_SEM = threading.BoundedSemaphore(DB_POOL_MAX)
-        DB_POOL = pgpool.ThreadedConnectionPool(
-            1, DB_POOL_MAX, dsn=DATABASE_URL,
-            keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
-        )
+        DB_POOL = _WarmLifoPool(DB_POOL_MAX, dsn=DATABASE_URL)
         logger.info("Database connection pool initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database connection pool: {e}")
@@ -163,7 +244,7 @@ def _acquire_pooled_conn():
         init_db_pool()
     if DB_POOL is None:
         raise HTTPException(status_code=503, detail="Database unavailable")
-    if not DB_SEM.acquire(timeout=4.0):
+    if not DB_SEM.acquire(timeout=10.0):
         raise HTTPException(status_code=503, detail="Database busy, please retry")
     try:
         return DB_POOL.getconn()
@@ -185,24 +266,27 @@ def _release_pooled_conn(conn, close=False):
 
 class DB:
     """Resilient DB context manager. Queues burst requests via DB_SEM and recycles
-    dropped SSL connections cleanly."""
+    dropped SSL connections cleanly, including cold-wake connect retries."""
 
     def __enter__(self):
         self.conn = None
         self.cur = None
         last_err = None
-        for _ in range(3):
-            self.conn = _acquire_pooled_conn()
+        for attempt in range(3):
             try:
+                self.conn = _acquire_pooled_conn()
                 self.conn.autocommit = True
                 self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
                 self.cur.execute("SELECT 1")
                 return self.cur
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 last_err = e
-                _release_pooled_conn(self.conn, close=True)
-                self.conn = None
-        raise last_err
+                if self.conn is not None:
+                    _release_pooled_conn(self.conn, close=True)
+                    self.conn = None
+                if attempt < 2:
+                    _time.sleep(0.15 * (attempt + 1))
+        raise HTTPException(status_code=503, detail="Database reconnecting, please try again.") from last_err
 
     def __exit__(self, exc_type, *a):
         try:
@@ -226,9 +310,9 @@ class DBTx:
         self.conn = None
         self.cur = None
         last_err = None
-        for _ in range(3):
-            self.conn = _acquire_pooled_conn()
+        for attempt in range(3):
             try:
+                self.conn = _acquire_pooled_conn()
                 self.conn.autocommit = True
                 self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
                 self.cur.execute("SELECT 1")
@@ -236,9 +320,12 @@ class DBTx:
                 return self.cur
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 last_err = e
-                _release_pooled_conn(self.conn, close=True)
-                self.conn = None
-        raise last_err
+                if self.conn is not None:
+                    _release_pooled_conn(self.conn, close=True)
+                    self.conn = None
+                if attempt < 2:
+                    _time.sleep(0.15 * (attempt + 1))
+        raise HTTPException(status_code=503, detail="Database reconnecting, please try again.") from last_err
 
     def __exit__(self, exc_type, *a):
         bad_conn = False
@@ -1059,18 +1146,36 @@ def get_verification_email_html(nickname: str, token: str, origin: str) -> str:
 
 @api.post("/auth/register")
 def register(req: RegisterReq, request: Request):
+    email_clean = (req.email or "").strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(400, "Please enter a valid email address")
+    if not req.password or len(req.password) < 4:
+        raise HTTPException(400, "Password must be at least 4 characters")
+
     hashed = bcrypt.hashpw(req.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    nickname = req.email.split('@')[0]
+    base_nick = email_clean.split('@')[0][:24] or "player"
     token = str(uuid.uuid4())
-    is_admin = req.email.lower().endswith('@hatake.eu')
+    is_admin = email_clean.endswith('@hatake.eu')
 
     # generate unique referral_code for the new user
     import re as _re_reg
-    base = _re_reg.sub(r"[^a-zA-Z0-9]", "", nickname)[:8].lower() or "user"
+    base = _re_reg.sub(r"[^a-zA-Z0-9]", "", base_nick)[:8].lower() or "user"
 
     with DB() as cur:
+        cur.execute("SELECT 1 FROM users WHERE LOWER(email)=LOWER(%s)", (email_clean,))
+        if cur.fetchone():
+            raise HTTPException(400, "An account with this email already exists — try logging in.")
+
+        nickname = base_nick
+        for nsuf in range(0, 999):
+            cand_nick = base_nick if nsuf == 0 else f"{base_nick}{nsuf}"
+            cur.execute("SELECT 1 FROM users WHERE LOWER(nickname)=LOWER(%s)", (cand_nick,))
+            if not cur.fetchone():
+                nickname = cand_nick
+                break
+
         try:
-            # find unused code
+            # find unused referral code
             new_code = None
             for suffix in range(0, 999):
                 cand = base if suffix == 0 else f"{base}{suffix}"
@@ -1081,11 +1186,11 @@ def register(req: RegisterReq, request: Request):
                     break
             cur.execute("""
                 INSERT INTO users (email, password_hash, nickname, faction, is_admin, verification_token, referral_code)
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, nickname
-            """, (req.email, hashed, nickname, req.faction, is_admin, token, new_code))
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *
+            """, (email_clean, hashed, nickname, req.faction, is_admin, token, new_code))
             u = cur.fetchone()
         except psycopg2.IntegrityError:
-            raise HTTPException(400, "Email already exists")
+            raise HTTPException(400, "Email or nickname already exists")
 
         # If a referrer_code was supplied, insert a pending referral (matured on verify)
         if req.referrer_code:
@@ -1108,22 +1213,52 @@ def register(req: RegisterReq, request: Request):
         origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
             "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
-            "to": [req.email],
+            "to": [email_clean],
             "subject": "Awaken Your GlimmerFall Account",
             "html": get_verification_email_html(nickname, token, origin)
         })
     except Exception as e:
         logger.error(f"Resend error: {e}")
 
-    return {"ok": True, "message": "Registered! Please check your email to verify."}
+    jwt_token = jwt.encode({
+        "id": u["id"],
+        "email": u["email"],
+        "nickname": u["nickname"],
+        "is_admin": u["is_admin"],
+    }, JWT_SECRET, algorithm="HS256")
+
+    return {
+        "ok": True,
+        "message": f"Welcome, {u['nickname']}! Account created (check your email to verify).",
+        "token": jwt_token,
+        "user": {
+            "id": u["id"],
+            "email": u["email"],
+            "nickname": u["nickname"],
+            "isAdmin": u["is_admin"],
+            "isVerified": u["is_verified"],
+            "faction": u["faction"],
+            "avatar": u.get("avatar"),
+            "wins": u.get("wins") or 0,
+            "losses": u.get("losses") or 0,
+            "referrals": u.get("referrals") or 0,
+            "referral_code": u.get("referral_code"),
+            "glimmer_balance": u.get("glimmer_balance") or 0,
+            "bookings": u.get("bookings") or 0,
+            "badges": u.get("badges") or [],
+            "status": u.get("status") or "active",
+            "matchmaking": {"mmr": u.get("mmr") or 1400, "rank": u.get("rank") or "Gold II"},
+        },
+    }
 
 class ResendVerifyReq(BaseModel):
     email: str
 
 @api.post("/auth/resend-verify")
 def resend_verify(req: ResendVerifyReq, request: Request):
+    email_clean = (req.email or "").strip()
     with DB() as cur:
-        cur.execute("SELECT nickname, verification_token, is_verified FROM users WHERE email=%s", (req.email,))
+        cur.execute("SELECT email, nickname, verification_token, is_verified FROM users WHERE LOWER(email)=LOWER(%s) ORDER BY id ASC LIMIT 1", (email_clean,))
         u = cur.fetchone()
     if not u:
         raise HTTPException(404, "User not found")
@@ -1134,13 +1269,13 @@ def resend_verify(req: ResendVerifyReq, request: Request):
     if not token:
         token = str(uuid.uuid4())
         with DB() as cur:
-            cur.execute("UPDATE users SET verification_token=%s WHERE email=%s", (token, req.email))
+            cur.execute("UPDATE users SET verification_token=%s WHERE email=%s", (token, u["email"]))
     
     try:
         origin = request.headers.get("origin", "http://localhost:3000")
         resend.Emails.send({
             "from": "GlimmerFall <noreply@glimmerfalltcg.com>",
-            "to": [req.email],
+            "to": [u["email"]],
             "subject": "Awaken Your GlimmerFall Account",
             "html": get_verification_email_html(u['nickname'], token, origin)
         })
@@ -1151,11 +1286,12 @@ def resend_verify(req: ResendVerifyReq, request: Request):
 
 @api.post("/auth/login")
 def login(req: LoginReq):
+    email_clean = (req.email or "").strip()
     with DB() as cur:
-        cur.execute("SELECT * FROM users WHERE email=%s", (req.email,))
+        cur.execute("SELECT * FROM users WHERE LOWER(email)=LOWER(%s) ORDER BY id ASC LIMIT 1", (email_clean,))
         u = cur.fetchone()
     if not u or not bcrypt.checkpw(req.password.encode('utf-8'), u['password_hash'].encode('utf-8')):
-        raise HTTPException(401, "Invalid credentials")
+        raise HTTPException(401, "Incorrect email or password")
     if u.get("status") == "banned":
         raise HTTPException(403, "Account is banned")
     

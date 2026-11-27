@@ -90,27 +90,27 @@ export default function TutorialSandbox() {
       };
     }
 
-    // Turn 3+ (Player's second turn — enemy deployed a 1/2 Guard Sentinel!)
+    // Turn 3+ (Player's second turn — enemy deployed Astral Beacon 0/3 with Guard!)
     if (!p1.hasDrawnThisTurn) {
       return {
         stepLabel: "Lesson 6 of 6 · Breaking Through Guard",
-        text: "The enemy deployed Gloom Sentinel with GUARD (blocking direct Nexus attacks)! First, tap Draw to draw your turn card.",
+        text: "The enemy deployed Astral Beacon (0/3) with GUARD, blocking direct Nexus attacks! First, tap Draw to draw your turn card.",
         spotlight: "draw",
       };
     }
-    if (!p1.hasResonatedThisTurn && (p1.hand?.length || 0) > 1 && p1.energy < 1) {
+    if (!p1.hasResonatedThisTurn && (p1.hand?.length || 0) > 1 && p1.energy < 2) {
       return {
         stepLabel: "Lesson 6 of 6 · Charge a Second Node",
-        text: "Tap Emberwing Courier in hand and tap 'Charge as Node (+1)' so you have Energy for your spell!",
+        text: "Soul Drain costs 2 Energy, and you currently have 1/1! Tap Emberwing Courier in hand and tap 'Charge as Node (+1)' to reach 2/2 Energy.",
         spotlight: "hand",
       };
     }
     if ((p2.battlefield?.length || 0) > 0) {
       const hasSpell = p1.hand?.some((c) => c.cardType === "Flash" || c.cardType === "Rite");
-      if (hasSpell && p1.energy >= 1) {
+      if (hasSpell && p1.energy >= 2) {
         return {
           stepLabel: "Lesson 6 of 6 · Casting Spells",
-          text: "Tap 'Flare Strike' in your hand → tap 'Cast (1⚡)' → then tap the enemy Gloom Sentinel on the board to destroy their Guard!",
+          text: "Tap 'Soul Drain' in your hand → tap 'Cast (2⚡)' → then tap the enemy Astral Beacon on the board to deal 3 damage and destroy their Guard!",
           spotlight: "enemy-entity",
         };
       }
@@ -118,7 +118,7 @@ export default function TutorialSandbox() {
 
     return {
       stepLabel: "Final Blow · Shatter the Nexus!",
-      text: "The Guard is gone! Attack the Enemy Nexus with your ready Entity (or cast Flare Strike at the Enemy Nexus) to reduce it to 0 HP!",
+      text: "Astral Beacon is destroyed! Tap Solari Vanguard on your battlefield, then tap the Enemy Nexus (2 HP) to shatter it and win!",
       spotlight: "enemy-nexus",
     };
   }, [match?.state]);
