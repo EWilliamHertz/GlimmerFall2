@@ -1,28 +1,76 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Swords, Library, BookOpen, Package, Hammer, ArrowRight, Sparkles } from "lucide-react";
+import {
+  Swords,
+  Library,
+  BookOpen,
+  Package,
+  Hammer,
+  ArrowRight,
+  Sparkles,
+  GraduationCap,
+  Trophy,
+} from "lucide-react";
 import { api } from "@/lib/api";
-import { FACTIONS } from "@/lib/factions";
 import CardTemplate from "@/components/CardTemplate";
 
 const HERO_BG =
   "https://wqnuijtdmorxprhl.public.blob.vercel-storage.com/glimmerfall/static/hero_bg-LEXvPiF25DW4GwYAIML7yqFaTveuiz.png";
 
 const FEATURES = [
-  { to: "/play", icon: Swords, title: "Player Arena", desc: "Battle live opponents or the GlimmerBot AI on a full drag-and-drop board.", color: "#F2A900" },
-  { to: "/cards", icon: Library, title: "Card Database", desc: "Search and filter the complete 100-card Oracle across four factions.", color: "#00BFFF" },
-  { to: "/decks", icon: Hammer, title: "Deck Builder", desc: "Forge single-faction decks, track your mana curve and save your lists.", color: "#22E07B" },
-  { to: "/booster", icon: Package, title: "Booster Simulator", desc: "Crack packs and chase holographic Epics and Founders Foils.", color: "#9B30FF" },
-  { to: "/rules", icon: BookOpen, title: "Rulebook", desc: "Learn the tenets, keywords and faction lore of GlimmerFall.", color: "#F2A900" },
+  {
+    to: "/play",
+    icon: Swords,
+    title: "Battle Arena",
+    desc: "Queue Ranked Elo, Casual quickplay, Private Best-of-3 Lobbies, or GlimmerBot AI on mobile & desktop.",
+    color: "#F2A900",
+  },
+  {
+    to: "/sandbox",
+    icon: GraduationCap,
+    title: "Interactive Tutorial",
+    desc: "Learn Glimmer Nodes, instant Entities, Guard combat, and Flash spells hands-on in 2 minutes.",
+    color: "#00BFFF",
+  },
+  {
+    to: "/cards",
+    icon: Library,
+    title: "Card Database",
+    desc: "Explore and filter the complete 322-card First Edition Oracle across all four factions.",
+    color: "#38BDF8",
+  },
+  {
+    to: "/decks",
+    icon: Hammer,
+    title: "Deck Hub & Builder",
+    desc: "Forge 40-card decks, inspect curve analytics, import starter lists, and vote on community brews.",
+    color: "#22E07B",
+  },
+  {
+    to: "/booster",
+    icon: Package,
+    title: "Booster Simulator",
+    desc: "Crack packs and chase holographic Epics and Founders Foils.",
+    color: "#9B30FF",
+  },
+  {
+    to: "/learn",
+    icon: BookOpen,
+    title: "How to Play & Rules",
+    desc: "Master turn sequencing, keywords, faction synergies, and competitive Ranked tiers.",
+    color: "#F2A900",
+  },
 ];
 
 export default function Home() {
   const [cards, setCards] = useState([]);
-  const [stats, setStats] = useState({ total_preorders: 0 });
+
   useEffect(() => {
-    api.get("/cards").then((r) => setCards(r.data)).catch(() => {});
-    api.get("/admin/stats").then((r) => setStats(r.data)).catch(() => {});
+    api
+      .get("/cards")
+      .then((r) => setCards(r.data))
+      .catch(() => {});
   }, []);
 
   const showcase = React.useMemo(() => {
@@ -30,10 +78,8 @@ export default function Home() {
     ["Solari", "Umbri", "Terra", "Aether"].forEach((fac) => {
       let options = cards.filter((x) => x.faction === fac && (x.rarity === "Epic" || x.rarity === "Rare"));
       if (options.length === 0) options = cards.filter((x) => x.faction === fac);
-      
       if (options.length > 0) {
-        const randomCard = options[Math.floor(Math.random() * options.length)];
-        pick.push(randomCard);
+        pick.push(options[Math.floor(Math.random() * options.length)]);
       }
     });
     return pick;
@@ -45,83 +91,110 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img src={HERO_BG} alt="" className="w-full h-full object-cover opacity-55" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0C10]/40 via-[#0B0C10]/70 to-[#0B0C10]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0B0C10]/45 via-[#0B0C10]/75 to-[#0B0C10]" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-5 pt-24 pb-20 md:pt-32 md:pb-28 grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-12 md:pt-20 md:pb-24 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div>
             <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-head tracking-widest uppercase text-[#F2A900] mb-4 sm:mb-6"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> The Awakening · First Edition
+            </motion.div>
+
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-head tracking-widest uppercase text-[#F2A900] mb-6"
+              transition={{ duration: 0.6, delay: 0.05 }}
+              className="font-display font-black leading-[0.95] text-4xl sm:text-6xl lg:text-7xl"
             >
-              <Sparkles className="w-3.5 h-3.5" /> The Awakening · Set One
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.05 }}
-              className="font-display font-black leading-[0.95] text-5xl sm:text-6xl lg:text-7xl"
-            >
-              GLIMMER<span className="text-[#F2A900] drop-shadow-[0_0_25px_rgba(242,169,0,0.6)]">FALL</span>
-              <span className="block text-2xl sm:text-3xl lg:text-4xl mt-3 text-white/70 font-head font-light tracking-wide">
-                A Trading Card Game of Light &amp; Void for competitive players and collectors.
+              GLIMMER
+              <span className="text-[#F2A900] drop-shadow-[0_0_25px_rgba(242,169,0,0.6)]">FALL</span>
+              <span className="block text-lg sm:text-2xl lg:text-3xl mt-3 text-white/75 font-head font-light tracking-wide leading-snug">
+                A Tactical Trading Card Game of Light &amp; Void — built for mobile &amp; tabletop mastery.
               </span>
             </motion.h1>
+
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="mt-6 text-white/60 max-w-md text-base leading-relaxed"
+              transition={{ delay: 0.2 }}
+              className="mt-4 sm:mt-6 text-white/65 max-w-lg text-sm sm:text-base leading-relaxed font-head"
             >
-              Channel Resonance, deploy Entities and weave spells across four warring factions.
-              Command your Nexus and shatter your rival's Nexus.
+              Turn any card into a Glimmer Node, deploy Entities ready to strike immediately, and weave instant Flash spells across four warring factions.
             </motion.p>
+
+            {/* Primary Mobile-First CTAs */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="mt-9 flex flex-wrap gap-4"
+              transition={{ delay: 0.3 }}
+              className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap gap-3"
             >
               <Link
-                to="/shop"
-                className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f] transition-all shadow-[0_0_30px_rgba(242,169,0,0.45)]"
+                to="/play"
+                className="group inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-[#F2A900] text-black font-head font-bold hover:bg-[#ffc21f] transition-all shadow-[0_0_30px_rgba(242,169,0,0.45)]"
               >
-                <Package className="w-5 h-5" /> Reserve a First Edition Box
+                <Swords className="w-5 h-5" /> Play Free in Arena
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
-                to="/stores"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
+                to="/sandbox"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-[#00BFFF]/15 border border-[#00BFFF]/40 text-[#7FDBFF] font-head font-bold hover:bg-[#00BFFF]/25 transition-all"
               >
-                <Library className="w-5 h-5" /> Become a Sanctioned Store
+                <GraduationCap className="w-5 h-5" /> 2-Min Tutorial
               </Link>
               <Link
-                to="/play"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
+                to="/shop"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl glass font-head font-semibold hover:border-white/25 transition-all text-sm"
               >
-                <Swords className="w-5 h-5" /> Join the Playtest
-              </Link>
-              <Link
-                to="/stores#events"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full glass font-head font-semibold hover:border-white/25 transition-all"
-              >
-                <Hammer className="w-5 h-5" /> Host an Event
+                <Package className="w-4 h-4 text-[#F2A900]" /> Reserve 1st Edition Box
               </Link>
             </motion.div>
+
+            {/* Quick Secondary Links */}
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-head text-white/55">
+              <Link to="/learn" className="hover:text-[#F2A900] flex items-center gap-1">
+                <BookOpen className="w-3.5 h-3.5" /> How to Play Guide
+              </Link>
+              <Link to="/leaderboard" className="hover:text-[#00BFFF] flex items-center gap-1">
+                <Trophy className="w-3.5 h-3.5" /> Ranked Ladder
+              </Link>
+              <Link to="/stores" className="hover:text-white">
+                Sanctioned Stores &amp; Events →
+              </Link>
+            </div>
           </div>
 
-          {/* floating cards */}
+          {/* Mobile Card Showcase Rail */}
+          {showcase.length > 0 && (
+            <div className="lg:hidden -mx-4 px-4 flex gap-3 overflow-x-auto no-scrollbar py-2">
+              {showcase.map((c) => (
+                <Link key={c.id} to="/cards" className="shrink-0">
+                  <CardTemplate card={c} size="sm" tilt={false} />
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Desktop Floating Cards */}
           <div className="relative h-[380px] hidden lg:block">
             {showcase.map((c, i) => (
               <motion.div
                 key={c.id}
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.12 }}
+                transition={{ delay: 0.25 + i * 0.12 }}
                 className="absolute animate-floaty"
-                style={{ left: `${i * 20}%`, top: `${(i % 2) * 60}px`, animationDelay: `${i * 0.8}s`, zIndex: i }}
+                style={{
+                  left: `${i * 20}%`,
+                  top: `${(i % 2) * 56}px`,
+                  animationDelay: `${i * 0.8}s`,
+                  zIndex: i,
+                }}
               >
                 <CardTemplate card={c} size="lg" tilt />
               </motion.div>
@@ -130,116 +203,97 @@ export default function Home() {
         </div>
       </section>
 
-      {/* TRUST BUILDING SECTION */}
-      <section className="max-w-7xl mx-auto px-5 py-12">
-        <div className="glass rounded-3xl p-8 md:p-12 border border-white/10">
-          <h2 className="text-3xl font-display font-bold text-white mb-6">Project Transparency</h2>
-          <div className="grid md:grid-cols-2 gap-8 text-white/70 font-head">
-            <div>
-              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Development & Founder</h3>
-              <p className="mb-4">
-                GlimmerFall is created by a passionate solo founder with a history in TCG game design. We are currently in the late playtest stage, refining the final card balancing and physical production logistics.
-              </p>
-              
-              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">First Edition Production & Quality</h3>
-              <p>
-                The 500-box figure represents our initial <strong>production cap</strong> for the First Edition print run, not our current inventory count. By capping the first run, we ensure the highest quality control and exclusivity for early supporters.
-              </p>
-              <blockquote className="mt-4 border-l-2 border-[#F2A900] pl-4 italic text-white/60 text-sm">
-                "To guarantee an uncompromising, premium feel, all GlimmerFall physical cards and sealed products are manufactured in the exact same facility that prints one of the world's most internationally established TCGs."
-              </blockquote>
-            </div>
-            <div>
-              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Shipping & Fulfillment</h3>
-              <p className="mb-4">
-                Expected shipping timeframe is Q4 2026. We are partnering with reliable logistics providers to ensure your boxes arrive in mint condition worldwide.
-              </p>
-              
-              <h3 className="text-[#00BFFF] font-semibold text-lg mb-2">Policies & Contact</h3>
-              <p>
-                We offer a hassle-free refund and cancellation policy anytime before shipping begins. For inquiries or support, please <Link to="/support" className="text-[#00BFFF] hover:underline">submit a ticket on our Support page</Link>.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* LORE SECTION */}
-      <section className="max-w-5xl mx-auto px-5 pt-24 pb-12 text-center">
-        <h2 className="font-display text-4xl md:text-6xl font-black mb-8 text-white drop-shadow-md">
-          The World of GlimmerFall
-        </h2>
-        <div className="space-y-6 text-white/70 font-head text-lg md:text-xl leading-relaxed max-w-4xl mx-auto">
-          <p>
-            Before time was given shape, there was only the radiance of the Glimmer and the silence of the Fall. Between them stood the Nexus, a crystalline heart that bound matter, memory, and possibility into one living reality. For ages, its light held the Void at bay. Then the Nexus shattered, scattering its power across four wounded realms and awakening forces that had slept beneath the world.
-          </p>
-          <p>
-            Now, powerful Summoners channel Resonance to call Entities from the fragments of creation and wield devastating Rites. Every battle is a struggle for control of the Nexus shards, and every victory reshapes the balance between Light and Void. Choose your faction, gather your strength, and enter a war where the fate of reality may rest on a single card.
-          </p>
-        </div>
-      </section>
-
-      {/* THE FOUR FACTIONS */}
-      <section className="max-w-7xl mx-auto px-5 py-10 pb-20">
-        <h2 className="font-display text-sm font-bold mb-10 text-center uppercase tracking-[0.3em] text-white/40">
-          Choose Your Path
-        </h2>
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="glass rounded-3xl p-8 md:p-10 relative overflow-hidden group border border-[#F2A900]/20 hover:border-[#F2A900]/50 transition-colors">
-            <div className="absolute right-0 top-0 w-64 h-64 bg-[#F2A900]/10 rounded-full blur-[80px] -mr-10 -mt-10 group-hover:bg-[#F2A900]/30 transition-all duration-700" />
-            <h3 className="font-display text-3xl font-black text-[#F2A900] mb-4 drop-shadow-[0_0_10px_rgba(242,169,0,0.5)]">Solari, The Light</h3>
-            <p className="text-white/70 font-head leading-relaxed text-lg relative z-10">
-              The Solari believe that truth is the first law of creation. Their radiant citadels rise above fields of gold and crystal, guarded by angelic heralds and unbreakable Bastions. Solari forces protect what is fragile, restore what is wounded, and gather celestial power until their greatest Entities descend in overwhelming brilliance. Choose Solari if you want to heal, defend, and outlast your opponent before ending the battle beneath the weight of divine radiance.
-            </p>
-          </div>
-
-          <div className="glass rounded-3xl p-8 md:p-10 relative overflow-hidden group border border-[#9932CC]/20 hover:border-[#9932CC]/50 transition-colors">
-            <div className="absolute right-0 top-0 w-64 h-64 bg-[#9932CC]/10 rounded-full blur-[80px] -mr-10 -mt-10 group-hover:bg-[#9932CC]/30 transition-all duration-700" />
-            <h3 className="font-display text-3xl font-black text-[#9932CC] mb-4 drop-shadow-[0_0_10px_rgba(153,50,204,0.5)]">Umbri, The Shadow</h3>
-            <p className="text-white/70 font-head leading-relaxed text-lg relative z-10">
-              The Umbri walk where light cannot reach, carrying secrets that were never meant to be remembered. Their assassins move through smoke, fractured dreams, and the edges of the Void, striking before their enemies can react. Umbri decks disrupt plans, drain life, exploit Stealth, and sacrifice their own forces to unlock forbidden power. Choose Umbri if you prefer deception, precision, and victory earned from the shadows.
-            </p>
-          </div>
-
-          <div className="glass rounded-3xl p-8 md:p-10 relative overflow-hidden group border border-[#22E07B]/20 hover:border-[#22E07B]/50 transition-colors">
-            <div className="absolute right-0 top-0 w-64 h-64 bg-[#22E07B]/10 rounded-full blur-[80px] -mr-10 -mt-10 group-hover:bg-[#22E07B]/30 transition-all duration-700" />
-            <h3 className="font-display text-3xl font-black text-[#22E07B] mb-4 drop-shadow-[0_0_10px_rgba(34,224,123,0.5)]">Terra, The Earth</h3>
-            <p className="text-white/70 font-head leading-relaxed text-lg relative z-10">
-              Terra is the oldest living force in GlimmerFall: root, stone, storm, and blood. Its primal beasts roam beside colossal elementals, while ancient guardians endure wounds that would destroy lesser Entities. Terra Summoners accelerate their resources, build an imposing board, and turn patience into unstoppable strength. Choose Terra if you want to grow beyond your opponent’s reach, command massive Entities, and win through resilience and brute force.
-            </p>
-          </div>
-
-          <div className="glass rounded-3xl p-8 md:p-10 relative overflow-hidden group border border-[#00BFFF]/20 hover:border-[#00BFFF]/50 transition-colors">
-            <div className="absolute right-0 top-0 w-64 h-64 bg-[#00BFFF]/10 rounded-full blur-[80px] -mr-10 -mt-10 group-hover:bg-[#00BFFF]/30 transition-all duration-700" />
-            <h3 className="font-display text-3xl font-black text-[#00BFFF] mb-4 drop-shadow-[0_0_10px_rgba(0,191,255,0.5)]">Aether, The Magic</h3>
-            <p className="text-white/70 font-head leading-relaxed text-lg relative z-10">
-              Aether belongs to those who refuse to accept that reality has fixed boundaries. Within their storm-lit towers, wizards and starforged scholars bend distance, time, and probability through disciplined Resonance. Aether decks master Rites, draw additional cards, manipulate the flow of battle, and assemble unpredictable combinations that can transform a losing position into sudden victory. Choose Aether if you enjoy clever sequencing, strategic flexibility, and the thrill of discovering what the next Rite can make possible.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* FEATURES */}
-      <section className="max-w-7xl mx-auto px-5 pb-24">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map((feat) => (
             <Link
               key={feat.to}
               to={feat.to}
               data-testid={`home-feature-${feat.title.toLowerCase().replace(/\s+/g, "-")}`}
-              className="glass rounded-2xl p-7 group hover:-translate-y-1 transition-transform relative overflow-hidden"
+              className="glass rounded-2xl p-5 sm:p-6 group hover:-translate-y-1 transition-transform relative overflow-hidden flex items-start gap-4 sm:flex-col sm:gap-0"
             >
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 sm:mb-4"
                 style={{ background: `${feat.color}1f`, color: feat.color }}
               >
-                <feat.icon className="w-6 h-6" />
+                <feat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h3 className="font-head text-lg font-semibold mb-2">{feat.title}</h3>
-              <p className="text-white/55 text-sm leading-relaxed">{feat.desc}</p>
-              <ArrowRight className="w-5 h-5 mt-4 text-white/30 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              <div className="flex-1">
+                <h3 className="font-head text-base sm:text-lg font-bold mb-1">{feat.title}</h3>
+                <p className="text-white/55 text-xs sm:text-sm leading-relaxed font-head">{feat.desc}</p>
+              </div>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* THE FOUR FACTIONS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <h2 className="font-display text-xs font-bold mb-6 text-center uppercase tracking-[0.3em] text-white/40">
+          Four Warring Realms
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {[
+            {
+              title: "Solari, The Light",
+              color: "#F2A900",
+              body: "Radiant citadels guarded by angelic heralds and unbreakable Bastions. Solari forces heal wounds, fortify allies with Relics, and overwhelm foes beneath divine brilliance.",
+            },
+            {
+              title: "Umbri, The Shadow",
+              color: "#9B30FF",
+              body: "Assassins walking through smoke and the edges of the Void. Umbri decks disrupt hands, exploit Stealth and Lethal, and sacrifice pawns to awaken forbidden power.",
+            },
+            {
+              title: "Terra, The Earth",
+              color: "#22E07B",
+              body: "Root, stone, storm, and primal blood. Terra Summoners accelerate their Glimmer Nodes and command colossal elementals with unstoppable Overwhelm.",
+            },
+            {
+              title: "Aether, The Magic",
+              color: "#00BFFF",
+              body: "Starforged scholars bending time and probability. Aether decks master Rites and reactive Flashes, draw extra cards, and turn clever sequencing into sudden victory.",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="glass rounded-3xl p-6 sm:p-8 relative overflow-hidden border transition-colors"
+              style={{ borderColor: `${f.color}33` }}
+            >
+              <h3 className="font-display text-2xl font-black mb-2.5" style={{ color: f.color }}>
+                {f.title}
+              </h3>
+              <p className="text-white/70 font-head leading-relaxed text-sm sm:text-base">{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PROJECT TRANSPARENCY */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-14">
+        <div className="glass rounded-3xl p-6 sm:p-10 border border-white/10">
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-5">
+            Project Transparency &amp; First Edition Print Run
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8 text-white/70 font-head text-sm leading-relaxed">
+            <div className="space-y-3">
+              <h3 className="text-[#00BFFF] font-semibold text-base">Development &amp; Quality</h3>
+              <p>
+                GlimmerFall is crafted for both competitive digital play and physical tabletop collection. Our First Edition print run is capped at <strong>500 booster boxes</strong> for early supporters, manufactured at an internationally established TCG facility.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-[#00BFFF] font-semibold text-base">Fulfillment &amp; Support</h3>
+              <p>
+                Expected physical shipping timeframe is Q4 2026 with hassle-free pre-shipment cancellation anytime. Questions?{" "}
+                <Link to="/support" className="text-[#00BFFF] hover:underline">
+                  Contact Support
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
         </div>
       </section>
     </div>

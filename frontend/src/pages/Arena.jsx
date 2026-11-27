@@ -1,1473 +1,202 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Swords, Bot, Users, Shield, Zap, Layers, Sparkles, ScrollText,
-  Play, Pause, SkipBack, SkipForward, LogOut, Crown, Hand as HandIcon, Skull, Target, X, Sword, Heart, Eye, Share2, Copy, Facebook
-} from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
-import { api } from "@/lib/api";
-import { FACTIONS, factionCfg } from "@/lib/factions";
-import CardTemplate from "@/components/CardTemplate";
-import ProjectileLayer, { fireAttackProjectile } from "@/components/ProjectileLayer";
-import FactionParticles from "@/components/FactionParticles";
+import { api, ensurePlayerSession } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import FeedbackModal from "@/components/FeedbackModal";
 import ReplayViewer from "@/components/ReplayViewer";
-import { useAuth } from "@/lib/auth";
+import PlayHub from "@/arena/PlayHub";
+import LobbyRoom from "@/arena/LobbyRoom";
+import GameBoard from "@/arena/GameBoard";
+import { useMatchStream } from "@/arena/useRealtime";
 
-const SESSION_KEY = "glimmerfall_session";
+const SESSION_KEY = "glimmerfall_session_v2";
 
-const playSound = (type, muted = false) => {
-  if (muted) return;
-  try {
-    const audio = new Audio(`/audio/${type}.mp3`);
-    audio.volume = 0.3;
-    audio.play().catch(() => {});
-  } catch(e) {}
-};
-
-const CardTooltip = ({ card, children, side="top" }) => {
-  if (!card) return children;
-  const f = factionCfg(card.faction);
-  return (
-    <HoverCard openDelay={200} closeDelay={0}>
-      <HoverCardTrigger asChild>
-        {children}
-      </HoverCardTrigger>
-      <HoverCardContent side={side} sideOffset={8} className="w-72 bg-black/95 border border-white/20 shadow-2xl p-4 z-[100]">
-        <div className="flex justify-between items-start mb-2">
-          <h4 className="font-display text-xl font-bold" style={{color: f.color}}>{card.name}</h4>
-          <span className="text-[10px] font-head px-2 py-0.5 rounded-full" style={{background: `${f.color}22`, color: f.color}}>{card.card_type || card.cardType}</span>
-        </div>
-        <div className="flex gap-4 mb-3 text-xs font-head">
-          {card.cost !== null && <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-[#F2A900]"/> {card.cost}</span>}
-          {card.power !== null && card.power !== "None" && <span className="flex items-center gap-1"><Sword className="w-3 h-3 text-[#FF5252]"/> {card.power}</span>}
-          {card.health !== null && card.health !== "None" && <span className="flex items-center gap-1"><Heart className="w-3 h-3 text-[#22E07B]"/> {card.health}</span>}
-        </div>
-        {card.keywords && card.keywords !== "None" && (
-          <div className="mb-2 text-[11px] font-head font-bold text-[#00BFFF] uppercase tracking-wide">{card.keywords}</div>
-        )}
-        <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{card.description || "No rules text."}</p>
-      </HoverCardContent>
-    </HoverCard>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/* LOBBY                                                              */
-/* ------------------------------------------------------------------ */
-function Lobby({ onStart }) {
-  const { user } = useAuth();
-  const [username, setUsername] = useState(user ? user.nickname : localStorage.getItem("gf_username") || "");
-  const [room, setRoom] = useState("");
-  const [faction, setFaction] = useState(null);
-  const [deckCards, setDeckCards] = useState(null);
-  const [deckName, setDeckName] = useState("");
-  const [showDeckModal, setShowDeckModal] = useState(false);
-  const [personalDecks, setPersonalDecks] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [featuredGames, setFeaturedGames] = useState([]);
-
-  const [queueSize, setQueueSize] = useState(0);
-
-  useEffect(() => {
-    // Fetch personal decks from server for logged-in users, fall back to
-    // localStorage for anonymous users.
-    if (user) {
-      api.get("/auth/me/decks").then((r) => {
-        const decks = (r.data || []).map((d) => ({
-          id: d.id,
-          name: d.deck_name,
-          cards: (d.cards || []).map((c) => ({ id: c.card_id || c.card_name, name: c.card_name, count: c.count })),
-        }));
-        setPersonalDecks(decks);
-      }).catch(() => setPersonalDecks([]));
-    } else {
-      try {
-        const stored = JSON.parse(localStorage.getItem("glimmerfall_decks") || "[]");
-        // Old format was an object keyed by id; new format is an array.
-        setPersonalDecks(Array.isArray(stored) ? stored : Object.values(stored));
-      } catch (e) { setPersonalDecks([]); }
-    }
-
-    const fetchQueue = async () => {
-      try {
-        const { data } = await api.get("/matchmaking/queue_size");
-        setQueueSize(data.queue_size || 0);
-      } catch (e) {}
-    };
-    const fetchFeatured = async () => {
-      try {
-        const { data } = await api.get("/featured");
-        setFeaturedGames(data);
-      } catch (e) {}
-    };
-    fetchQueue();
-    fetchFeatured();
-    const int = setInterval(() => {
-      fetchQueue();
-      fetchFeatured();
-    }, 5000);
-    return () => clearInterval(int);
-  }, [user]);
-
-  const go = async (mode) => {
-    if (!username.trim()) return toast.error("Enter a summoner name.");
-    if (!deckName) return toast.error("Please choose a deck.");
-    localStorage.setItem("gf_username", username.trim());
-    setLoading(true);
-    try {
-      const body = { username: username.trim(), faction, deckCards, deckName };
-      if (mode === "ai") body.vsAI = true;
-      if (mode === "room") body.roomCode = room.trim();
-      const r = await api.post("/matchmaking", body);
-      onStart({ ...r.data, username: username.trim() });
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "Matchmaking failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectStarter = (d) => {
-    setFaction(d.factions);
-    setDeckCards(null);
-    setDeckName(d.name);
-    setShowDeckModal(false);
-  };
-
-  const selectPersonal = (pd) => {
-    const list = [];
-    pd.cards.forEach(c => {
-      for(let i=0; i<c.count; i++) list.push(c.id);
-    });
-    setDeckCards(list);
-    setFaction(null);
-    setDeckName(pd.name);
-    setShowDeckModal(false);
-  };
-
-  return (
-    <div className="max-w-lg mx-auto px-5 py-16">
-      <div className="text-center mb-8">
-        <h1 className="font-display text-4xl md:text-5xl font-bold">Enter the Arena</h1>
-        <p className="text-white/50 font-head mt-2">Battle the AI or challenge a friend by room code.</p>
-      </div>
-
-      <div className="glass rounded-3xl p-7 space-y-6">
-        <div>
-          <label className="text-xs font-head uppercase tracking-wider text-white/50">Summoner Name</label>
-          {user ? (
-            <div className="mt-1.5 w-full bg-black/40 border border-[#F2A900]/30 rounded-xl px-4 py-3 text-[#F2A900] font-bold font-head shadow-inner flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> {user.nickname} <span className="text-white/40 font-normal text-sm ml-auto">(Logged In)</span>
-            </div>
-          ) : (
-            <input
-              data-testid="lobby-username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. Nyx"
-              className="mt-1.5 w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#F2A900]/60 font-head"
-            />
-          )}
-        </div>
-
-        <div>
-          <label className="text-xs font-head uppercase tracking-wider text-white/50">Your Deck</label>
-          <button 
-            onClick={() => setShowDeckModal(true)}
-            className="mt-1.5 w-full bg-black/40 border border-white/10 hover:bg-white/5 rounded-xl px-4 py-3 text-left font-head transition-all flex items-center justify-between"
-          >
-            <span className={!deckName ? "text-white/40 italic" : ""}>{deckName || "Please choose a deck."}</span>
-            <Layers className="w-4 h-4 text-white/50" />
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showDeckModal && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-              <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="glass rounded-3xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col gap-6 relative">
-                <button onClick={() => setShowDeckModal(false)} className="absolute top-6 right-6 text-white/50 hover:text-white"><X className="w-6 h-6" /></button>
-                
-                <div>
-                  <h2 className="font-display text-2xl font-bold mb-4">Personal Decks</h2>
-                  {personalDecks.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {personalDecks.map((pd, i) => (
-                        <button key={i} onClick={() => selectPersonal(pd)} className="text-left p-3 rounded-xl border border-white/10 bg-black/20 hover:bg-white/5 transition-all">
-                          <div className="font-head text-sm font-semibold text-[#F2A900]">{pd.name}</div>
-                          <div className="text-white/50 text-xs mt-1">{pd.cards?.reduce((a, b) => a + b.count, 0) || 0} cards</div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-white/40 text-sm font-head italic px-2">No personal decks found. Build one in the Deck Builder!</div>
-                  )}
-                </div>
-
-                <div>
-                  <h2 className="font-display text-2xl font-bold mb-4">Starter Decks</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      { name: "The Graveglass Veil", desc: "A dark Umbri deck specializing in void manipulation and assassinations.", factions: "Umbri", color: "#9B30FF" },
-                      { name: "Fractured Continuum", desc: "An Aether deck focused on reality distortion, card draw, and spells.", factions: "Aether", color: "#38CCFF" },
-                      { name: "Solar Singularity", desc: "A top-tier aggressive deck combining the raw power of Sun with Void singularity loops.", factions: "Solari,Umbri", color: "#F2A900" },
-                      { name: "Gaia's Loop", desc: "A control deck leveraging infinite nature cycles and magical manipulation.", factions: "Terra,Aether", color: "#22E07B" },
-                      { name: "Random Chaos", desc: "A chaotic mix of all cards. Anything can happen.", factions: null, color: "#ffffff" }
-                    ].map((d) => (
-                      <button
-                        key={d.name}
-                        onClick={() => selectStarter(d)}
-                        className={`text-left p-3 rounded-xl border transition-all ${deckName === d.name ? "bg-white/10" : "bg-black/20 hover:bg-white/5"}`}
-                        style={{ borderColor: deckName === d.name ? d.color : "rgba(255,255,255,0.1)" }}
-                      >
-                        <div className="font-head text-sm font-semibold" style={{ color: d.color }}>{d.name}</div>
-                        <div className="text-white/50 text-xs mt-1 leading-relaxed">{d.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <button
-          data-testid="lobby-play-ai"
-          onClick={() => go("ai")}
-          disabled={loading}
-          className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f] transition-colors shadow-[0_0_25px_rgba(242,169,0,0.4)] disabled:opacity-60"
-        >
-          <Bot className="w-5 h-5" /> Play vs GlimmerBot (AI)
-        </button>
-
-        <div className="flex items-center gap-3 text-white/30 text-xs font-head">
-          <span className="flex-1 h-px bg-white/10" /> OR MULTIPLAYER <span className="flex-1 h-px bg-white/10" />
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            data-testid="lobby-room-code"
-            value={room}
-            onChange={(e) => setRoom(e.target.value.toUpperCase())}
-            placeholder="Room code (optional)"
-            className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-[#00BFFF]/60 font-head uppercase tracking-widest"
-          />
-          <button
-            data-testid="lobby-join-room"
-            onClick={() => go("room")}
-            disabled={loading}
-            className="px-5 rounded-xl bg-[#00BFFF] text-black font-head font-semibold hover:bg-[#38ccff] transition-colors disabled:opacity-60"
-          >
-            <Users className="w-5 h-5" />
-          </button>
-        </div>
-        <button
-          data-testid="lobby-quick-match"
-          onClick={() => go("quick")}
-          disabled={loading}
-          className="w-full flex flex-col items-center justify-center gap-1 px-5 py-3 rounded-xl glass font-head hover:border-white/25 transition-colors disabled:opacity-60"
-        >
-          <div className="flex items-center gap-2">
-             <Swords className="w-4 h-4" /> Solo Queue, Match Making
-          </div>
-          <div className="text-[10px] text-white/50">{queueSize} in queue</div>
-        </button>
-
-        {featuredGames.length > 0 && (
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <h3 className="text-xs font-head uppercase tracking-wider text-[#00BFFF] font-bold mb-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" /> Featured Live Matches
-            </h3>
-            <div className="flex flex-col gap-2">
-              {featuredGames.map(fg => (
-                <a
-                  key={fg.id}
-                  href={`/play?spectateId=${fg.id}&roomCode=${fg.room_code}`}
-                  className="bg-black/30 hover:bg-black/50 border border-white/5 hover:border-[#00BFFF]/30 transition-all rounded-lg p-3 flex items-center justify-between group"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-head text-sm font-bold text-white/80 group-hover:text-white">
-                      {fg.player1} <span className="text-white/30 text-xs mx-1">vs</span> {fg.player2}
-                    </span>
-                    <span className="text-[10px] text-white/40">Room: {fg.room_code}</span>
-                  </div>
-                  <div className="px-3 py-1 rounded bg-[#00BFFF]/20 text-[#00BFFF] text-[10px] font-bold tracking-widest uppercase">
-                    Spectate
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* WAITING ROOM                                                       */
-/* ------------------------------------------------------------------ */
-function WaitingRoom({ roomCode, onCancel }) {
-  return (
-    <div className="max-w-md mx-auto px-5 py-24 text-center">
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="mx-auto w-16 h-16 mb-6">
-        <Sparkles className="w-16 h-16 text-[#F2A900]" />
-      </motion.div>
-      <h2 className="font-display text-3xl font-bold mb-2">Awaiting Challenger</h2>
-      <p className="text-white/50 font-head mb-6">Share this room code with a friend:</p>
-      <div data-testid="waiting-room-code" className="glass rounded-2xl px-6 py-5 font-num text-4xl font-bold tracking-[0.3em] text-[#F2A900] mb-8">
-        {roomCode}
-      </div>
-      <button onClick={onCancel} className="px-6 py-2.5 rounded-full glass font-head hover:border-white/25 inline-flex items-center gap-2">
-        <LogOut className="w-4 h-4" /> Cancel
-      </button>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* GAME PIECES                                                        */
-/* ------------------------------------------------------------------ */
-const EnergyDots = ({ energy, max }) => (
-  <div className="flex flex-wrap gap-1 items-center">
-    {Array.from({ length: Math.max(max, 0) }).map((_, i) => (
-      <span
-        key={i}
-        className={`w-3 h-3 rounded-full transition-all ${i < energy ? "bg-[#00BFFF] shadow-[0_0_8px_rgba(0,191,255,0.9)]" : "bg-white/15"}`}
-      />
-    ))}
-    <span className="ml-2 font-num text-sm text-[#7FDBFF]">{energy}/{max}</span>
-  </div>
-);
-
-const Nexus = ({ player, mine, isTarget, onClick, testId }) => (
-  <button
-    onClick={onClick}
-    data-testid={testId}
-    className={`relative glass rounded-2xl px-5 py-3 flex items-center gap-3 min-w-[190px] transition-all ${isTarget ? "ring-2 ring-red-500 shadow-[0_0_20px_rgba(255,50,50,0.6)]" : ""}`}
-  >
-    <div className={`relative w-12 h-12 rounded-full flex items-center justify-center ${mine ? "bg-[#22E07B]/15" : "bg-red-500/15"}`}>
-      <Shield className={`w-6 h-6 ${mine ? "text-[#39E58C]" : "text-red-400"}`} />
-    </div>
-    <div className="text-left">
-      <div className="font-head text-sm text-white/70 truncate max-w-[120px]">
-        {player.username}
-        {player.mmr && <span className="ml-1 text-xs text-[#F2A900]/80">[{player.mmr}]</span>}
-      </div>
-      <div className="font-num text-2xl font-bold leading-none">
-        <span className={player.hp <= 8 ? "text-red-400" : "text-white"}>{player.hp}</span>
-        <span className="text-white/30 text-base"> / 30</span>
-      </div>
-    </div>
-    {isTarget && <Target className="absolute -top-2 -right-2 w-5 h-5 text-red-500 animate-pulse-glow" />}
-  </button>
-);
-
-function BattlefieldEntity({ entity, attachedRelics, selectable, selected, isTarget, onClick, onInspect, testId }) {
-  const isGuard = entity.keywords?.includes("Guard") && !entity.keywords?.includes("Stealth");
-  const isStealth = entity.keywords?.includes("Stealth");
-
-  return (
-    <CardTooltip card={entity} side="top">
-      <div className="relative flex flex-col items-center">
-        {attachedRelics?.map((relic) => (
-          <div key={relic.instanceId} className="w-[100px] h-5 mb-[-6px] relative z-0 bg-gradient-to-t from-black to-[#2A2D3E] rounded-t-md border-t border-x border-[#F2A900]/40 flex items-start justify-center pt-1 shadow-lg pointer-events-none">
-            <span className="text-[7px] text-[#F2A900] font-head font-bold tracking-widest uppercase truncate px-2">{relic.name}</span>
-          </div>
-        ))}
-        <motion.div
-          layoutId={`card-${entity.instanceId}`}
-          initial={{ opacity: 0, scale: 0.5, y: -20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.2, filter: "brightness(2) blur(10px)" }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={`relative z-10 ${isStealth ? "opacity-60" : ""}`}
-        >
-          {onInspect && (
-            <button 
-              className="absolute -top-2 -right-2 bg-black/90 rounded-full p-2 z-50 md:hidden border border-white/20 shadow-xl"
-              onClick={(e) => { e.stopPropagation(); onInspect(entity); }}
-            >
-              <Eye className="w-4 h-4 text-[#00BFFF]" />
-            </button>
-          )}
-          <CardTemplate
-            card={entity}
-            size="sm"
-            tilt={false}
-            selected={selected}
-            exhausted={entity.exhausted}
-            dimmed={selectable === false && !isTarget}
-            onClick={onClick}
-            testId={testId}
-            className={isTarget ? "ring-2 ring-red-500 rounded-xl" : ""}
-          />
-          {isGuard && <div className="absolute -inset-1.5 border-[3px] border-slate-300/80 rounded-2xl pointer-events-none shadow-[0_0_15px_rgba(255,255,255,0.4)]" />}
-        </motion.div>
-      </div>
-    </CardTooltip>
-  );
-}
-
-function HandCard({ card, draggable, onClick, onInspect, testId }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: card.instanceId,
-    data: { card },
-    disabled: !draggable,
-  });
-  return (
-    <motion.div
-      layoutId={`card-${card.instanceId}`}
-      ref={setNodeRef}
-      {...(draggable ? listeners : {})}
-      {...attributes}
-      onClick={onClick}
-      style={{ opacity: isDragging ? 0.25 : 1, touchAction: "none" }}
-      className="hover:-translate-y-4 transition-transform relative"
-      data-testid={testId}
-    >
-      {onInspect && (
-        <button 
-          className="absolute -top-3 -right-3 bg-black/90 rounded-full p-2 z-50 md:hidden border border-white/20 shadow-xl"
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onInspect(card); }}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
-          <Eye className="w-4 h-4 text-[#00BFFF]" />
-        </button>
-      )}
-      <CardTooltip card={card} side="top">
-        <div>
-          <CardTemplate card={card} size="md" tilt={false} />
-        </div>
-      </CardTooltip>
-    </motion.div>
-  );
-}
-
-function DropZone({ id, className, children, active, label }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return (
-    <div
-      ref={setNodeRef}
-      data-testid={`dropzone-${id}`}
-      className={`${className} rounded-2xl transition-all ${isOver && active ? "ring-2 ring-[#F2A900] bg-[#F2A900]/5" : ""}`}
-    >
-      {children}
-      {(!children || (Array.isArray(children) && children.every((c) => !c))) && label && (
-        <span className="absolute inset-0 flex items-center justify-center text-white/25 font-head text-sm pointer-events-none">{label}</span>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* GAME BOARD                                                         */
-/* ------------------------------------------------------------------ */
-function TurnTimer({ turnStartedAt, isRanked, phase }) {
-  const [timeLeft, setTimeLeft] = useState(90000);
-
-  useEffect(() => {
-    if (!isRanked || phase !== "PLAYING" || !turnStartedAt) return;
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - turnStartedAt;
-      setTimeLeft(Math.max(0, 90000 - elapsed));
-    }, 100);
-    return () => clearInterval(interval);
-  }, [turnStartedAt, isRanked, phase]);
-
-  if (!isRanked || phase !== "PLAYING" || !turnStartedAt) return null;
-
-  const pct = (timeLeft / 90000) * 100;
-  const isDanger = timeLeft < 15000;
-
-  return (
-    <div className="w-full max-w-xl mx-auto h-1.5 bg-black/40 rounded-full relative mt-2 overflow-hidden shadow-sm">
-      <div 
-        className={`absolute top-0 bottom-0 left-0 transition-all duration-100 ease-linear ${isDanger ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'bg-[#F2A900] shadow-[0_0_8px_rgba(242,169,0,0.6)]'}`} 
-        style={{ width: `${pct}%` }}
-      />
-      {pct > 0 && (
-        <div 
-          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-[0_0_8px_4px_rgba(255,255,255,0.8)] pointer-events-none z-10 animate-pulse"
-          style={{ left: `calc(${pct}% - 6px)` }}
-        />
-      )}
-    </div>
-  );
-}
-
-function GameBoard({ session, match, refresh, onExit }) {
-  const slot = String(session.slot);
-  const oppSlot = slot === "1" ? "2" : "1";
-  const state = match.state;
-  const me = state.players[slot];
-  const opp = state.players[oppSlot];
-  const isMyTurn = String(state.activePlayer) === slot && state.phase === "PLAYING" && !session.isSpectator && !session.isReplay;
-  const ended = state.phase === "ENDED";
-
-  const getDominantFaction = () => {
-    if (!me) return "Neutral";
-    const allCards = [...(me.library || []), ...(me.hand || []), ...(me.battlefield || []), ...(me.void || []), ...(me.resonanceRow || [])];
-    const counts = {};
-    allCards.forEach(c => {
-      if (c.faction && c.faction !== 'Neutral' && c.faction !== 'Any') {
-        counts[c.faction] = (counts[c.faction] || 0) + 1;
-      }
-    });
-    let max = 0;
-    let dom = "Neutral";
-    for (const [f, ct] of Object.entries(counts)) {
-      if (ct > max) { max = ct; dom = f; }
-    }
-    return dom;
-  };
-  const dominantFaction = getDominantFaction();
-
-  const [selectedAttacker, setSelectedAttacker] = useState(null);
-  const [pendingSpell, setPendingSpell] = useState(null);
-  const [activeDrag, setActiveDrag] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [inspectCard, setInspectCard] = useState(null);
-  const [viewingVoid, setViewingVoid] = useState(null);
-  const [shockwaves, setShockwaves] = useState([]);
-  const [muted, setMuted] = useState(() => localStorage.getItem("gf_audio_muted") === "true");
-  const navigate = useNavigate();
-  const audioRef = useRef(null);
-
-  useEffect(() => {
-    localStorage.setItem("gf_audio_muted", String(muted));
-    if (audioRef.current)
-      audioRef.current.muted = muted;
-  }, [muted]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = 0.15;
-    }
-  }, []);
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-
-  const act = useCallback(
-    async (action, payload) => {
-      if (session.isSpectator || session.isReplay) {
-        toast.info(session.isReplay ? "You cannot interact with a Replay." : "Spectators cannot perform actions.");
-        return;
-      }
-      setBusy(true);
-
-      // Fire attack projectile BEFORE we roundtrip to server so it feels responsive.
-      // Compute damage from current client state; visuals only (server is source of truth).
-      try {
-        if (action === "ATTACK_ENTITY" || action === "ATTACK_NEXUS") {
-          const myBf = state.players[slot]?.battlefield || [];
-          const attacker = myBf.find((e) => e.instanceId === payload.attackerId);
-          const dmg = attacker?.power ?? 0;
-          const faction = attacker?.faction || "Solari";
-          const sourceTestId = `my-entity-${payload.attackerId}`;
-          if (action === "ATTACK_ENTITY") {
-            fireAttackProjectile({
-              sourceTestId,
-              targetTestId: `enemy-entity-${payload.targetId}`,
-              faction,
-              damage: dmg,
-              kind: "entity",
-            });
-          } else {
-            fireAttackProjectile({
-              sourceTestId,
-              targetTestId: "enemy-nexus",
-              faction,
-              damage: dmg,
-              kind: "nexus",
-            });
-          }
-        }
-      } catch (e) {}
-
-      try {
-        const r = await api.post("/action", { matchId: session.matchId, slot: session.slot, action, payload });
-
-        // play sounds based on action
-        if (action === "DRAW_CARD") playSound("draw", muted);
-        if (action === "PLAY_CARD") playSound("play", muted);
-        if (action === "ATTACK_ENTITY") playSound("attack", muted);
-        if (action === "ATTACK_NEXUS") playSound("nexus_hit", muted);
-        if (action === "CAST_SPELL") playSound("spell", muted);
-        if (action === "END_TURN") playSound("pass", muted);
-
-        refresh(r.data.state);
-      } catch (e) {
-        toast.error(e.response?.data?.detail || "Illegal move.");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [session, refresh, muted, state, slot]
-  );
-
-  const handleMakeChoice = (payload) => {
-    act("MAKE_CHOICE", payload);
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-      
-      if (e.key === "Escape") {
-        setPendingSpell(null);
-        setSelectedAttacker(null);
-      }
-      if (e.key === " " && isMyTurn && !busy) {
-        e.preventDefault();
-        setSelectedAttacker(null);
-        setPendingSpell(null);
-        act("END_TURN", {});
-      }
-      if ((e.key === "d" || e.key === "D") && isMyTurn && !busy && !me.hasDrawnThisTurn) {
-        act("DRAW_CARD", {});
-      }
-      if (e.key >= "1" && e.key <= "5") {
-        const tabs = ["/play", "/cards", "/decks", "/booster", "/rules"];
-        navigate(tabs[parseInt(e.key) - 1]);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMyTurn, busy, me, act, navigate]);
-
-  const handleDragStart = (e) => setActiveDrag(e.active.data.current?.card || null);
-  const handleDragEnd = (e) => {
-    const card = activeDrag;
-    setActiveDrag(null);
-    if (!card || !e.over) return;
-    if (e.over.id === "resonance") {
-      act("PLAY_CARD", { instanceId: card.instanceId, destination: "resonance" });
-    } else if (e.over.id === "battlefield") {
-      if (card.cardType === "Entity" || card.cardType === "Relic") {
-        act("PLAY_CARD", { instanceId: card.instanceId, destination: "battlefield" });
-        if (card.cardType === "Entity" && card.cost >= 3 && e.activatorEvent?.clientX) {
-          const sw = { id: Date.now(), x: e.activatorEvent.clientX, y: e.activatorEvent.clientY, color: factionCfg(card.faction).color };
-          setShockwaves(s => [...s, sw]);
-          setTimeout(() => setShockwaves(s => s.filter(x => x.id !== sw.id)), 600);
-        }
-      } else {
-        toast.info("Spells are cast — tap the card in hand to cast it.");
-      }
-    }
-  };
-
-  const clickHandCard = (card) => {
-    if (card.cardType === "Rite" || card.cardType === "Flash") {
-      if (card.cardType === "Rite" && !isMyTurn) return toast.error("Rite spells only on your turn.");
-      setSelectedAttacker(null);
-      setPendingSpell(card);
-      toast.info(`Casting ${card.name} — choose a target or cast at a Nexus.`);
-    } else {
-      toast.info("Drag Entities/Relics onto the battlefield to deploy.");
-    }
-  };
-
-  const castAt = (targetType, targetId, targetSlot) => {
-    if (!pendingSpell) return;
-    act("CAST_SPELL", { instanceId: pendingSpell.instanceId, targetType, targetId, targetSlot });
-    setPendingSpell(null);
-  };
-
-  const clickEntity = (entity, ownerSlot) => {
-    if (pendingSpell) return castAt("entity", entity.instanceId, ownerSlot);
-    if (ownerSlot === slot) {
-      if (!isMyTurn) return;
-      if (entity.exhausted) return toast.error("That entity is exhausted.");
-      if (!entity.power) return toast.error("This entity cannot attack.");
-      setSelectedAttacker(selectedAttacker === entity.instanceId ? null : entity.instanceId);
-    } else {
-      if (!selectedAttacker) return;
-      act("ATTACK_ENTITY", { attackerId: selectedAttacker, targetId: entity.instanceId });
-      setSelectedAttacker(null);
-    }
-  };
-
-  const clickNexus = (targetSlot) => {
-    if (pendingSpell) return castAt("nexus", null, targetSlot);
-    if (targetSlot !== slot && selectedAttacker) {
-      act("ATTACK_NEXUS", { attackerId: selectedAttacker });
-      setSelectedAttacker(null);
-    }
-  };
-
-  const enemyHasGuard = opp.battlefield?.some((e) => e.keywords?.includes("Guard") && !e.keywords?.includes("Stealth"));
-  const attackerObj = me.battlefield?.find((e) => e.instanceId === selectedAttacker);
-  const attackerIsEvasive = attackerObj?.keywords?.includes("Evasive");
-  
-  const primaryFaction = me.hand?.[0]?.faction || me.resonanceRow?.[0]?.faction || "solari";
-  const ambientTrack = `/audio/ambient_${primaryFaction.toLowerCase().split(',')[0]}.mp3`;
-
-  // Detect opponent attacks by diffing previous state -> current state
-  const prevStateRef = useRef(null);
-  useEffect(() => {
-    const prev = prevStateRef.current;
-    prevStateRef.current = state;
-    if (!prev || session.isReplay) return;
-    try {
-      const prevOpp = prev.players?.[oppSlot];
-      const prevMe = prev.players?.[slot];
-      if (!prevOpp || !prevMe) return;
-
-      // Opponent attacked our Nexus -> HP drop
-      if (prevMe.hp != null && me.hp != null && me.hp < prevMe.hp) {
-        // Find likely attacker (opp entity that became exhausted this transition)
-        const prevBf = prevOpp.battlefield || [];
-        const curBf = opp.battlefield || [];
-        let attacker = curBf.find((e) => {
-          const before = prevBf.find((p) => p.instanceId === e.instanceId);
-          return before && !before.exhausted && e.exhausted;
-        });
-        if (!attacker) attacker = curBf.find((e) => e.exhausted) || curBf[0];
-        if (attacker) {
-          fireAttackProjectile({
-            sourceTestId: `enemy-entity-${attacker.instanceId}`,
-            targetTestId: "my-nexus",
-            faction: attacker.faction || "Umbri",
-            damage: prevMe.hp - me.hp,
-            kind: "nexus",
-          });
-          playSound("nexus_hit", muted);
-        }
-      }
-
-      // Opponent attacked one of our entities -> entity health drop or entity removed
-      const prevMyBf = prevMe.battlefield || [];
-      const curMyBf = me.battlefield || [];
-      for (const before of prevMyBf) {
-        const after = curMyBf.find((e) => e.instanceId === before.instanceId);
-        const damaged = after && before.curHealth != null && after.curHealth != null && after.curHealth < before.curHealth;
-        const killed = !after; // entity removed entirely (may be from spell too, best effort)
-        if (damaged || killed) {
-          const dmg = damaged ? before.curHealth - after.curHealth : (before.curHealth ?? before.health ?? 1);
-          // Try to find opp attacker that became exhausted
-          const prevOppBf = prevOpp.battlefield || [];
-          const curOppBf = opp.battlefield || [];
-          const attacker = curOppBf.find((e) => {
-            const b = prevOppBf.find((p) => p.instanceId === e.instanceId);
-            return b && !b.exhausted && e.exhausted;
-          });
-          if (attacker && damaged) {
-            fireAttackProjectile({
-              sourceTestId: `enemy-entity-${attacker.instanceId}`,
-              targetTestId: `my-entity-${before.instanceId}`,
-              faction: attacker.faction || "Umbri",
-              damage: dmg,
-              kind: "entity",
-            });
-            playSound("attack", muted);
-          }
-          break; // one strike per transition to avoid stacking
-        }
-      }
-    } catch (e) {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
-
-  // Smoothly fade volume in/out when muting
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const targetRate = 1.0;
-    const targetVol = muted ? 0 : 0.15;
-    const startRate = audio.playbackRate;
-    const startVol = audio.volume;
-    const t0 = performance.now();
-    const dur = 900;
-    let raf = 0;
-    const tick = (t) => {
-      const k = Math.min(1, (t - t0) / dur);
-      audio.playbackRate = startRate + (targetRate - startRate) * k;
-      audio.volume = Math.max(0, Math.min(1, startVol + (targetVol - startVol) * k));
-      if (k < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [muted]);
-
-  const wasEndedRef = useRef(false);
-  useEffect(() => {
-    if (ended && !wasEndedRef.current) playSound(String(state.winner) === slot ? "victory" : "defeat", muted);
-    wasEndedRef.current = ended;
-  }, [ended, state.winner, slot, muted]);
-
-  return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <audio ref={audioRef} src={ambientTrack} autoPlay loop />
-      <FactionParticles faction={state.players[String(state.activePlayer)]?.faction} />
-      <ProjectileLayer />
-      
-      <AnimatePresence>
-        {shockwaves.map(sw => (
-          <motion.div
-            key={sw.id}
-            initial={{ width: 0, height: 0, opacity: 0.8, borderWidth: 8 }}
-            animate={{ width: 400, height: 400, opacity: 0, borderWidth: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="fixed z-[60] rounded-full pointer-events-none"
-            style={{
-              left: sw.x,
-              top: sw.y,
-              transform: "translate(-50%, -50%)",
-              borderColor: sw.color,
-              boxShadow: `0 0 40px ${sw.color}`,
-              borderStyle: "solid"
-            }}
-          />
-        ))}
-      </AnimatePresence>
-
-
-      <button type="button" onClick={() => setMuted(v => !v)} aria-label={muted ? "Unmute audio" : "Mute audio"} className="fixed top-20 right-4 z-40 glass rounded-lg px-3 py-2 text-xs font-head text-white/80 hover:text-white">{muted ? "🔇 Sound off" : "🔊 Sound on"}</button>
-      {state.phase === "DICE_ROLL" && <DiceRollModal state={state} slot={slot} act={act} />}
-      <div className="max-w-6xl mx-auto px-4 py-4 min-h-[calc(100vh-4rem)] flex flex-col gap-3">
-        {/* top: opponent */}
-        <div className="flex items-center justify-between gap-3">
-          <Nexus
-            player={opp}
-            mine={false}
-            isTarget={(!!selectedAttacker && (!enemyHasGuard || attackerIsEvasive)) || !!pendingSpell}
-            onClick={() => clickNexus(oppSlot)}
-            testId="enemy-nexus"
-          />
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-1.5 border border-white/10">
-              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Hand">
-                <HandIcon className="w-3.5 h-3.5" /> {opp.handCount ?? opp.hand?.length ?? 0}
-              </div>
-              <div className="w-px h-3 bg-white/20 mx-1" />
-              <div className="flex items-center gap-1 text-white/50 text-sm font-head" title="Deck">
-                <Layers className="w-3.5 h-3.5 text-[#F2A900]" /> {opp.libraryCount ?? opp.library?.length ?? 0}
-              </div>
-              <div className="w-px h-3 bg-white/20 mx-1" />
-              <button 
-                onClick={() => setViewingVoid("opp")}
-                className="flex items-center gap-1 text-white/50 hover:text-white transition-colors text-sm font-head" 
-                title="View Enemy Void"
-              >
-                <Skull className="w-3.5 h-3.5 text-[#9B30FF]" /> {opp.void?.length ?? 0}
-              </button>
-            </div>
-            <EnergyDots energy={opp.energy || 0} max={opp.maxEnergy || 0} />
-            <button onClick={onExit} data-testid="exit-match" className="px-3 py-2 rounded-lg glass hover:border-white/25 text-sm">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* opponent hand */}
-        <div className="flex justify-center gap-1 h-10 -mt-1">
-          {(opp.hand || Array.from({ length: Math.min(opp.handCount ?? 0, 8) })).slice(0, 8).map((c, i) => {
-            const isHidden = !c || c.hidden;
-            return (
-              <div
-                key={c?.instanceId || i}
-                className={`w-8 h-11 rounded -ml-3 first:ml-0 transition-transform ${isHidden ? "bg-[#12151E] border border-white/10 hover:z-50 hover:scale-[3] hover:-translate-y-4" : "hover:z-50 hover:-translate-y-2 cursor-help shadow-lg"}`}
-                style={{ transform: `rotate(${(i - 3) * 3}deg)`, transformOrigin: "bottom center" }}
-              >
-                {!isHidden && (
-                  <HoverCard openDelay={100} closeDelay={0}>
-                    <HoverCardTrigger asChild>
-                      <div className="w-[180px] h-[252px] origin-top-left outline-none" style={{ transform: "scale(0.177)" }}>
-                        <CardTemplate card={c} size="md" tilt={false} />
-                      </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent side="bottom" sideOffset={16} className="w-[180px] h-[252px] bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
-                      <CardTemplate card={c} size="md" tilt={false} />
-                    </HoverCardContent>
-                  </HoverCard>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* opponent battlefield */}
-        <div className="glass rounded-2xl p-3 min-h-[130px] relative flex items-center justify-center gap-3 flex-wrap">
-          {opp.battlefield?.length ? (
-            <AnimatePresence>
-              {opp.battlefield.map((e) => {
-                const isStealth = e.keywords?.includes("Stealth");
-                const isGuard = e.keywords?.includes("Guard") && !isStealth;
-                const isValidAttack = !!selectedAttacker && !isStealth && (!enemyHasGuard || attackerIsEvasive || isGuard);
-                const attachedRelics = opp.relics?.filter(r => r.attachedTo === e.instanceId) || [];
-                return (
-                  <BattlefieldEntity
-                    key={e.instanceId}
-                    entity={e}
-                    attachedRelics={attachedRelics}
-                    selectable={!!selectedAttacker || !!pendingSpell}
-                    isTarget={isValidAttack || !!pendingSpell}
-                    onClick={() => clickEntity(e, oppSlot)}
-                    onInspect={setInspectCard}
-                    testId={`enemy-entity-${e.instanceId}`}
-                  />
-                );
-              })}
-              {opp.relics?.filter(r => !r.attachedTo).map((e) => (
-                <BattlefieldEntity
-                  key={e.instanceId}
-                  entity={e}
-                  attachedRelics={[]}
-                  selectable={!!selectedAttacker || !!pendingSpell}
-                  isTarget={!!pendingSpell}
-                  onClick={() => clickEntity(e, oppSlot)}
-                  onInspect={setInspectCard}
-                  testId={`enemy-relic-${e.instanceId}`}
-                />
-              ))}
-            </AnimatePresence>
-          ) : (
-            <span className="text-white/25 font-head text-sm">Enemy Battlefield</span>
-          )}
-        </div>
-
-        {/* center status */}
-        <div className="flex flex-col items-center justify-center gap-1 py-1">
-          <div className="flex items-center justify-center gap-4 w-full">
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
-            <span className={`font-head text-sm px-4 py-1.5 rounded-full ${isMyTurn ? "bg-[#F2A900] text-black font-semibold" : "glass text-white/60"}`} data-testid="turn-indicator">
-              {ended ? "Match Over" : isMyTurn ? "Your Turn" : `${opp.username}'s Turn`} · Turn {state.turn}
-            </span>
-            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
-          </div>
-          <TurnTimer turnStartedAt={state.turnStartedAt} isRanked={match.is_ranked} phase={state.phase} />
-        </div>
-
-        {/* player battlefield */}
-        <DropZone id="battlefield" active={!!activeDrag} label="Drag Entities & Relics here" className="glass p-3 min-h-[140px] relative flex items-center justify-center gap-3 flex-wrap">
-          <AnimatePresence>
-            {me.battlefield?.map((e) => {
-              const attachedRelics = me.relics?.filter(r => r.attachedTo === e.instanceId) || [];
-              return (
-                <BattlefieldEntity
-                  key={e.instanceId}
-                  entity={e}
-                  attachedRelics={attachedRelics}
-                  selectable={isMyTurn}
-                  selected={selectedAttacker === e.instanceId}
-                  onClick={() => clickEntity(e, slot)}
-                  onInspect={setInspectCard}
-                  testId={`my-entity-${e.instanceId}`}
-                />
-              );
-            })}
-            {me.relics?.filter(r => !r.attachedTo).map((e) => (
-              <BattlefieldEntity key={e.instanceId} entity={e} attachedRelics={[]} selectable={false} onClick={() => {}} onInspect={setInspectCard} testId={`my-relic-${e.instanceId}`} />
-            ))}
-          </AnimatePresence>
-        </DropZone>
-
-        {/* resonance + player nexus */}
-        <div className="flex items-stretch gap-3">
-          <Nexus player={me} mine isTarget={!!pendingSpell} onClick={() => clickNexus(slot)} testId="my-nexus" />
-          <DropZone id="resonance" active={!!activeDrag} label="Resonance Row — drag a card to charge Energy" className="glass p-3 flex-1 relative flex items-center gap-2 flex-wrap min-h-[70px]">
-            {me.resonanceRow?.map((c) => (
-              <div key={c.instanceId} className="w-9 h-12 rounded-md flex items-center justify-center font-num text-xs" style={{ background: `${factionCfg(c.faction).color}33`, border: `1px solid ${factionCfg(c.faction).color}` }}>
-                <Zap className="w-4 h-4" style={{ color: factionCfg(c.faction).color }} />
-              </div>
-            ))}
-            <div className="ml-auto"><EnergyDots energy={me.energy || 0} max={me.maxEnergy || 0} /></div>
-          </DropZone>
-        </div>
-
-        {/* controls */}
-        <div className="flex items-center justify-center gap-3">
-          <div className="flex items-center gap-2 bg-black/20 rounded-xl px-4 py-2 border border-white/10">
-            <button
-              data-testid="btn-draw"
-              disabled={!isMyTurn || busy || me.hasDrawnThisTurn}
-              onClick={() => act("DRAW_CARD", {})}
-              className="inline-flex items-center gap-1.5 text-white/80 font-head text-sm hover:text-white disabled:opacity-40 transition-colors"
-              title="Draw Card"
-            >
-              <Layers className="w-4 h-4 text-[#F2A900]" /> Deck ({me.libraryCount ?? me.library?.length ?? 0}) {me.hasDrawnThisTurn ? "✓" : ""}
-            </button>
-            <div className="w-px h-4 bg-white/20 mx-2" />
-            <button
-              onClick={() => setViewingVoid("me")}
-              className="inline-flex items-center gap-1.5 text-white/50 font-head text-sm hover:text-white transition-colors" 
-              title="View Void"
-            >
-              <Skull className="w-4 h-4 text-[#9B30FF]" /> Void ({me.void?.length ?? 0})
-            </button>
-          </div>
-          <button
-            data-testid="btn-end-turn"
-            disabled={!isMyTurn || busy}
-            onClick={() => { setSelectedAttacker(null); setPendingSpell(null); act("END_TURN", {}); }}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#F2A900] text-black font-head font-semibold text-sm hover:bg-[#ffc21f] disabled:opacity-40"
-          >
-            <Play className="w-4 h-4" /> End Turn
-          </button>
-          {pendingSpell && (
-            <button onClick={() => setPendingSpell(null)} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-300 font-head text-sm">
-              <X className="w-4 h-4" /> Cancel Cast
-            </button>
-          )}
-        </div>
-
-        {/* player hand */}
-        <div className="flex justify-center items-end gap-[-8px] min-h-[180px] pt-6" style={{ perspective: 1200 }}>
-          <div className="flex justify-center -space-x-6">
-            <AnimatePresence>
-              {me.hand?.map((c) => (
-                <HandCard key={c.instanceId} card={c} draggable={!ended} onClick={() => clickHandCard(c)} onInspect={setInspectCard} testId={`hand-card-${c.instanceId}`} />
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* log */}
-        <div className="glass rounded-2xl p-3 h-64 flex flex-col" data-testid="game-log">
-          <div className="flex items-center gap-1.5 text-white/40 text-xs font-head mb-2 shrink-0 pb-1 border-b border-white/5"><ScrollText className="w-3.5 h-3.5" /> Battle Log</div>
-          <div className="flex-1 overflow-y-auto flex flex-col-reverse min-h-0 pr-1 custom-scrollbar">
-            <div className="flex flex-col gap-1.5">
-              {[...(state.log || [])].map((l, i) => {
-                let color = "text-white/60";
-                let text = l;
-                if (typeof l === 'string') {
-                  if (l.startsWith("[P1] ")) {
-                    color = slot === "1" ? "text-[#39E58C]" : "text-red-400";
-                    text = l.replace("[P1] ", "");
-                  } else if (l.startsWith("[P2] ")) {
-                    color = slot === "2" ? "text-[#39E58C]" : "text-red-400";
-                    text = l.replace("[P2] ", "");
-                  } else if (l.startsWith("[P0] ")) {
-                    color = "text-[#F2A900]";
-                    text = l.replace("[P0] ", "");
-                  }
-                }
-                return <p key={i} className={`text-xs leading-relaxed ${color}`}>{text}</p>;
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <DragOverlay>{activeDrag ? <CardTemplate card={activeDrag} size="md" tilt={false} /> : null}</DragOverlay>
-
-      {/* pending spell banner */}
-      <AnimatePresence>
-        {pendingSpell && (
-          <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} className="fixed bottom-5 left-1/2 -translate-x-1/2 glass-strong rounded-full px-5 py-2.5 z-50 flex items-center gap-3">
-            <Sparkles className="w-4 h-4 text-[#F2A900]" />
-            <span className="font-head text-sm">Casting <b>{pendingSpell.name}</b> — tap a target, or</span>
-            <button onClick={() => castAt("nexus", null, oppSlot)} className="px-3 py-1 rounded-full bg-red-500/80 text-white text-xs font-head">Enemy Nexus</button>
-            <button onClick={() => castAt(null, null, oppSlot)} className="px-3 py-1 rounded-full glass text-xs font-head">No Target</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* end screen */}
-      <AnimatePresence>
-        {ended && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-md px-5" data-testid="match-over">
-            <motion.div initial={{ scale: 0.85, y: 20 }} animate={{ scale: 1, y: 0 }} className="glass-strong rounded-3xl p-10 text-center max-w-sm">
-              {String(state.winner) === slot ? (
-                <>
-                  <Crown className="w-16 h-16 text-[#F2A900] mx-auto mb-4 drop-shadow-[0_0_20px_rgba(242,169,0,0.8)]" />
-                  <h2 className="font-display text-4xl font-bold text-[#F2A900]">Victory</h2>
-                  <div className="bg-[#F2A900]/10 border border-[#F2A900]/30 rounded-xl p-3 my-4">
-                    <p className="text-[#F2A900] font-bold text-sm">Dominant Faction: {dominantFaction}</p>
-                    <p className="text-white/70 text-xs">A glorious triumph in the Arena!</p>
-                  </div>
-                  <div className="flex gap-2 mb-3">
-                    <button 
-                      onClick={() => {
-                        const text = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
-                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-black border border-white/20 text-white font-head font-bold text-sm hover:bg-white/10 flex items-center justify-center gap-1.5"
-                    >
-                      <Share2 className="w-4 h-4" /> X
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const url = "https://glimmerfalltcg.com";
-                        const quote = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨`;
-                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`, "_blank");
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-[#1877F2] text-white font-head font-bold text-sm hover:bg-[#1877F2]/80 flex items-center justify-center gap-1.5"
-                    >
-                      <Facebook className="w-4 h-4" /> Post
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const text = `I just crushed my opponent in GlimmerFall TCG using the ${dominantFaction} faction! ⚔️✨ Play free at https://glimmerfalltcg.com`;
-                        navigator.clipboard.writeText(text);
-                        toast.success("Copied to clipboard!");
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white font-head font-bold text-sm hover:bg-white/20 flex items-center justify-center gap-1.5"
-                    >
-                      <Copy className="w-4 h-4" /> Copy
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Skull className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                  <h2 className="font-display text-4xl font-bold text-red-400">Defeat</h2>
-                </>
-              )}
-              <p className="text-white/60 font-head mt-2 mb-6">The match has ended on turn {state.turn}.</p>
-              <button onClick={onExit} data-testid="return-lobby" className="w-full px-6 py-3 rounded-xl bg-[#F2A900] text-black font-head font-semibold hover:bg-[#ffc21f]">
-                Return to Lobby
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Mobile Card Inspector Modal */}
-      <Dialog open={!!inspectCard} onOpenChange={() => setInspectCard(null)}>
-        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-md p-6">
-          {inspectCard && (
-            <div className="flex flex-col items-center">
-              <div className="mb-6 w-full flex justify-center">
-                <CardTemplate card={inspectCard} size="lg" tilt={false} />
-              </div>
-              <DialogHeader className="text-center mb-4">
-                <DialogTitle className="font-display text-2xl" style={{color: factionCfg(inspectCard.faction).color}}>{inspectCard.name}</DialogTitle>
-              </DialogHeader>
-              <div className="w-full space-y-3 font-head text-sm">
-                <div className="flex justify-between border-b border-white/10 pb-2">
-                  <span className="text-white/50">Type</span>
-                  <span className="text-white font-bold">{inspectCard.card_type || inspectCard.cardType}</span>
-                </div>
-                {inspectCard.cost !== null && (
-                  <div className="flex justify-between border-b border-white/10 pb-2">
-                    <span className="text-white/50">Cost</span>
-                    <span className="text-[#F2A900] font-bold flex items-center gap-1"><Zap className="w-3 h-3"/> {inspectCard.cost}</span>
-                  </div>
-                )}
-                {inspectCard.power !== null && inspectCard.power !== "None" && (
-                  <div className="flex justify-between border-b border-white/10 pb-2">
-                    <span className="text-white/50">Power</span>
-                    <span className="text-[#FF5252] font-bold flex items-center gap-1"><Sword className="w-3 h-3"/> {inspectCard.power}</span>
-                  </div>
-                )}
-                {inspectCard.health !== null && inspectCard.health !== "None" && (
-                  <div className="flex justify-between border-b border-white/10 pb-2">
-                    <span className="text-white/50">Health</span>
-                    <span className="text-[#22E07B] font-bold flex items-center gap-1"><Heart className="w-3 h-3"/> {inspectCard.health}</span>
-                  </div>
-                )}
-                {inspectCard.keywords && inspectCard.keywords !== "None" && (
-                  <div className="pt-2">
-                    <span className="text-[#00BFFF] font-bold uppercase tracking-wide text-xs">{inspectCard.keywords}</span>
-                  </div>
-                )}
-                <div className="pt-2 text-white/80 whitespace-pre-wrap leading-relaxed">
-                  {inspectCard.description || "No rules text."}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Void Viewer Modal */}
-      <Dialog open={!!viewingVoid} onOpenChange={() => setViewingVoid(null)}>
-        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-4xl p-6 h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl flex items-center gap-3">
-              <Skull className="w-6 h-6 text-[#9B30FF]"/> 
-              {viewingVoid === 'me' ? "Your Void" : "Enemy Void"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto mt-4 min-h-0">
-            {viewingVoid && (viewingVoid === 'me' ? me.void : opp.void)?.length > 0 ? (
-              <div className="flex flex-wrap gap-4 justify-center">
-                {(viewingVoid === 'me' ? me.void : opp.void).map((c, i) => (
-                  <div key={i} className="hover:scale-105 transition-transform">
-                    <CardTemplate card={c} size="md" tilt={false} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-white/40 font-head italic">
-                The void is empty.
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* Pending Choice Modal */}
-      <Dialog open={match.state?.pendingChoice && match.state?.pendingChoice?.player === String(session.slot)} onOpenChange={() => {}}>
-        <DialogContent className="glass-panel border-white/20 bg-black/95 max-w-6xl p-8 max-h-[90vh]" hideClose>
-          <DialogHeader>
-            <DialogTitle className="font-display text-2xl text-center text-[#00BFFF] mb-6">
-              {match.state?.pendingChoice?.prompt}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            {match.state?.pendingChoice?.type === "discard" && (
-              <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
-                {match.state?.pendingChoice?.options?.map((opt, i) => (
-                    <div 
-                        key={i} 
-                        onClick={() => handleMakeChoice(opt.payload)}
-                        className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10"
-                    >
-                        <div className="scale-90 origin-top h-[380px] pointer-events-none">
-                            <CardTemplate card={opt.payload.dump} />
-                        </div>
-                        <button 
-                            className="w-full h-12 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/30 rounded font-bold transition-all pointer-events-none"
-                        >
-                            Discard
-                        </button>
-                    </div>
-                ))}
-              </div>
-            )}
-            
-            {match.state?.pendingChoice?.type === "scry_1" && (
-              <div className="flex flex-col items-center gap-6">
-                <div className="scale-100">
-                    <CardTemplate card={match.state.pendingChoice.options[0]?.payload?.card} />
-                </div>
-                <div className="flex gap-4">
-                    {match.state?.pendingChoice?.options?.map((opt, i) => (
-                        <button
-                            key={i}
-                            onClick={() => handleMakeChoice(opt.payload)}
-                            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/20 rounded font-bold transition-all"
-                        >
-                            {opt.text}
-                        </button>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {match.state?.pendingChoice?.type === "scry_3" && (
-              <div className="flex flex-wrap gap-4 items-center justify-center max-h-[60vh] overflow-y-auto p-4 custom-scrollbar">
-                {match.state?.pendingChoice?.options?.map((opt, i) => (
-                    <div 
-                        key={i} 
-                        onClick={() => handleMakeChoice(opt.payload)}
-                        className="flex flex-col gap-3 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10"
-                    >
-                        <div className="scale-90 origin-top h-[380px] pointer-events-none">
-                            <CardTemplate card={opt.payload.keep} />
-                        </div>
-                        <button 
-                            className="w-full h-12 bg-[#00BFFF]/20 hover:bg-[#00BFFF]/40 text-[#00BFFF] border border-[#00BFFF]/30 rounded font-bold transition-all pointer-events-none"
-                        >
-                            Take to Hand
-                        </button>
-                    </div>
-                ))}
-              </div>
-            )}
-
-            {match.state?.pendingChoice?.type === "scry_2" && (
-              <div className="flex flex-col items-center gap-6">
-                <div className="grid grid-cols-2 gap-8 w-full max-w-2xl">
-                    {match.state?.pendingChoice?.options?.map((opt, i) => (
-                        <div key={i} className="flex flex-col gap-4 items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/30 transition-all cursor-pointer relative z-10" onClick={() => handleMakeChoice(opt.payload)}>
-                            <div className="text-center font-bold text-lg text-white/80">{opt.text}</div>
-                            <div className="flex gap-2 justify-center scale-75 origin-top h-[320px] pointer-events-none">
-                                <CardTemplate card={opt.payload.keep} />
-                                <CardTemplate card={opt.payload.void} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {!["discard", "scry_1", "scry_2", "scry_3"].includes(match.state?.pendingChoice?.type) && (
-              <div className="flex flex-col gap-4 items-center">
-                {match.state?.pendingChoice?.options?.map((opt, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => handleMakeChoice(opt.payload)}
-                    className="w-full max-w-sm h-14 text-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white font-bold transition-all rounded"
-                  >
-                    {opt.text}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </DndContext>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* ------------------------------------------------------------------ */
-/* ARENA CONTAINER                                                    */
-/* ------------------------------------------------------------------ */
 export default function Arena() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  // Active Private Lobby state (`?lobby=CODE` or created from PlayHub)
+  const [lobbyCode, setLobbyCode] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("lobby")?.trim().toUpperCase() || null;
+  });
+  const [lobbyInitialDeck, setLobbyInitialDeck] = useState(null);
+
   const [session, setSession] = useState(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const specId = urlParams.get("spectateId");
-    const repId = urlParams.get("replayId");
+    const p = new URLSearchParams(window.location.search);
+    const specId = p.get("spectateId");
+    const repId = p.get("replayId");
     if (specId) {
-      const s = {
-        matchId: parseInt(specId),
-        slot: parseInt(urlParams.get("slot") || "1"),
-        roomCode: urlParams.get("roomCode"),
+      return {
+        matchId: parseInt(specId, 10),
+        slot: 0,
+        roomCode: p.get("roomCode") || "",
         status: "PLAYING",
         isSpectator: true,
       };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-      return s;
     }
     if (repId) {
-      const s = {
-        matchId: parseInt(repId),
-        slot: 1, // Doesn't matter for replays
+      return {
+        matchId: parseInt(repId, 10),
+        slot: 1,
         roomCode: "Replay",
         status: "ENDED",
         isReplay: true,
       };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-      return s;
     }
+    if (p.get("lobby")) return null;
     try {
       return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
     } catch {
       return null;
     }
   });
-  const [match, setMatch] = useState(null);
-  const pollRef = useRef(null);
 
-  const persist = (s) => {
-    setSession(s);
-    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else localStorage.removeItem(SESSION_KEY);
-    setMatch(null);
-  };
-
-  const fetchMatch = useCallback(async () => {
-    if (!session) return;
-    try {
-      const r = await api.get("/match", { params: { id: session.matchId, slot: session.slot } });
-      setMatch(r.data);
-    } catch {
-      /* ignore transient */
-    }
-  }, [session]);
-
+  // Auto-join private lobby when arriving via invite URL `?lobby=ABCDEF`
   useEffect(() => {
-    if (!session) return;
-    fetchMatch();
-    pollRef.current = setInterval(fetchMatch, 1800);
-    return () => clearInterval(pollRef.current);
-  }, [session, fetchMatch]);
+    const urlLobby = searchParams.get("lobby")?.trim().toUpperCase();
+    if (!urlLobby) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensurePlayerSession("Challenger");
+        await api.post(`/lobby/${urlLobby}/join`);
+        if (!cancelled) {
+          setSession(null);
+          setLobbyCode(urlLobby);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          toast.error(e.response?.data?.detail || "Could not join private lobby.");
+          setLobbyCode(null);
+          searchParams.delete("lobby");
+          setSearchParams(searchParams, { replace: true });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const refresh = (newState) => setMatch((m) => (m ? { ...m, state: newState, status: newState.phase, activePlayer: newState.activePlayer } : m));
-
-  const FeedbackBtn = () => (
-    <button onClick={() => setFeedbackOpen(true)} className="fixed bottom-4 right-4 z-[100] px-4 py-2 bg-black/50 hover:bg-black/80 border border-white/10 rounded-full text-white/50 hover:text-white font-head text-xs backdrop-blur-sm transition-all flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-      Give Feedback
-    </button>
+  const persistSession = useCallback(
+    (next) => {
+      setSession(next);
+      if (next && !next.isReplay && !next.isSpectator) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      } else {
+        localStorage.removeItem(SESSION_KEY);
+      }
+      if (!next) {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete("spectateId");
+        nextParams.delete("replayId");
+        nextParams.delete("roomCode");
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams]
   );
 
-  if (!session) return <><Lobby onStart={persist} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} /></>;
+  const { match, setMatch, connected, clockOffsetMs } = useMatchStream(
+    session?.matchId,
+    Boolean(session?.isSpectator),
+    Boolean(session && !session.isReplay)
+  );
 
-  const status = match?.status || session.status;
-  if (status === "WAITING") {
-    return <><WaitingRoom roomCode={session.roomCode} onCancel={async () => {
-      try { await api.delete(`/matchmaking/${session.matchId}`); } catch(e) {}
-      persist(null);
-    }} /><FeedbackBtn /><FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} /></>;
+  const handleEnterLobby = (code, deckSel) => {
+    persistSession(null);
+    setLobbyInitialDeck(deckSel);
+    setLobbyCode(code);
+    setSearchParams({ lobby: code }, { replace: true });
+  };
+
+  const handleLeaveLobby = useCallback(() => {
+    setLobbyCode(null);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("lobby");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const handleRematchShortcut = useCallback(
+    (info) => {
+      if (info?.returnToLobby) {
+        persistSession(null);
+        setLobbyCode(info.returnToLobby);
+        setSearchParams({ lobby: info.returnToLobby }, { replace: true });
+        return;
+      }
+      if (info?.matchId) {
+        persistSession(info);
+      }
+    },
+    [persistSession, setSearchParams]
+  );
+
+  // Replay View
+  if (session?.isReplay) {
+    return <ReplayViewer session={session} onExit={() => persistSession(null)} GameBoard={GameBoard} />;
   }
-  if (!match) {
-    return <div className="py-32 text-center text-white/50 font-head">Loading match…</div>;
-  }
-  if (session.isReplay) {
+
+  // Live Match View
+  if (session) {
+    if (!match) {
+      return (
+        <div className="min-h-[70dvh] flex flex-col items-center justify-center gap-3 px-4 text-center">
+          <div className="w-10 h-10 rounded-full border-2 border-[#F2A900] border-t-transparent animate-spin" />
+          <p className="font-head text-sm text-white/60">Entering the Arena…</p>
+          <button
+            onClick={() => persistSession(null)}
+            className="mt-2 text-xs font-head text-white/40 hover:text-white underline"
+          >
+            Cancel &amp; return to Hub
+          </button>
+        </div>
+      );
+    }
     return (
-      <>
-        <ReplayViewer session={session} onExit={() => persist(null)} GameBoard={GameBoard} />
-        <FeedbackBtn />
-        <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} />
-      </>
+      <GameBoard
+        session={session}
+        match={match}
+        refresh={setMatch}
+        onExit={() => persistSession(null)}
+        onRematchShortcut={handleRematchShortcut}
+        connected={connected}
+        clockOffsetMs={clockOffsetMs}
+      />
     );
   }
 
+  // Private Lobby Staging Room
+  if (lobbyCode) {
+    return (
+      <LobbyRoom
+        code={lobbyCode}
+        initialDeck={lobbyInitialDeck}
+        onMatchStart={(matchSession) => {
+          setLobbyCode(null);
+          persistSession(matchSession);
+        }}
+        onLeave={handleLeaveLobby}
+      />
+    );
+  }
+
+  // Default Arena Command Center
   return (
     <>
-      <GameBoard session={session} match={match} refresh={refresh} onExit={() => persist(null)} />
-      <FeedbackBtn />
+      <PlayHub onEnterMatch={persistSession} onEnterLobby={handleEnterLobby} />
+      <button
+        onClick={() => setFeedbackOpen(true)}
+        className="hidden md:flex fixed bottom-5 right-5 z-[80] px-3.5 py-2 glass rounded-full text-white/55 hover:text-white font-head text-xs items-center gap-1.5"
+      >
+        <MessageSquare className="w-3.5 h-3.5" /> Feedback
+      </button>
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} user={user} />
     </>
   );
 }
-
-function DiceRollModal({ state, slot, act }) {
-  const me = state.players[slot];
-  const oppSlot = slot === "1" ? "2" : "1";
-  const opp = state.players[oppSlot];
-  
-  const myRoll = state.diceRolls?.[slot];
-  const oppRoll = state.diceRolls?.[oppSlot];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="glass rounded-3xl p-8 max-w-md w-full text-center relative overflow-hidden">
-        <h2 className="font-display text-3xl font-bold mb-6 text-[#00BFFF]">Who Goes First?</h2>
-        
-        <div className="flex justify-between items-center mb-8 px-4">
-          <div className="flex flex-col items-center gap-2">
-            <span className="font-head text-[#F2A900]">{me?.username}</span>
-            <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl font-bold font-num">
-              {myRoll || "?"}
-            </div>
-          </div>
-          <span className="font-head text-white/30 text-xl font-bold">vs</span>
-          <div className="flex flex-col items-center gap-2">
-            <span className="font-head text-white/50">{opp?.username}</span>
-            <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-3xl font-bold font-num text-white/50">
-              {oppRoll || "?"}
-            </div>
-          </div>
-        </div>
-
-        {myRoll ? (
-          <p className="font-head text-white/50 animate-pulse">Waiting for {opp?.username} to roll...</p>
-        ) : (
-          <button
-            onClick={() => act("ROLL_DICE")}
-            className="px-6 py-3 rounded-xl bg-[#00BFFF] text-black font-bold font-head hover:bg-[#38ccff] transition-colors shadow-[0_0_20px_rgba(0,191,255,0.4)]"
-          >
-            Roll 1d6
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* ------------------------------------------------------------------ */
-/* ARENA CONTAINER                                                    */
-/* ------------------------------------------------------------------ */

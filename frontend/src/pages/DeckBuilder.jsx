@@ -226,35 +226,34 @@ export default function DeckBuilder() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-5 py-10" data-testid="deck-hub-page">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10" data-testid="deck-hub-page">
       {/* Landing Header */}
-      <div className="text-center max-w-4xl mx-auto mb-12">
-        <h1 className="font-display text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00BFFF] to-[#F2A900] drop-shadow-[0_0_20px_rgba(242,169,0,0.4)] mb-6 uppercase tracking-wider">
+      <div className="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
+        <h1 className="font-display text-3xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#00BFFF] to-[#F2A900] drop-shadow-[0_0_20px_rgba(242,169,0,0.4)] mb-3 sm:mb-5 uppercase tracking-wider">
           The Deck Hub
         </h1>
-        <p className="font-head text-white/80 text-lg md:text-xl leading-relaxed">
-          This is the haven where you can browse, study, and play professionally built decks. 
-          Vote on your favorites to give them a chance to land in the community spotlights!
+        <p className="font-head text-white/75 text-sm sm:text-lg leading-relaxed">
+          Browse official theme decks, study community brews, and forge your own 40-card battle lists.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex justify-center gap-4 mb-8 border-b border-white/10 pb-4">
+      {/* Mobile-First Segmented Tabs */}
+      <div className="grid grid-cols-3 sm:flex sm:justify-center gap-2 sm:gap-4 mb-6 sm:mb-8 border-b border-white/10 pb-4">
         <button 
           onClick={() => setActiveTab("precon")}
-          className={`px-8 py-3 rounded-full font-display font-bold text-lg transition-all ${activeTab === "precon" ? "bg-[#9B30FF] text-white shadow-[0_0_20px_rgba(155,48,255,0.5)]" : "glass text-white/60 hover:text-white"}`}
+          className={`px-3 sm:px-7 py-2.5 sm:py-3 rounded-2xl sm:rounded-full font-display font-bold text-xs sm:text-base transition-all ${activeTab === "precon" ? "bg-[#9B30FF] text-white shadow-[0_0_20px_rgba(155,48,255,0.5)]" : "glass text-white/60 hover:text-white"}`}
         >
-          Preconstructed
+          Starter
         </button>
         <button 
           onClick={() => setActiveTab("community")}
-          className={`px-8 py-3 rounded-full font-display font-bold text-lg transition-all ${activeTab === "community" ? "bg-[#F2A900] text-black shadow-[0_0_20px_rgba(242,169,0,0.5)]" : "glass text-white/60 hover:text-white"}`}
+          className={`px-3 sm:px-7 py-2.5 sm:py-3 rounded-2xl sm:rounded-full font-display font-bold text-xs sm:text-base transition-all ${activeTab === "community" ? "bg-[#F2A900] text-black shadow-[0_0_20px_rgba(242,169,0,0.5)]" : "glass text-white/60 hover:text-white"}`}
         >
-          Community Decks
+          Community
         </button>
         <button 
           onClick={() => setActiveTab("my-decks")}
-          className={`px-8 py-3 rounded-full font-display font-bold text-lg transition-all ${activeTab === "my-decks" ? "bg-[#00BFFF] text-black shadow-[0_0_20px_rgba(0,191,255,0.5)]" : "glass text-white/60 hover:text-white"}`}
+          className={`px-3 sm:px-7 py-2.5 sm:py-3 rounded-2xl sm:rounded-full font-display font-bold text-xs sm:text-base transition-all ${activeTab === "my-decks" ? "bg-[#00BFFF] text-black shadow-[0_0_20px_rgba(0,191,255,0.5)]" : "glass text-white/60 hover:text-white"}`}
         >
           My Decks
         </button>
@@ -308,7 +307,7 @@ export default function DeckBuilder() {
 
       {activeTab === "community" && (
         <>
-        <div className="flex justify-end mb-6 gap-2">
+        <div className="flex flex-wrap justify-start sm:justify-end mb-6 gap-2">
           <button
             onClick={() => setSort("upvotes")}
             data-testid="community-sort-upvotes"
@@ -374,11 +373,11 @@ export default function DeckBuilder() {
 
       {activeTab === "my-decks" && (
         <div>
-          <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 border-b border-white/10 pb-4">
             <h2 className="font-display text-2xl font-bold text-white uppercase tracking-widest">Your Arsenal</h2>
             <button 
               onClick={() => { setEditorInitialDeck(null); setView("editor"); }}
-              className="px-6 py-2.5 rounded-full bg-gradient-to-r from-purple-500 to-[#00BFFF] text-white font-bold font-head shadow-[0_0_20px_rgba(0,191,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
+              className="w-full sm:w-auto justify-center px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-[#00BFFF] text-white font-bold font-head shadow-[0_0_20px_rgba(0,191,255,0.4)] hover:scale-105 transition-transform flex items-center gap-2"
             >
               <Plus className="w-5 h-5" /> Create New Deck
             </button>
@@ -458,20 +457,32 @@ export default function DeckBuilder() {
 
       {/* Deck View Modal */}
       {viewDeck && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
-          <div className="w-full max-w-5xl bg-gray-900 border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-full">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/40 rounded-t-3xl">
-              <div>
-                <h2 className="font-display text-3xl font-bold text-[#F2A900] uppercase tracking-wide drop-shadow-lg">
-                  {viewDeck.deck_name || viewDeck.name}
-                </h2>
-                {viewDeck.username && <p className="font-head text-white/50 text-sm mt-1">Built by <span className="text-white/80">{viewDeck.username}</span></p>}
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-6">
+          <div className="w-full max-w-5xl bg-[#0B0C10] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] pb-safe">
+            <div className="p-4 sm:p-6 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-black/40 rounded-t-3xl shrink-0">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="font-display text-xl sm:text-3xl font-bold text-[#F2A900] uppercase tracking-wide">
+                    {viewDeck.deck_name || viewDeck.name}
+                  </h2>
+                  {viewDeck.username && (
+                    <p className="font-head text-white/50 text-xs sm:text-sm mt-0.5">
+                      Built by <span className="text-white/80">{viewDeck.username}</span>
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setViewDeck(null)}
+                  className="sm:hidden p-2 rounded-full bg-white/10 text-white"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+              <div className="flex items-center justify-between sm:justify-end gap-2">
+                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 w-full sm:w-auto">
                   <button
                     onClick={() => setModalTab("cards")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center gap-1.5 transition-all ${
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center justify-center gap-1.5 transition-all ${
                       modalTab === "cards" ? "bg-[#F2A900] text-black shadow-md" : "text-white/60 hover:text-white"
                     }`}
                   >
@@ -479,86 +490,133 @@ export default function DeckBuilder() {
                   </button>
                   <button
                     onClick={() => setModalTab("analytics")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center gap-1.5 transition-all ${
+                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center justify-center gap-1.5 transition-all ${
                       modalTab === "analytics" ? "bg-[#00BFFF] text-black shadow-md" : "text-white/60 hover:text-white"
                     }`}
                   >
                     <Activity className="w-3.5 h-3.5" /> Analytics
                   </button>
+                  <button
+                    onClick={() => setModalTab("comments")}
+                    className={`md:hidden flex-1 px-3 py-1.5 rounded-lg text-xs font-head font-bold flex items-center justify-center gap-1 transition-all ${
+                      modalTab === "comments" ? "bg-[#9B30FF] text-white shadow-md" : "text-white/60"
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" /> ({comments.length})
+                  </button>
                 </div>
-                <button onClick={() => setViewDeck(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <button
+                  onClick={() => setViewDeck(null)}
+                  className="hidden sm:flex p-2 rounded-full hover:bg-white/10 transition-colors"
+                >
                   <ArrowLeft className="w-6 h-6 text-white" />
                 </button>
               </div>
             </div>
-            
-            <div className="p-6 overflow-hidden flex-1 bg-black/20 flex flex-col md:flex-row gap-6 min-h-0">
-              <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 border-r border-white/10">
+
+            <div className="p-4 sm:p-6 overflow-hidden flex-1 bg-black/20 flex flex-col md:flex-row gap-6 min-h-0">
+              <div
+                className={`${
+                  modalTab === "comments" ? "hidden md:block" : "block"
+                } flex-1 overflow-y-auto custom-scrollbar md:pr-4 md:border-r border-white/10`}
+              >
                 {modalTab === "analytics" ? (
-                  <div className="py-2 pr-2">
+                  <div className="py-2">
                     <DeckAnalytics deckEntries={viewDeckEntries} />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 justify-items-center">
                     {viewDeck.cards.map((c, i) => {
-                      const fullCard = cards.find(fc => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id);
+                      const fullCard = cards.find(
+                        (fc) => fc.name === c.card_name || fc.id === c.card_name || fc.id === c.id
+                      );
                       if (!fullCard) return null;
-                      
                       return (
-                        <HoverCard key={i} openDelay={100} closeDelay={0}>
-                          <HoverCardTrigger asChild>
-                            <div className="relative group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
-                              <CardTemplate card={fullCard} size="sm" tilt={true} />
-                              <div className="absolute -top-3 -right-3 w-8 h-8 bg-black rounded-full border-2 border-[#F2A900] flex items-center justify-center font-display font-bold text-sm text-[#F2A900] shadow-[0_0_10px_rgba(242,169,0,0.8)] z-10">
-                                x{c.count}
-                              </div>
-                            </div>
-                          </HoverCardTrigger>
-                          <HoverCardContent side="right" sideOffset={8} className="w-72 bg-transparent border-0 shadow-none p-0 overflow-visible z-[200]">
-                            <CardTemplate card={fullCard} size="md" tilt={false} />
-                          </HoverCardContent>
-                        </HoverCard>
+                        <div key={i} className="relative w-full max-w-[148px]">
+                          <CardTemplate card={fullCard} size="sm" width="100%" tilt={false} />
+                          <div className="absolute -top-2 -right-2 w-7 h-7 bg-black rounded-full border-2 border-[#F2A900] flex items-center justify-center font-num font-bold text-xs text-[#F2A900] z-10">
+                            x{c.count}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 )}
               </div>
-              
-              <div className="w-full md:w-80 flex flex-col h-full bg-black/30 rounded-2xl border border-white/5 overflow-hidden">
-                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40">
-                  <h3 className="font-head font-bold flex items-center gap-2 text-white/80"><MessageSquare className="w-4 h-4"/> Comments</h3>
-                  <button onClick={() => handleLike(viewDeck.id)} className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${viewDeck.liked_by_me ? "text-[#FF5252]" : "text-white/40 hover:text-[#FF5252]"}`}>
-                    <Heart className={`w-4 h-4 ${viewDeck.liked_by_me ? "fill-current drop-shadow-[0_0_8px_rgba(255,82,82,0.6)]" : ""}`} />
+
+              <div
+                className={`${
+                  modalTab === "comments" ? "flex" : "hidden md:flex"
+                } w-full md:w-80 flex-col flex-1 md:flex-initial bg-black/30 rounded-2xl border border-white/5 overflow-hidden min-h-0`}
+              >
+                <div className="p-3.5 border-b border-white/10 flex justify-between items-center bg-black/40 shrink-0">
+                  <h3 className="font-head font-bold text-sm flex items-center gap-2 text-white/80">
+                    <MessageSquare className="w-4 h-4" /> Comments
+                  </h3>
+                  <button
+                    onClick={() => handleLike(viewDeck.id)}
+                    className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${
+                      viewDeck.liked_by_me ? "text-[#FF5252]" : "text-white/40 hover:text-[#FF5252]"
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${viewDeck.liked_by_me ? "fill-current" : ""}`} />
                     {viewDeck.likes_count || 0}
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-3.5 space-y-3 custom-scrollbar">
                   {comments.length === 0 ? (
-                    <div className="text-white/30 text-sm italic text-center py-10">No comments yet.</div>
-                  ) : comments.map(c => (
-                    <div key={c.id} className="bg-white/5 rounded-lg p-3 border border-white/5">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-bold text-[#00BFFF] truncate max-w-[150px]">{c.user_email.split('@')[0]}</span>
-                        <span className="text-[10px] text-white/30">{new Date(c.created_at).toLocaleDateString()}</span>
+                    <div className="text-white/30 text-sm italic text-center py-8">No comments yet.</div>
+                  ) : (
+                    comments.map((c) => (
+                      <div key={c.id} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-xs font-bold text-[#00BFFF] truncate max-w-[140px]">
+                            {c.user_email.split("@")[0]}
+                          </span>
+                          <span className="text-[10px] text-white/30">
+                            {new Date(c.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-white/80 leading-relaxed">{c.content}</p>
                       </div>
-                      <p className="text-sm text-white/80 leading-relaxed">{c.content}</p>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-                <form onSubmit={handleCommentSubmit} className="p-3 border-t border-white/10 bg-black/40 flex gap-2">
-                  <input type="text" value={newComment} onChange={e => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00BFFF]/50" />
-                  <button type="submit" disabled={!newComment.trim()} className="bg-[#00BFFF] text-black p-2 rounded-lg hover:bg-[#20caff] disabled:opacity-50 transition-colors"><Send className="w-4 h-4" /></button>
+                <form onSubmit={handleCommentSubmit} className="p-3 border-t border-white/10 bg-black/40 flex gap-2 shrink-0">
+                  <input
+                    type="text"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Add a comment…"
+                    className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00BFFF]/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newComment.trim()}
+                    className="bg-[#00BFFF] text-black px-3 py-2 rounded-xl hover:bg-[#20caff] disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
                 </form>
               </div>
             </div>
-            
-            <div className="p-6 border-t border-white/10 bg-black/40 rounded-b-3xl flex justify-end gap-4">
+
+            <div className="p-4 sm:p-5 border-t border-white/10 bg-black/40 flex gap-3 shrink-0">
               {viewDeck.username && (
-                <button onClick={() => { importDeck(viewDeck); setViewDeck(null); }} className="px-6 py-2.5 rounded-full bg-[#00BFFF] text-black font-bold font-head shadow-[0_0_20px_rgba(0,191,255,0.4)] hover:bg-[#20caff] hover:scale-105 transition-all flex items-center gap-2">
-                  <Download className="w-4 h-4" /> Import to My Decks
+                <button
+                  onClick={() => {
+                    importDeck(viewDeck);
+                    setViewDeck(null);
+                  }}
+                  className="flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl bg-[#00BFFF] text-black font-bold font-head text-sm flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Import Deck
                 </button>
               )}
-              <button onClick={() => setViewDeck(null)} className="px-8 py-2.5 rounded-full glass text-white font-bold font-head hover:bg-white/10 transition-colors">
+              <button
+                onClick={() => setViewDeck(null)}
+                className="flex-1 sm:flex-initial sm:ml-auto px-6 py-2.5 rounded-2xl glass text-white font-bold font-head text-sm"
+              >
                 Close
               </button>
             </div>

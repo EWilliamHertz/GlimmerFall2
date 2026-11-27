@@ -4,7 +4,7 @@ import { Navigate, useSearchParams, Link } from 'react-router-dom';
 import { LogOut, Users, Crosshair, Package, Activity, ShieldAlert, CheckCircle, TrendingUp, Store, Plus, Save, Edit, Settings, X, Crown, ListOrdered, Link as LinkIcon, Vote, Target, History, UserPlus, Check, Clock, Gift, Swords, Medal, Play, Eye, Sparkles, Copy, MessageSquare, Briefcase, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import LeadershipDashboard from "@/components/LeadershipDashboard";
 
 export default function Dashboard() {
@@ -93,6 +93,7 @@ function PlayerDashboard({ user, updateUser }) {
   const [referralInfo, setReferralInfo] = useState(null);
 
   const [inventory, setInventory] = useState([]);
+  const [ratingHistory, setRatingHistory] = useState([]);
 
   useEffect(() => {
     api.get("/auth/me/quests").then(res => {
@@ -107,6 +108,7 @@ function PlayerDashboard({ user, updateUser }) {
     api.get("/auth/me/friends").then(res => setFriends(res.data)).catch(console.error);
     api.get("/auth/me/referral").then(res => setReferralInfo(res.data)).catch(() => {});
     api.get("/auth/me/inventory").then(res => setInventory(res.data)).catch(() => {});
+    api.get("/me/rating-history").then(res => setRatingHistory(res.data || [])).catch(() => {});
   }, []);
 
   const claimQuest = async (qid) => {
@@ -236,12 +238,12 @@ function PlayerDashboard({ user, updateUser }) {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center gap-6 bg-black/40 p-6 rounded-3xl border border-white/10">
-        <div className="relative group cursor-pointer" onClick={() => setShowAvatarModal(true)}>
+      <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 bg-black/40 p-5 sm:p-6 rounded-3xl border border-white/10 text-center sm:text-left">
+        <div className="relative group cursor-pointer shrink-0" onClick={() => setShowAvatarModal(true)}>
           <img 
             src={user.avatar === 'default_avatar.png' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.nickname}` : user.avatar} 
             alt="Avatar" 
-            className="w-24 h-24 rounded-full border-4 border-[#F2A900] shadow-lg object-cover transition-transform group-hover:scale-105" 
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-[#F2A900] shadow-lg object-cover transition-transform group-hover:scale-105" 
           />
           <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <span className="text-xs font-bold text-[#F2A900] uppercase tracking-wider">Change</span>
@@ -249,7 +251,7 @@ function PlayerDashboard({ user, updateUser }) {
         </div>
         <div>
           <h2 className="text-2xl font-bold font-display text-white">{user.nickname}</h2>
-          <div className="text-white/60 font-head text-sm mt-1 flex items-center gap-2">
+          <div className="text-white/60 font-head text-sm mt-1 flex items-center justify-center sm:justify-start gap-2">
             Faction: 
             <select 
               value={user.faction || ""} 
@@ -266,35 +268,64 @@ function PlayerDashboard({ user, updateUser }) {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-6">
-        <div className="glass-strong p-6 rounded-2xl border border-[#9B30FF]/30 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#9B30FF]"><Activity className="w-24 h-24" /></div>
-          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Win Rate</h3>
-          <p className="text-4xl font-black">{winRate}%</p>
-          <p className="text-white/60 mt-1">{user.wins || 0}W - {user.losses || 0}L</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-6">
+        <div className="glass-strong p-4 sm:p-6 rounded-2xl border border-[#9B30FF]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-3 opacity-10 text-[#9B30FF]"><Activity className="w-16 h-16 sm:w-24 sm:h-24" /></div>
+          <h3 className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1.5">Win Rate</h3>
+          <p className="text-2xl sm:text-4xl font-num font-black">{winRate}%</p>
+          <p className="text-white/60 text-xs sm:text-sm mt-1">{user.wins || 0}W - {user.losses || 0}L</p>
         </div>
 
-        <div className="glass-strong p-6 rounded-2xl border border-[#F2A900]/30 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#F2A900]"><Crosshair className="w-24 h-24" /></div>
-          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Matchmaking</h3>
-          <p className="text-3xl font-black">{user.matchmaking?.rank || "Unranked"}</p>
-          <p className="text-white/60 mt-1">MMR: {user.matchmaking?.mmr || 1400}</p>
+        <div className="glass-strong p-4 sm:p-6 rounded-2xl border border-[#F2A900]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-3 opacity-10 text-[#F2A900]"><Crosshair className="w-16 h-16 sm:w-24 sm:h-24" /></div>
+          <h3 className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1.5">Ranked</h3>
+          <p className="text-xl sm:text-3xl font-display font-black">{user.matchmaking?.rank || "Gold II"}</p>
+          <p className="text-white/60 text-xs sm:text-sm mt-1">
+            MMR: {user.matchmaking?.mmr || 1400}
+            {(user.matchmaking?.placement_games_left || 0) > 0 && ` (${user.matchmaking.placement_games_left} placement)`}
+          </p>
         </div>
         
-        <div className="glass-strong p-6 rounded-2xl border border-[#00BFFF]/30 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#00BFFF]"><Package className="w-24 h-24" /></div>
-          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">My Bookings</h3>
-          <p className="text-4xl font-black">{user.bookings || 0}</p>
-          <p className="text-white/60 mt-1">Booster Boxes</p>
+        <div className="glass-strong p-4 sm:p-6 rounded-2xl border border-[#00BFFF]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-3 opacity-10 text-[#00BFFF]"><Package className="w-16 h-16 sm:w-24 sm:h-24" /></div>
+          <h3 className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1.5">My Bookings</h3>
+          <p className="text-2xl sm:text-4xl font-num font-black">{user.bookings || 0}</p>
+          <p className="text-white/60 text-xs sm:text-sm mt-1">Booster Boxes</p>
         </div>
 
-        <div className="glass-strong p-6 rounded-2xl border border-[#22E07B]/30 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 p-4 opacity-10 text-[#22E07B]"><Users className="w-24 h-24" /></div>
-          <h3 className="text-sm uppercase tracking-widest text-white/50 font-bold mb-2">Referrals</h3>
-          <p className="text-4xl font-black">{user.referrals || 0}</p>
-          <p className="text-white/60 mt-1">Friends Invited</p>
+        <div className="glass-strong p-4 sm:p-6 rounded-2xl border border-[#22E07B]/30 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 p-3 opacity-10 text-[#22E07B]"><Users className="w-16 h-16 sm:w-24 sm:h-24" /></div>
+          <h3 className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1.5">Referrals</h3>
+          <p className="text-2xl sm:text-4xl font-num font-black">{user.referrals || 0}</p>
+          <p className="text-white/60 text-xs sm:text-sm mt-1">Friends Invited</p>
         </div>
       </div>
+
+      {ratingHistory.length > 0 && (
+        <div className="glass-strong p-5 sm:p-6 rounded-3xl border border-[#F2A900]/25 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <h3 className="font-display text-xl font-bold flex items-center gap-2 text-[#F2A900]">
+              <TrendingUp className="w-5 h-5" /> Ranked Elo Progression
+            </h3>
+            <span className="text-xs font-head text-white/50">
+              Last {ratingHistory.length} Ranked games
+            </span>
+          </div>
+          <div className="h-44 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={[...ratingHistory].reverse().map((r, i) => ({ game: i + 1, mmr: r.mmr_after }))}>
+                <XAxis dataKey="game" stroke="rgba(255,255,255,0.3)" fontSize={11} />
+                <YAxis domain={["dataMin - 30", "dataMax + 30"]} stroke="rgba(255,255,255,0.3)" fontSize={11} width={42} />
+                <Tooltip
+                  contentStyle={{ background: "#0B0C10", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 12 }}
+                  labelFormatter={(l) => `Game #${l}`}
+                />
+                <Line type="monotone" dataKey="mmr" stroke="#F2A900" strokeWidth={2.5} dot={{ r: 3, fill: "#00BFFF" }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {(user.badges || []).length > 0 && (
         <div className="mt-8">

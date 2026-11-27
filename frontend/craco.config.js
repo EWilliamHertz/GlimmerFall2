@@ -79,6 +79,16 @@ let webpackConfig = {
       },
     },
   },
+  jest: {
+    configure: {
+      moduleNameMapper: {
+        "^@/(.*)$": "<rootDir>/src/$1",
+        "^react-router-dom$": "<rootDir>/node_modules/react-router/dist/development/index.js",
+        "^react-router$": "<rootDir>/node_modules/react-router/dist/development/index.js",
+        "^axios$": "<rootDir>/node_modules/axios/dist/node/axios.cjs",
+      },
+    },
+  },
   webpack: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

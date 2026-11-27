@@ -10,4 +10,6 @@ bcrypt==5.0.0
 PyJWT==2.7.0
 passlib==1.7.4
 stripe
+uvicorn[standard]>=0.30.0
+websockets>=12.0
 

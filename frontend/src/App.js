@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import Home from "@/pages/Home";
 import Cards from "@/pages/Cards";
 import Rules from "@/pages/Rules";
+import Learn from "@/pages/Learn";
 import Booster from "@/pages/Booster";
 import DeckBuilder from "@/pages/DeckBuilder";
 import Arena from "@/pages/Arena";
@@ -27,19 +28,18 @@ import Designer from "@/pages/Designer";
 import Results from "@/pages/Results";
 import { AuthProvider } from "@/lib/auth";
 import { Analytics } from "@vercel/analytics/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
 
   useEffect(() => {
     if (hash) {
-      // Small timeout to allow page to render before scrolling to ID
       setTimeout(() => {
-        const id = hash.replace('#', '');
+        const id = hash.replace("#", "");
         const element = document.getElementById(id);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
+          element.scrollIntoView({ behavior: "smooth" });
         }
       }, 100);
       return;
@@ -52,18 +52,32 @@ function ScrollToTop() {
 
 function Shell() {
   const { pathname } = useLocation();
+  const [inActiveMatch, setInActiveMatch] = useState(false);
+
+  useEffect(() => {
+    const onMatchMode = (e) => setInActiveMatch(Boolean(e?.detail?.active));
+    window.addEventListener("gf-match-mode", onMatchMode);
+    return () => window.removeEventListener("gf-match-mode", onMatchMode);
+  }, []);
+
+  useEffect(() => {
+    if (pathname !== "/play") setInActiveMatch(false);
+  }, [pathname]);
+
   const isPrint = pathname === "/print" || pathname === "/print-all";
-  const hideChrome = isPrint || pathname === "/sandbox";
+  const hideChrome = isPrint || pathname === "/sandbox" || (pathname === "/play" && inActiveMatch);
   const hideFooter = isPrint || pathname === "/play" || pathname === "/sandbox";
+
   return (
-    <div className="dark App min-h-screen text-foreground">
+    <div className={`dark App min-h-[100dvh] text-foreground ${hideChrome ? "" : "mb-nav-safe"}`}>
       <ScrollToTop />
-      {!hideChrome && <Navbar />}
-      <main className={hideChrome ? "" : "pt-16"}>
+      {!isPrint && pathname !== "/sandbox" && <Navbar inActiveMatch={pathname === "/play" && inActiveMatch} />}
+      <main className={hideChrome ? "" : "pt-14 md:pt-16"}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<Arena />} />
           <Route path="/sandbox" element={<TutorialSandbox />} />
+          <Route path="/learn" element={<Learn />} />
           <Route path="/cards" element={<Cards />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/decks" element={<DeckBuilder />} />

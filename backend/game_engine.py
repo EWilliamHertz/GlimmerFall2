@@ -4,6 +4,7 @@ All mutating logic lives here. The FastAPI layer only loads/saves the match
 `state` JSONB and delegates to `apply_action`. Turn limits are enforced here so
 they cannot be bypassed by a client refresh.
 """
+import json
 import random
 import uuid
 from copy import deepcopy
@@ -76,16 +77,57 @@ def make_instance(card):
     }
 
 
+COPY_MAX = 3
+MIN_CUSTOM_DECK = 30
+TUTORIAL_AI_NAME = "Nexus Construct"
+
+
 def build_deck(pool, faction=None, card_ids=None):
-    """Build a legal 30-card deck (max 3 copies of a card)."""
-    import random
+    """Build a legal 40-card deck (max 3 copies of a card).
+
+    Resolves entries in `card_ids` by exact ID, stringified ID, or case-insensitive
+    card name so cards from both `cards` and `cards2` work seamlessly. Enforces
+    at most COPY_MAX copies per unique card and tops up undersized lists (< 30)
+    so custom payloads cannot bring tiny combo decks into matches.
+    """
     import secrets
     rng = secrets.SystemRandom()
     if card_ids:
-        card_map = {c["id"]: c for c in pool}
-        bag = [card_map[cid] for cid in card_ids if cid in card_map]
-        rng.shuffle(bag)
-        return [make_instance(c) for c in bag]
+        by_id = {}
+        by_name = {}
+        for c in pool:
+            by_id[c["id"]] = c
+            by_id[str(c["id"])] = c
+            if c.get("name"):
+                by_name[c["name"].strip().lower()] = c
+        bag = []
+        counts = {}
+        for cid in card_ids:
+            card = by_id.get(cid) or by_id.get(str(cid))
+            if card is None and isinstance(cid, str):
+                card = by_name.get(cid.strip().lower())
+            if card is None:
+                continue
+            key = card["id"]
+            if counts.get(key, 0) >= COPY_MAX:
+                continue
+            counts[key] = counts.get(key, 0) + 1
+            bag.append(card)
+            if len(bag) >= DECK_SIZE:
+                break
+        if bag:
+            if len(bag) < MIN_CUSTOM_DECK and pool:
+                dom_factions = {c["faction"] for c in bag if c.get("faction")}
+                fill_pool = [c for c in pool if c.get("faction") in dom_factions] or list(pool)
+                rng.shuffle(fill_pool)
+                for c in fill_pool:
+                    while counts.get(c["id"], 0) < COPY_MAX and len(bag) < DECK_SIZE:
+                        counts[c["id"]] = counts.get(c["id"], 0) + 1
+                        bag.append(c)
+                    if len(bag) >= DECK_SIZE:
+                        break
+            rng.shuffle(bag)
+            return [make_instance(c) for c in bag]
     if faction:
         factions = [f.strip() for f in faction.split(",")]
         cards = [c for c in pool if c["faction"] in factions]
@@ -95,7 +137,7 @@ def build_deck(pool, faction=None, card_ids=None):
         cards = list(pool)
     bag = []
     for c in cards:
-        for _ in range(3):
+        for _ in range(COPY_MAX):
             bag.append(c)
     rng.shuffle(bag)
     deck = [make_instance(c) for c in bag[:DECK_SIZE]]
@@ -1174,6 +1216,24 @@ def apply_action(state, slot, action_type, payload):
             raise ActionError("You must make a choice first.")
         
         choice_type = state["pendingChoice"].get("type", "scry_2")
+        # Security: never trust card objects sent by the client. Resolve the
+        # chosen option from the server-side list, either by index or by
+        # matching the submitted payload against the offered options.
+        options = state["pendingChoice"].get("options", [])
+        chosen = None
+        payload = payload or {}
+        idx = payload.get("optionIndex")
+        if isinstance(idx, int) and 0 <= idx < len(options):
+            chosen = options[idx]["payload"]
+        else:
+            sub = json.dumps(payload, sort_keys=True)
+            for opt in options:
+                if json.dumps(opt["payload"], sort_keys=True) == sub:
+                    chosen = opt["payload"]
+                    break
+        if chosen is None:
+            raise ActionError("Invalid choice.")
+        payload = chosen
         state["pendingChoice"] = None
         
         if choice_type == "scry_2":
@@ -1264,7 +1324,143 @@ def apply_action(state, slot, action_type, payload):
     ACTION_MAP[action_type](state, slot, payload or {})
 
     # If vs AI and the turn passed to the AI, let it play immediately.
-    if state.get("isAI") and state["phase"] != "ENDED" and str(state["activePlayer"]) == "2":
+    if state.get("isTutorial") and state["phase"] != "ENDED" and str(state["activePlayer"]) == "2":
+        tutorial_ai_take_turn(state)
+    elif state.get("isAI") and state["phase"] != "ENDED" and str(state["activePlayer"]) == "2":
         ai_take_turn(state)
     update_auras(state)
     return state
+
+
+# ---------- interactive guided tutorial ----------
+
+TUTORIAL_CARDS = {
+    "colossus": {
+        "id": 4, "name": "Sunfire Colossus", "faction": "Solari", "card_type": "Entity",
+        "cost": 5, "power": 6, "health": 6, "keywords": "Overwhelm",
+        "description": "Overwhelm", "rarity": "Rare", "collector_number": 4, "image_url": None,
+    },
+    "vanguard": {
+        "id": 1, "name": "Solari Vanguard", "faction": "Solari", "card_type": "Entity",
+        "cost": 1, "power": 2, "health": 1, "keywords": None,
+        "description": "A swift vanguard ready to strike the moment it enters.",
+        "rarity": "Common", "collector_number": 1, "image_url": None,
+    },
+    "flare": {
+        "id": 8, "name": "Flare Strike", "faction": "Solari", "card_type": "Flash",
+        "cost": 1, "power": None, "health": None, "keywords": None,
+        "description": "Deal 2 damage to any target.",
+        "rarity": "Common", "collector_number": 8, "image_url": None,
+    },
+    "courier": {
+        "id": 11, "name": "Emberwing Courier", "faction": "Solari", "card_type": "Entity",
+        "cost": 2, "power": 2, "health": 1, "keywords": None,
+        "description": "When this Entity deals damage to a Nexus, ready one Glimmer Node.",
+        "rarity": "Common", "collector_number": 11, "image_url": None,
+    },
+    "shield": {
+        "id": 6, "name": "Radiant Shield", "faction": "Solari", "card_type": "Relic",
+        "cost": 2, "power": None, "health": None, "keywords": None,
+        "description": "Attached Entity gets +1/+2 and Guard.",
+        "rarity": "Uncommon", "collector_number": 6, "image_url": None,
+    },
+    "sentinel": {
+        "id": 901, "name": "Gloom Sentinel", "faction": "Umbri", "card_type": "Entity",
+        "cost": 1, "power": 1, "health": 2, "keywords": "Guard",
+        "description": "Guard (Enemies must attack this Entity before the Nexus.)",
+        "rarity": "Common", "collector_number": 26, "image_url": None,
+    },
+}
+
+
+def _pick_tutorial_card(pool, key):
+    spec = TUTORIAL_CARDS[key]
+    for c in pool or []:
+        if c.get("name") == spec["name"]:
+            merged = dict(c)
+            merged["cost"] = spec["cost"]
+            merged["power"] = spec["power"]
+            merged["health"] = spec["health"]
+            merged["card_type"] = spec["card_type"]
+            merged["keywords"] = spec["keywords"]
+            merged["description"] = spec["description"]
+            return merged
+    return dict(spec)
+
+
+def new_tutorial_state(p1_name, pool=None):
+    """Create a deterministic, real-engine 2-turn guided tutorial match."""
+    import time
+    colossus = _pick_tutorial_card(pool, "colossus")
+    vanguard = _pick_tutorial_card(pool, "vanguard")
+    flare = _pick_tutorial_card(pool, "flare")
+    courier = _pick_tutorial_card(pool, "courier")
+    shield = _pick_tutorial_card(pool, "shield")
+    sentinel = _pick_tutorial_card(pool, "sentinel")
+
+    p1 = {
+        "username": p1_name,
+        "hp": NEXUS_HP,
+        "energy": 0,
+        "maxEnergy": 0,
+        "hand": [make_instance(colossus), make_instance(vanguard)],
+        "library": [make_instance(flare), make_instance(courier), make_instance(shield)] + [
+            make_instance(vanguard) for _ in range(10)
+        ],
+        "battlefield": [],
+        "resonanceRow": [],
+        "relics": [],
+        "void": [],
+        "hasDrawnThisTurn": False,
+        "hasResonatedThisTurn": False,
+    }
+    p2 = {
+        "username": TUTORIAL_AI_NAME,
+        "hp": 4,
+        "energy": 0,
+        "maxEnergy": 0,
+        "hand": [make_instance(colossus), make_instance(sentinel)],
+        "library": [make_instance(sentinel) for _ in range(10)],
+        "battlefield": [],
+        "resonanceRow": [],
+        "relics": [],
+        "void": [],
+        "hasDrawnThisTurn": False,
+        "hasResonatedThisTurn": False,
+    }
+    state = {
+        "players": {"1": p1, "2": p2},
+        "turn": 1,
+        "activePlayer": 1,
+        "phase": "PLAYING",
+        "diceRolls": {"1": 6, "2": 2},
+        "winner": None,
+        "isAI": True,
+        "isTutorial": True,
+        "log": [
+            f"Training initialized: {p1_name} vs {TUTORIAL_AI_NAME}.",
+            f"{p1_name} goes first! Follow the tactical prompts to shatter the enemy Nexus.",
+        ],
+        "turnStartedAt": int(time.time() * 1000),
+    }
+    start_turn(state, "1")
+    return state
+
+
+def tutorial_ai_take_turn(state):
+    """Scripted opponent turn for the tutorial: deploys one Guard blocker, never kills the learner."""
+    slot = "2"
+    ai = state["players"][slot]
+    if not ai["hasDrawnThisTurn"] and ai["library"]:
+        do_draw(state, slot)
+    if state["phase"] == "ENDED":
+        return
+    if not ai["hasResonatedThisTurn"] and ai["hand"] and ai["maxEnergy"] < 2:
+        node = max(ai["hand"], key=lambda c: c["cost"])
+        do_play_card(state, slot, {"instanceId": node["instanceId"], "destination": "resonance"})
+    # Deploy at most one Guard entity if none on board so the player learns how Guard works.
+    if not ai["battlefield"]:
+        guards = [c for c in ai["hand"] if c["cardType"] == "Entity" and c["cost"] <= ai["energy"]]
+        if guards:
+            do_play_card(state, slot, {"instanceId": guards[0]["instanceId"], "destination": "battlefield"})
+    do_end_turn(state, slot)

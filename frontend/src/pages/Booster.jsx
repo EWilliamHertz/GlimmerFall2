@@ -116,7 +116,7 @@ export default function Booster() {
             </p>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-8 justify-items-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-3 sm:gap-x-4 gap-y-6 sm:gap-y-8 justify-items-center">
             {pack.map((c, i) => (
               <PackCard
                 key={c.id + "-" + i}
@@ -144,12 +144,12 @@ const PackCard = ({ card, index, flipped, onFlip, onDetail }) => {
       initial={{ opacity: 0, scale: 0.2, rotateZ: (index % 2 === 0 ? -1 : 1) * (15 + index) }}
       animate={{ opacity: 1, scale: 1, rotateZ: 0 }}
       transition={{ type: "spring", stiffness: 200, damping: 20, delay: index * 0.1 }}
-      className="relative"
+      className="relative w-full max-w-[164px]"
       style={{ perspective: 1000 }}
       data-testid={`pack-card-${index}`}
     >
       <motion.div
-        className="relative w-40 aspect-[5/7]"
+        className="relative w-full aspect-[5/7]"
         style={{ transformStyle: "preserve-3d" }}
         animate={{ rotateY: flipped ? 180 : 0 }}
         transition={{ duration: 0.6 }}
@@ -166,7 +166,7 @@ const PackCard = ({ card, index, flipped, onFlip, onDetail }) => {
           <img src={CARDBACK} alt="" className="w-full h-full object-cover" />
         </div>
         <div className="absolute inset-0 rounded-xl" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
-          <CardTemplate card={card} size="md" tilt={false} className="w-40" onClick={onDetail} />
+          <CardTemplate card={card} size="md" width="100%" tilt={false} onClick={onDetail} />
           {flipped && special && (
             <motion.div 
                initial={{ opacity: 1, backgroundPosition: "0% 0%" }}

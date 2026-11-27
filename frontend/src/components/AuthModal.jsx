@@ -2,13 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { X, Sparkles } from 'lucide-react';
 
-export default function AuthModal({ isOpen, onClose }) {
+export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   const { login, register } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(initialMode !== "register");
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [faction, setFaction] = useState('solari');
   const [referrerCode, setReferrerCode] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsLogin(initialMode !== "register");
+    }
+  }, [isOpen, initialMode]);
 
   // Prefill referrer code from ?ref= URL param when the modal opens.
   useEffect(() => {

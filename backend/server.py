@@ -36,6 +36,11 @@ if not DATABASE_URL:
 
 CARDBACK_URL = os.environ.get("CARDBACK_URL", "")
 
+JWT_SECRET = os.environ.get("JWT_SECRET") or "glimmerfall_super_secret_key"
+if not os.environ.get("JWT_SECRET"):
+    logger.warning("JWT_SECRET not set; using development default. Set JWT_SECRET in production!")
+
+
 def get_user_from_request(request: Request):
     auth = request.headers.get("Authorization")
     if not auth or not auth.startswith("Bearer "):
@@ -130,13 +135,18 @@ def get_rank_tier(mmr: int) -> dict:
         }
 
 
+import threading
+
 DB_POOL = None
+DB_POOL_MAX = int(os.environ.get("DB_POOL_MAX", "24"))
+DB_SEM = threading.BoundedSemaphore(DB_POOL_MAX)
 
 def init_db_pool():
-    global DB_POOL
+    global DB_POOL, DB_SEM
     try:
+        DB_SEM = threading.BoundedSemaphore(DB_POOL_MAX)
         DB_POOL = pgpool.ThreadedConnectionPool(
-            1, 10, dsn=DATABASE_URL,
+            1, DB_POOL_MAX, dsn=DATABASE_URL,
             keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=5,
         )
         logger.info("Database connection pool initialized successfully")
@@ -147,19 +157,42 @@ def init_db_pool():
 init_db_pool()
 
 
+def _acquire_pooled_conn():
+    global DB_POOL
+    if DB_POOL is None:
+        init_db_pool()
+    if DB_POOL is None:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    if not DB_SEM.acquire(timeout=4.0):
+        raise HTTPException(status_code=503, detail="Database busy, please retry")
+    try:
+        return DB_POOL.getconn()
+    except Exception:
+        DB_SEM.release()
+        raise
+
+
+def _release_pooled_conn(conn, close=False):
+    try:
+        if conn and DB_POOL:
+            DB_POOL.putconn(conn, close=close)
+    finally:
+        try:
+            DB_SEM.release()
+        except ValueError:
+            pass
+
+
 class DB:
-    """Resilient DB context manager. Validates the pooled connection and
-    recycles it if NeonDB has dropped it (SSL connection closed unexpectedly)."""
+    """Resilient DB context manager. Queues burst requests via DB_SEM and recycles
+    dropped SSL connections cleanly."""
 
     def __enter__(self):
-        global DB_POOL
-        if DB_POOL is None:
-            init_db_pool()
-        if DB_POOL is None:
-            raise HTTPException(status_code=503, detail="Database unavailable")
+        self.conn = None
+        self.cur = None
         last_err = None
         for _ in range(3):
-            self.conn = DB_POOL.getconn()
+            self.conn = _acquire_pooled_conn()
             try:
                 self.conn.autocommit = True
                 self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
@@ -167,10 +200,7 @@ class DB:
                 return self.cur
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 last_err = e
-                try:
-                    DB_POOL.putconn(self.conn, close=True)
-                except Exception:
-                    pass
+                _release_pooled_conn(self.conn, close=True)
                 self.conn = None
         raise last_err
 
@@ -180,12 +210,67 @@ class DB:
                 self.cur.close()
         except Exception:
             pass
+        if self.conn:
+            _release_pooled_conn(self.conn, close=exc_type is not None)
+            self.conn = None
+
+
+class DBTx:
+    """Transactional DB context manager (autocommit=False).
+
+    Commits on clean exit, rolls back on exception, and restores autocommit=True
+    before returning the connection to DB_POOL so pooled connections stay clean.
+    """
+
+    def __enter__(self):
+        self.conn = None
+        self.cur = None
+        last_err = None
+        for _ in range(3):
+            self.conn = _acquire_pooled_conn()
+            try:
+                self.conn.autocommit = True
+                self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
+                self.cur.execute("SELECT 1")
+                self.conn.autocommit = False
+                return self.cur
+            except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+                last_err = e
+                _release_pooled_conn(self.conn, close=True)
+                self.conn = None
+        raise last_err
+
+    def __exit__(self, exc_type, *a):
+        bad_conn = False
         try:
             if self.conn:
-                # discard the connection if the request errored on it
-                DB_POOL.putconn(self.conn, close=exc_type is not None)
+                if exc_type is None:
+                    self.conn.commit()
+                else:
+                    self.conn.rollback()
+        except Exception:
+            bad_conn = True
+        try:
+            if self.cur:
+                self.cur.close()
         except Exception:
             pass
+        if self.conn:
+            if not bad_conn:
+                try:
+                    self.conn.autocommit = True
+                except Exception:
+                    bad_conn = True
+            _release_pooled_conn(self.conn, close=bad_conn)
+            self.conn = None
+
+
+def run_startup_migrations():
+    if not DATABASE_URL:
+        return
+    from migrations.remodel_2026_11 import run_statements
+    with DBTx() as cur:
+        run_statements(cur)
 
 
 app = FastAPI(title="GlimmerFall TCG API")
@@ -639,59 +724,13 @@ class ActionReq(BaseModel):
 
 
 def save_match(match_id, state):
-    active_slot = str(state.get("activePlayer", 1))
-    active_name = state["players"][active_slot]["username"]
-    with DB() as cur:
-        cur.execute("SELECT status, player1, player2, is_ranked FROM matches WHERE id=%s", (match_id,))
-        old = cur.fetchone()
-        if old and old["status"] != "ENDED" and state.get("phase") == "ENDED":
-            w = state.get("winner")
-            
-            p1_name = old["player1"]
-            p2_name = old["player2"]
-            
-            # Fetch current MMR if it's a ranked match
-            if old["is_ranked"] and p1_name and p2_name and not state.get("isAI"):
-                cur.execute("SELECT nickname, mmr FROM users WHERE nickname IN (%s, %s)", (p1_name, p2_name))
-                users = cur.fetchall()
-                p1_mmr = 1400
-                p2_mmr = 1400
-                for u in users:
-                    if u["nickname"] == p1_name: p1_mmr = u["mmr"] or 1400
-                    elif u["nickname"] == p2_name: p2_mmr = u["mmr"] or 1400
-                
-                # Basic Elo calculation (K=32)
-                expected_p1 = 1 / (1 + 10 ** ((p2_mmr - p1_mmr) / 400))
-                expected_p2 = 1 / (1 + 10 ** ((p1_mmr - p2_mmr) / 400))
-                
-                actual_p1 = 1 if w == 1 else (0 if w == 2 else 0.5)
-                actual_p2 = 1 if w == 2 else (0 if w == 1 else 0.5)
-                
-                new_p1_mmr = max(0, int(p1_mmr + 32 * (actual_p1 - expected_p1)))
-                new_p2_mmr = max(0, int(p2_mmr + 32 * (actual_p2 - expected_p2)))
-                t1 = get_rank_tier(new_p1_mmr)
-                t2 = get_rank_tier(new_p2_mmr)
-                
-                cur.execute("UPDATE users SET mmr = %s, rank = %s WHERE nickname = %s", (new_p1_mmr, t1["name"], p1_name))
-                cur.execute("UPDATE users SET mmr = %s, rank = %s WHERE nickname = %s", (new_p2_mmr, t2["name"], p2_name))
-            
-            if w == 1:
-                if state.get("isAI"):
-                    cur.execute("UPDATE users SET ai_wins = COALESCE(ai_wins, 0) + 1 WHERE nickname=%s", (p1_name,))
-                else:
-                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p1_name,))
-                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p2_name,))
-            elif w == 2:
-                if state.get("isAI"):
-                    cur.execute("UPDATE users SET ai_losses = COALESCE(ai_losses, 0) + 1 WHERE nickname=%s", (p1_name,))
-                else:
-                    cur.execute("UPDATE users SET wins = wins + 1 WHERE nickname=%s", (p2_name,))
-                    cur.execute("UPDATE users SET losses = losses + 1 WHERE nickname=%s", (p1_name,))
+    """Persist a state via the shared commit path (version bump, Elo once on end, realtime notify)."""
+    with DBTx() as cur:
+        cur.execute("SELECT * FROM matches WHERE id=%s FOR UPDATE", (match_id,))
+        m = cur.fetchone()
+        if m:
+            PLAY["commit_state"](cur, m, state)
 
-        cur.execute(
-            "UPDATE matches SET state=%s, status=%s, current_turn=%s, active_player=%s, history = history || %s::jsonb WHERE id=%s",
-            (Json(state), state.get("phase"), state.get("turn"), active_name, Json([state]), match_id),
-        )
 
 
 def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None, is_ranked=False):
@@ -707,9 +746,10 @@ def insert_match(room_code, p1, p2, state, p1_deck=None, p2_deck=None, is_ranked
 
 
 @api.delete("/matchmaking/{match_id}")
-def cancel_matchmaking(match_id: int):
+def cancel_matchmaking(match_id: int, request: Request):
+    who = PLAY["ident"](request)
     with DB() as cur:
-        cur.execute("DELETE FROM matches WHERE id=%s AND status='WAITING'", (match_id,))
+        cur.execute("DELETE FROM matches WHERE id=%s AND status='WAITING' AND player1=%s", (match_id, who.name))
     return {"status": "cancelled"}
 
 def _rand_room():
@@ -718,7 +758,30 @@ def _rand_room():
 
 
 @api.post("/matchmaking")
-def matchmaking(req: MatchmakeReq):
+def matchmaking(req: MatchmakeReq, request: Request):
+    """Legacy entry point kept for old clients & test suites.
+
+    PvP / Ranked / Room matches strictly require a valid auth or guest token and
+    derive identity from the token. Unauthenticated `vsAI=True` is allowed only
+    when `req.username` does not belong to any registered user.
+    """
+    who = PLAY["ident"](request, required=False)
+    legacy_anon_ai = False
+    if who:
+        req.username = who.name
+        if not req.roomCode and not req.vsAI and not who.registered:
+            raise HTTPException(403, "Create a free account to play Ranked.")
+    else:
+        if not req.vsAI:
+            raise HTTPException(401, "Sign in or start a guest session to play multiplayer.")
+        clean_name = (req.username or "").strip() or "PracticeGuest"
+        with DB() as cur:
+            cur.execute("SELECT 1 FROM users WHERE nickname ILIKE %s", (clean_name,))
+            if cur.fetchone():
+                raise HTTPException(401, "That nickname belongs to a registered account — please sign in.")
+        req.username = clean_name
+        legacy_anon_ai = True
+
     with DB() as cur:
         # 1. Clean up abandoned queue lobbies first (last ping > 10s ago)
         cur.execute("DELETE FROM matches WHERE status='WAITING' AND last_polled < NOW() - INTERVAL '10 seconds'")
@@ -739,18 +802,17 @@ def matchmaking(req: MatchmakeReq):
             precons = cur.fetchall()
             ai_deck = random.choice(precons) if precons else {"id": None, "deck_name": "Random Chaos"}
             
-            ai_card_ids = None
+            ai_card_names = None
             if ai_deck["id"]:
-                cur.execute("SELECT c.id, dc.count FROM deck_cards dc JOIN cards c ON dc.card_name = c.name WHERE dc.deck_id = %s", (ai_deck["id"],))
+                cur.execute("SELECT card_name, count FROM deck_cards WHERE deck_id = %s", (ai_deck["id"],))
                 rows = cur.fetchall()
                 if rows:
-                    ai_card_ids = []
-                    for r in rows:
-                        for _ in range(r["count"]):
-                            ai_card_ids.append(r["id"])
+                    ai_card_names = [r["card_name"] for r in rows for _ in range(r["count"])]
                             
-        deck2 = ge.build_deck(pool, faction=None, card_ids=ai_card_ids)
+        deck2 = ge.build_deck(pool, faction=None, card_ids=ai_card_names)
         state = ge.new_match_state(req.username, deck1, ge.AI_NAME, deck2, is_ai=True)
+        if legacy_anon_ai:
+            state["legacyAnonAI"] = True
         with DB() as cur:
             cur.execute("SELECT mmr FROM users WHERE nickname=%s", (req.username,))
             u_row = cur.fetchone()
@@ -873,7 +935,15 @@ def redact_state(state, viewer_slot):
         return {"phase": "WAITING", "log": state.get("log", []), "players": state.get("players", {})}
     s = json.loads(json.dumps(state))  # deep copy
     s.pop("p1_deck", None)
+    s.pop("p1_deck_cards", None)
+    s.pop("p2_deck_cards", None)
     v = str(viewer_slot)
+    # Pending choices can contain hidden library / hand cards: only the chooser sees them.
+    pc = s.get("pendingChoice")
+    if pc and v != "0" and str(pc.get("player")) != v:
+        s["pendingChoice"] = {"player": pc.get("player"), "hidden": True}
+    elif pc and v == "0" and s.get("phase") != "ENDED":
+        s["pendingChoice"] = {"player": pc.get("player"), "hidden": True}
     for slot in ("1", "2"):
         pl = s["players"][slot]
         pl["libraryCount"] = len(pl.get("library", []))
@@ -887,60 +957,28 @@ def redact_state(state, viewer_slot):
     return s
 
 
-@api.get("/match")
-def get_match(id: int = Query(...), slot: int = Query(1), isSpectator: bool = Query(False)):
-    import time
-    from game_engine import apply_action
-    
-    with DB() as cur:
-        cur.execute("SELECT * FROM matches WHERE id=%s", (id,))
-        m = cur.fetchone()
-        
-        if not m:
-            raise HTTPException(404, "Match not found")
-            
-        if m["status"] in ("WAITING", "PLAYING"):
-            cur.execute("UPDATE matches SET last_polled=CURRENT_TIMESTAMP WHERE id=%s", (id,))
-        
-        state = m["state"]
-        
-        # Enforce turn timer for ranked matches
-        if m["is_ranked"] and state.get("phase") == "PLAYING" and state.get("turnStartedAt"):
-            elapsed_ms = int(time.time() * 1000) - state["turnStartedAt"]
-            if elapsed_ms > 90000: # 90 seconds rope
-                try:
-                    active = str(state.get("activePlayer", 1))
-                    state = apply_action(state, active, "END_TURN", {})
-                    cur.execute(
-                        "UPDATE matches SET current_turn=%s, active_player=%s, state=%s, history = history || %s::jsonb WHERE id=%s",
-                        (state["turn"], state["activePlayer"], json.dumps(state), json.dumps([state]), id)
-                    )
-                except Exception as e:
-                    pass
+PLAY = {}  # filled by play.register(); see bottom of file
 
-    return {
-        "matchId": m["id"],
-        "roomCode": m["room_code"],
-        "status": m["status"],
-        "turn": state.get("turn", m["current_turn"]),
-        "activePlayer": state.get("activePlayer"),
-        "player1": m["player1"],
-        "player2": m["player2"],
-        "is_ranked": m["is_ranked"],
-        "state": redact_state(state, 0 if (m["status"] == "ENDED" or isSpectator) else slot),
-    }
+
+@api.get("/match")
+def get_match(request: Request, id: int = Query(...), slot: int = Query(1), isSpectator: bool = Query(False)):
+    """Legacy endpoint. Viewer slot comes from auth token (with legacyAnonAI fallback for unauthed AI practice)."""
+    who = PLAY["ident"](request, required=False)
+    return PLAY["match_tick_and_view"](id, who, None, isSpectator, legacy_slot=slot)
+
 
 @api.get("/match/{id}/history")
 def get_match_history(id: int):
     with DB() as cur:
-        cur.execute("SELECT history FROM matches WHERE id=%s", (id,))
+        cur.execute("SELECT status, history FROM matches WHERE id=%s", (id,))
         m = cur.fetchone()
         if not m:
             raise HTTPException(404, "Match not found")
-        # Ensure we don't return null
-        history = m.get("history") or []
-        # We don't redact history because it's only for replays of ended games (or could add a status check)
-        return {"history": history}
+        # Full (unredacted) history would reveal hands/libraries, so only finished matches are replayable.
+        if m["status"] != "ENDED":
+            raise HTTPException(403, "Replays are available once the match has ended.")
+        return {"history": m.get("history") or []}
+
 
 @api.get("/featured")
 def get_featured_matches():
@@ -953,24 +991,36 @@ def get_featured_matches():
         return [{"id": m["id"], "player1": m["player1"], "player2": m["player2"], "room_code": m["room_code"], "created_at": str(m["created_at"])} for m in ranked]
 
 @api.post("/action")
-def post_action(req: ActionReq):
-    with DB() as cur:
-        cur.execute("SELECT * FROM matches WHERE id=%s", (req.matchId,))
+def post_action(req: ActionReq, request: Request):
+    """Legacy endpoint. Acting slot comes from auth token (never trusted in PvP)."""
+    who = PLAY["ident"](request, required=False)
+    from play import slot_for
+    with DBTx() as cur:
+        cur.execute("SELECT * FROM matches WHERE id=%s FOR UPDATE", (req.matchId,))
         m = cur.fetchone()
-    if not m:
-        raise HTTPException(404, "Match not found")
-    state = m["state"]
-    if state.get("phase") == "WAITING":
-        raise HTTPException(400, "Match has not started yet.")
-    try:
-        new_state = ge.apply_action(state, req.slot, req.action, req.payload or {})
-    except ge.ActionError as e:
-        raise HTTPException(400, str(e))
-    save_match(req.matchId, new_state)
-    return {"ok": True, "state": redact_state(new_state, req.slot)}
+        if not m:
+            raise HTTPException(404, "Match not found")
+        state = m["state"] or {}
+        if who:
+            s = slot_for(m, who.name)
+            if not s:
+                raise HTTPException(403, "You are not a player in this match.")
+        elif state.get("legacyAnonAI"):
+            s = int(req.slot)
+        else:
+            raise HTTPException(401, "Sign in or start a guest session to play.")
+        if state.get("phase") == "WAITING":
+            raise HTTPException(400, "Match has not started yet.")
+        try:
+            new_state = ge.apply_action(state, s, req.action, req.payload or {})
+        except ge.ActionError as e:
+            raise HTTPException(400, str(e))
+        if s in (1, 2):
+            cur.execute(f"UPDATE matches SET p{s}_last_seen=NOW(), last_polled=NOW() WHERE id=%s", (req.matchId,))
+        PLAY["commit_state"](cur, m, new_state)
+    return {"ok": True, "state": redact_state(new_state, s)}
 
 resend.api_key = os.environ.get("RESEND_API_KEY")
-JWT_SECRET = "glimmerfall_super_secret_key"
 
 class RegisterReq(BaseModel):
     email: str
@@ -1170,6 +1220,7 @@ def get_me(request: Request):
         "bookings": db_u.get("bookings") or 0,
         "badges": db_u.get("badges") or [],
         "status": db_u.get("status") or "active",
+        "tutorial_done": bool(db_u.get("tutorial_done")),
         "matchmaking": {
             "mmr": user_mmr,
             "rank": db_u.get("rank") or tier_info["name"],
@@ -1178,14 +1229,15 @@ def get_me(request: Request):
             "badge": tier_info["badge"],
             "color": tier_info["color"],
             "min_mmr": tier_info["min_mmr"],
-            "max_mmr": tier_info["max_mmr"]
+            "max_mmr": tier_info["max_mmr"],
+            "placement_games_left": int(db_u["placement_games_left"]) if db_u.get("placement_games_left") is not None else 0,
         }
     }
 
 @api.get("/users/{nickname}")
 def get_user_profile(nickname: str):
     with DB() as cur:
-        cur.execute("SELECT id, nickname, faction, avatar, wins, losses, mmr, rank FROM users WHERE nickname ILIKE %s", (nickname,))
+        cur.execute("SELECT id, nickname, faction, avatar, wins, losses, mmr, rank, badges, status, placement_games_left FROM users WHERE nickname ILIKE %s", (nickname,))
         db_u = cur.fetchone()
         if not db_u:
             raise HTTPException(404, "User not found")
@@ -1243,7 +1295,8 @@ def get_user_profile(nickname: str):
             "badge": tier_info["badge"],
             "color": tier_info["color"],
             "min_mmr": tier_info["min_mmr"],
-            "max_mmr": tier_info["max_mmr"]
+            "max_mmr": tier_info["max_mmr"],
+            "placement_games_left": int(db_u["placement_games_left"]) if db_u.get("placement_games_left") is not None else 0,
         },
         "matchHistory": recent_matches
     }
@@ -1411,6 +1464,8 @@ def get_giveaway_eligible():
 @api.get("/auth/me/matches")
 def get_my_matches(request: Request):
     user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
     with DB() as cur:
         cur.execute("SELECT id, player1, player2, player1_deck, player2_deck, status, created_at, state->>'winner' as winner, state->>'turn' as turn FROM matches WHERE (player1=%s OR player2=%s) AND status='ENDED' ORDER BY id DESC LIMIT 20", (user['nickname'], user['nickname']))
         return cur.fetchall()
@@ -1418,6 +1473,8 @@ def get_my_matches(request: Request):
 @api.get("/auth/me/quests")
 def get_my_quests(request: Request):
     user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
     with DB() as cur:
         cur.execute("SELECT * FROM user_quests WHERE user_id=%s AND created_at >= NOW() - INTERVAL '1 day'", (user['id'],))
         quests = cur.fetchall()
@@ -1448,6 +1505,8 @@ def get_my_quests(request: Request):
 @api.get("/auth/me/friends")
 def get_friends(request: Request):
     user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
     with DB() as cur:
         cur.execute('''
             SELECT f.id, f.status, u.nickname, u.avatar, u.mmr,
@@ -1467,6 +1526,8 @@ class FriendReq(BaseModel):
 @api.post("/auth/me/friends/request")
 def request_friend(req: FriendReq, request: Request):
     user = get_user_from_request(request)
+    if not user:
+        raise HTTPException(401, "Not logged in")
     if user['nickname'].lower() == req.nickname.lower():
         raise HTTPException(400, "Cannot add yourself.")
     with DB() as cur:
@@ -2306,9 +2367,14 @@ def list_my_decks(request: Request):
             return []
         deck_ids = tuple(d["id"] for d in decks)
         cur.execute(
-            "SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url, c.id as card_id "
-            "FROM deck_cards dc LEFT JOIN cards c ON dc.card_name = c.name "
-            "WHERE dc.deck_id IN %s",
+            """SELECT dc.deck_id, dc.card_name, dc.count, c.faction, c.image_url, c.id as card_id
+               FROM deck_cards dc
+               LEFT JOIN (
+                   SELECT id, name, faction, image_url FROM cards
+                   UNION ALL
+                   SELECT id, name, faction, image_url FROM cards2
+               ) c ON dc.card_name = c.name
+               WHERE dc.deck_id IN %s""",
             (deck_ids,),
         )
         cards = [dict(r) for r in cur.fetchall()]
@@ -2806,6 +2872,14 @@ def vote_upcoming_card(card_id: str, req: dict, request: Request):
         """, (card_id, user["email"], vote_val))
     return {"status": "success"}
 
+import play as _play
+PLAY.update({
+    "DB": DB, "DBTx": DBTx, "load_cards": load_cards, "redact_state": redact_state,
+    "get_rank_tier": get_rank_tier, "JWT_SECRET": JWT_SECRET,
+    "run_migrations": run_startup_migrations,
+})
+_play.register(api, app, PLAY)  # mutates PLAY with ident/commit_state/etc.
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -2818,5 +2892,6 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 def _shutdown():
-    DB_POOL.closeall()
+    if DB_POOL:
+        DB_POOL.closeall()
 
