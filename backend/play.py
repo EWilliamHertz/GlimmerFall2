@@ -95,6 +95,7 @@ class Hub:
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.subs: dict[str, set[asyncio.Event]] = {}
         self.lock = threading.Lock()
+        self.remote_notify_fn = None
 
     def subscribe(self, topic: str) -> asyncio.Event:
         ev = asyncio.Event()
@@ -110,7 +111,12 @@ class Hub:
                 if not s:
                     self.subs.pop(topic, None)
 
-    def notify(self, topic: str):
+    def notify(self, topic: str, local_only: bool = False):
+        if not local_only and self.remote_notify_fn:
+            try:
+                self.remote_notify_fn(topic)
+            except Exception:
+                pass
         loop = self.loop
         if not loop or loop.is_closed():
             return
@@ -1064,6 +1070,40 @@ def register(api, app, deps):
                 cur.execute("UPDATE users SET tutorial_done=TRUE WHERE nickname=%s", (who.name,))
         return {"ok": True}
 
+    # ---------------- cross-edge relay wakeup (Vercel -> Oracle WS) ----------------
+    import hashlib
+    import hmac
+    import os as _os
+    import urllib.request as _urlreq
+
+    class _InternalNotifyReq(BaseModel):
+        topic: str
+
+    @api.post("/internal/notify")
+    def internal_notify(req: _InternalNotifyReq, request: Request):
+        sig = request.headers.get("X-GF-Sig") or ""
+        expected = hmac.new(SECRET.encode(), req.topic.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected):
+            raise HTTPException(403, "Forbidden")
+        hub.notify(req.topic, local_only=True)
+        return {"ok": True}
+
+    if _os.environ.get("VERCEL"):
+        _relay_target = (_os.environ.get("REALTIME_ORIGIN") or "https://play-api.glimmerfall.online").rstrip("/")
+
+        def _forward_to_oracle(topic: str):
+            body = json.dumps({"topic": topic}).encode()
+            sig = hmac.new(SECRET.encode(), topic.encode(), hashlib.sha256).hexdigest()
+            r = _urlreq.Request(
+                f"{_relay_target}/api/internal/notify",
+                data=body,
+                headers={"Content-Type": "application/json", "X-GF-Sig": sig},
+                method="POST",
+            )
+            _urlreq.urlopen(r, timeout=0.8).read()
+
+        hub.remote_notify_fn = _forward_to_oracle
+
     # ---------------- websockets ----------------
     @app.websocket("/api/ws/match/{match_id}")
     async def ws_match(ws: WebSocket, match_id: int, token: Optional[str] = None, spectate: bool = False):
@@ -1083,7 +1123,7 @@ def register(api, app, deps):
                     await ws.send_json({"type": "ping", "serverTime": data["serverTime"]})
                 if data["status"] == "ENDED" and data.get("rematchMatchId"):
                     break
-                await hub.wait_event(ev, 4.0)
+                await hub.wait_event(ev, 1.8)
         except WebSocketDisconnect:
             pass
         except HTTPException as e:
@@ -1148,7 +1188,7 @@ def register(api, app, deps):
                 if blob != last:
                     last = blob
                     await ws.send_json({"type": "lobby", "lobby": data})
-                await hub.wait_event(ev, 6.0)
+                await hub.wait_event(ev, 2.0)
         except WebSocketDisconnect:
             pass
         except HTTPException as e:

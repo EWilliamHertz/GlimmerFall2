@@ -1,13 +1,72 @@
 import axios from "axios";
 
-// Same-origin by default (works on Vercel where the API is served under /api on
-// the same domain). In production with the Oracle realtime backend or local dev,
-// REACT_APP_BACKEND_URL points at https://play-api.glimmerfall.online or http://localhost:8000.
+// Direct realtime backend URL (e.g. https://play-api.glimmerfall.online in prod).
+// If the player's ISP blocks or blackholes the Oracle IP, `api` automatically and
+// transparently fails over to same-origin `/api` on Vercel Edge (`www.glimmerfalltcg.com/api`),
+// which shares the exact same NeonDB & JWT_SECRET and forwards realtime wakeups to Oracle!
 export const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "").trim().replace(/\/+$/, "");
 export const API = `${BACKEND_URL}/api`;
 
 export const GUEST_TOKEN_KEY = "glimmerfall_guest_token";
 export const GUEST_NAME_KEY = "glimmerfall_guest_name";
+export const EDGE_RELAY_KEY = "gf_edge_relay";
+
+export function canUseSameOriginRelay() {
+  if (typeof window === "undefined" || !BACKEND_URL) return false;
+  return window.location.origin !== BACKEND_URL;
+}
+
+export function isEdgeRelayActive() {
+  if (!canUseSameOriginRelay()) return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("relay") === "1") {
+      localStorage.setItem(EDGE_RELAY_KEY, "1");
+      return true;
+    }
+    if (params.get("relay") === "0") {
+      localStorage.removeItem(EDGE_RELAY_KEY);
+      return false;
+    }
+    return localStorage.getItem(EDGE_RELAY_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function enableEdgeRelay() {
+  if (!canUseSameOriginRelay()) return;
+  try {
+    localStorage.setItem(EDGE_RELAY_KEY, "1");
+    window.dispatchEvent(new CustomEvent("gf-edge-relay-enabled"));
+  } catch {}
+}
+
+// Non-blocking startup probe: detects ISP blocks on Oracle IP within 2.5s so the
+// player doesn't even wait on their first button click, while clearing relay mode
+// automatically if they switch to an unblocked network.
+if (typeof window !== "undefined" && process.env.NODE_ENV !== "test" && canUseSameOriginRelay()) {
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 2500) : null;
+  fetch(`${BACKEND_URL}/api/`, { method: "GET", mode: "cors", signal: ctrl?.signal })
+    .then((res) => {
+      if (timer) clearTimeout(timer);
+      if (res.ok) {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("relay") !== "1") {
+            localStorage.removeItem(EDGE_RELAY_KEY);
+          }
+        } catch {}
+      } else {
+        enableEdgeRelay();
+      }
+    })
+    .catch(() => {
+      if (timer) clearTimeout(timer);
+      enableEdgeRelay();
+    });
+}
 
 export function getActiveToken() {
   return localStorage.getItem("glimmerfall_token") || localStorage.getItem(GUEST_TOKEN_KEY) || null;
@@ -16,6 +75,18 @@ export function getActiveToken() {
 export const api = axios.create({ baseURL: API, timeout: 15000 });
 
 api.interceptors.request.use((config) => {
+  if (config._useEdgeRelay || isEdgeRelayActive()) {
+    config.baseURL = "/api";
+    config.timeout = 15000;
+  } else if (canUseSameOriginRelay()) {
+    config.baseURL = API;
+    // Fast 3.5s failover timeout on direct cross-origin requests so blackholed ISPs
+    // switch to Vercel Edge `/api` seamlessly without a long hang.
+    if (!config.timeout || config.timeout > 3500) {
+      config.timeout = 3500;
+    }
+  }
+
   const token = getActiveToken();
   if (token && config.headers) {
     if (typeof config.headers.set === "function") {
@@ -33,8 +104,17 @@ api.interceptors.response.use(
     const config = error?.config;
     if (!config) return Promise.reject(error);
 
-    // Retry once on transient network/transport error (e.g. HTTP/2 stream reset or cold wakeup)
-    if (!error.response && !config._netRetried) {
+    // Instant transparent failover to same-origin Vercel Edge `/api` when Oracle IP is blocked!
+    if (!error.response && canUseSameOriginRelay() && !config._useEdgeRelay && config.baseURL !== "/api") {
+      enableEdgeRelay();
+      config._useEdgeRelay = true;
+      config.baseURL = "/api";
+      config.timeout = 15000;
+      return api.request(config);
+    }
+
+    // Retry once on transient network/transport error (skipped in Jest unit tests)
+    if (!error.response && !config._netRetried && process.env.NODE_ENV !== "test") {
       config._netRetried = true;
       await new Promise((r) => setTimeout(r, 250));
       return api.request(config);

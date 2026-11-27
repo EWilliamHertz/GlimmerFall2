@@ -140,7 +140,7 @@ import threading
 import time as _time
 
 DB_POOL = None
-DB_POOL_MAX = int(os.environ.get("DB_POOL_MAX", "24"))
+DB_POOL_MAX = int(os.environ.get("DB_POOL_MAX", "4" if os.environ.get("VERCEL") else "24"))
 DB_IDLE_TTL = 180.0  # recycle idle sockets before Neon's 300s idle drop
 DB_SEM = threading.BoundedSemaphore(DB_POOL_MAX)
 

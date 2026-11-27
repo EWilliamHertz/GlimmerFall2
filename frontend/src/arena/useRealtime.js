@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, buildWsUrl } from "@/lib/api";
+import { api, buildWsUrl, isEdgeRelayActive } from "@/lib/api";
 
 /**
  * Realtime match stream: WebSocket primary (`/api/ws/match/{id}`) with automatic
@@ -79,8 +79,8 @@ export function useMatchStream(matchId, isSpectator = false, enabled = true) {
     };
 
     const connectWs = () => {
-      if (cancelled || typeof WebSocket === "undefined") {
-        startPolling(1500);
+      if (cancelled || typeof WebSocket === "undefined" || isEdgeRelayActive()) {
+        startPolling(1000);
         return;
       }
       try {
@@ -116,13 +116,16 @@ export function useMatchStream(matchId, isSpectator = false, enabled = true) {
           wsActiveRef.current = false;
           if (!cancelled) {
             stopPolling();
-            startPolling(1500);
-            reconnectTimer = setTimeout(connectWs, 4000);
+            const relay = isEdgeRelayActive();
+            startPolling(relay ? 1000 : 1200);
+            if (!relay) {
+              reconnectTimer = setTimeout(connectWs, 4000);
+            }
           }
         };
       } catch {
         wsActiveRef.current = false;
-        startPolling(1500);
+        startPolling(1000);
       }
     };
 
@@ -201,7 +204,7 @@ export function useQueueStream(searching, onMatched) {
       } catch {}
     };
 
-    if (typeof WebSocket !== "undefined") {
+    if (typeof WebSocket !== "undefined" && !isEdgeRelayActive()) {
       try {
         ws = new WebSocket(buildWsUrl("/api/ws/queue"));
         ws.onmessage = (ev) => {
@@ -214,7 +217,7 @@ export function useQueueStream(searching, onMatched) {
     }
 
     pollHeartbeat();
-    hbTimer = setInterval(pollHeartbeat, 2500);
+    hbTimer = setInterval(pollHeartbeat, isEdgeRelayActive() ? 1800 : 2500);
 
     return () => {
       cancelled = true;
@@ -261,9 +264,9 @@ export function useLobbyStream(lobbyCode, enabled = true) {
     let pollTimer = null;
 
     refreshLobby();
-    pollTimer = setInterval(refreshLobby, 3000);
+    pollTimer = setInterval(refreshLobby, isEdgeRelayActive() ? 1500 : 2500);
 
-    if (typeof WebSocket !== "undefined") {
+    if (typeof WebSocket !== "undefined" && !isEdgeRelayActive()) {
       try {
         ws = new WebSocket(buildWsUrl(`/api/ws/lobby/${lobbyCode}`));
         ws.onmessage = (ev) => {
