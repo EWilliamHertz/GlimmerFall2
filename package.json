@@ -6,7 +6,7 @@
     "postinstall": "cd frontend && npm install --legacy-peer-deps",
     "dev:frontend": "cd frontend && PORT=3000 BROWSER=none npm start",
     "dev:backend": "cd backend && (if [ -x .venv/bin/python ]; then .venv/bin/python -m uvicorn server:app --reload --port 8000; else python3 -m uvicorn server:app --reload --port 8000; fi)",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "bash -c \"trap 'kill 0' INT TERM EXIT; npm run dev:backend & npm run dev:frontend & wait\"",
     "install:all": "cd frontend && npm install --legacy-peer-deps && cd ../backend && (if [ -x .venv/bin/pip ]; then .venv/bin/pip install -r requirements.txt; else pip install -r requirements.txt; fi)"
   },
   "devDependencies": {
